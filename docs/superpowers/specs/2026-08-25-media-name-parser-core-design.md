@@ -62,12 +62,12 @@ recoverable from the code.
 | Caller's category beats parsed tokens | Tokens beat caller | `S02E04`-shaped markers occur in xxx releases and in litrpg book series. Trusting tokens over the caller would route those to the wrong provider entirely. |
 | Exact `(category, name)` cache row pointing at a shared normalized parse | Normalized key only; exact string only | Keeping the literal input preserves the answer to "what did I say for this exact string", which is the first thing wanted when a match looks wrong. Sharing the parse means a second spelling of a release costs a parse, not a provider call. |
 | Single best match plus confidence | Ranked candidate list; best match with no confidence | A candidate list pushes selection logic into every consumer and leaves the cache with no single answer to store. Dropping confidence makes a certain match indistinguishable from a guess, and makes a review UI impossible. |
-| Auth.js with the adapter tables in Neon | Clerk; Neon Auth | Keeps `api_keys.user_id` a real foreign key to a real row, joinable in SQL. For a service whose entire value is its own data, external identity would put the owner of every token outside the database. |
+| Better Auth with its tables in Neon | Clerk; Neon Auth; Auth.js/next-auth | Keeps `api_keys.user_id` a real foreign key to a real row, joinable in SQL. For a service whose entire value is its own data, external identity would put the owner of every token outside the database. Better Auth over Auth.js on two counts: Auth.js stewardship passed to the Better Auth project, and Vercel acquired Better Auth on 2026-07-07, so Auth.js is now the legacy path; and `better-auth@1.7.1` is stable where `next-auth@5` remains `5.0.0-beta.32`. |
 
 ## Architecture
 
 Next.js App Router on Vercel, Neon Postgres, Drizzle ORM over
-`@neondatabase/serverless`.
+`@neondatabase/serverless`, Better Auth for identity.
 
 ```
 app/
@@ -76,7 +76,7 @@ app/
   api/v1/media/[id]/route.ts      GET  — full record with parents and people
   api/v1/health/route.ts          GET
   api/cron/sweep/route.ts         GET  — Vercel Cron target
-  api/auth/[...nextauth]/route.ts      Auth.js
+  api/auth/[...all]/route.ts           Better Auth handler
   api/keys/route.ts                    token create/revoke (session auth)
   (app)/page.tsx                       lookup form
   (app)/corpus/page.tsx                corpus runner
@@ -160,16 +160,41 @@ ever contended past the deadline, the request takes the partial path.
 
 ### Identity and access
 
-Auth.js adapter tables `users`, `accounts`, `sessions`,
-`verification_tokens`, with `users.role` as `'user' | 'admin'`.
+Better Auth owns four core tables, named and shaped by the library rather than
+by us: `user`, `session`, `account`, `verification` — all singular, all with
+`text` primary keys, because Better Auth generates its own string ids. Two
+differences from the Auth.js shape they replace are worth naming, because both
+would otherwise be silent bugs: `user.emailVerified` is a **boolean**, not a
+nullable timestamp, and `session` carries its own `id` plus a unique `token`
+rather than using the token as its primary key.
+
+The `admin` plugin extends those tables with `user.role`, `user.banned`,
+`user.banReason`, `user.banExpires`, and `session.impersonatedBy`. `role` is a
+**text** column, not a Postgres enum, because the plugin treats it as a string
+and supports comma-separated multiple roles; constraining it in the database
+would fight the library for no gain. The plugin also supplies
+`createAccessControl` and `hasPermission`, which is what `requireAdmin()` is
+built from.
+
+Sign-in is the GitHub social provider plus the `magicLink` plugin.
+
+Because the library owns those four tables' shape, the schema is verified
+against `getAuthTables()` at test time rather than trusted — see Testing.
+
+Our own two tables, which Better Auth does not provide — 1.7.1 ships no
+API-key plugin, so this is not a case of ignoring one:
 
 ```
-api_keys              id, user_id FK users(id), label,
+api_keys              id, user_id FK user(id) [text], label,
                       token_hash (sha256, indexed), prefix (8 chars, display only),
                       rate_limit_per_min, last_used_at, revoked_at, created_at
 rate_limit_windows    api_key_id FK, window_start timestamptz, count int
                       PK (api_key_id, window_start)
 ```
+
+`user_id` is `text` rather than `uuid` to match Better Auth's id type. Nothing
+is gained by overriding its id generation, and a mismatched foreign-key type
+would be a real cost.
 
 Token format is `mnp_<prefix>_<secret>`. Only the hash is stored; the secret is
 shown once at creation and never again. Rate limiting is an upsert per request
@@ -594,6 +619,11 @@ answer is worse than one that errors.
   served by a `fetch` stub, so the suite is offline and deterministic.
 - **Unit, pure and table-driven.** `normalize`, `video`, `confidence`,
   `backoff`, and the `cache/lookup` freshness rules.
+- **Schema conformance.** A test compares the hand-written Drizzle definitions
+  for `user`, `session`, `account`, and `verification` against
+  `getAuthTables({ plugins: [admin()] })` from `better-auth/db`. Better Auth
+  owns that shape, so a version bump that adds or renames a field fails a test
+  rather than failing at runtime.
 - **Integration.** Route handlers against a Neon branch created at the start
   of a CI run and dropped at the end. The advisory lock and
   `FOR UPDATE SKIP LOCKED` are the code a fake database will not exercise,
@@ -611,8 +641,9 @@ build all pass.
 | `DATABASE_URL` | Neon connection string (pooled) |
 | `DATABASE_URL_UNPOOLED` | direct connection, for migrations |
 | `TMDB_API_KEY` | TMDB v3 key |
-| `AUTH_SECRET` | Auth.js signing secret |
-| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | GitHub OAuth |
+| `BETTER_AUTH_SECRET` | Better Auth signing secret |
+| `BETTER_AUTH_URL` | canonical app origin |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub social provider |
 | `CRON_SECRET` | shared secret for the sweep endpoint |
 | `LOOKUP_DEADLINE_MS` | inline resolution deadline, default 8000 |
 | `STALE_AFTER_HOURS` | re-lookup threshold, default 12 |

@@ -6,7 +6,7 @@
 
 **Architecture:** The parser is a pure pipeline of four independently testable modules — normalize, tokens, boundary, markers — assembled by `video.ts` into a discriminated union. Nothing in `lib/parse/` touches the database, the network, or the clock, so every test is a table of strings. The schema lands in this plan (not the next) so that Plan 2 has tables to write to on day one.
 
-**Tech Stack:** Node 26, Next.js 16.3.3 (App Router), TypeScript 7.0.2, Drizzle ORM 0.45.2 + drizzle-kit 0.31.10, `@neondatabase/serverless` 1.1.0, zod 4.4.3, oxlint 1.80.0, `node:test` via tsx.
+**Tech Stack:** Node 26, Next.js 16.3.3 (App Router), TypeScript 7.0.2, Drizzle ORM 0.45.2 + drizzle-kit 0.31.10, `@neondatabase/serverless` 1.1.0, Better Auth 1.7.1, zod 4.4.3, oxlint 1.80.0, `node:test` via tsx.
 
 **Spec:** `docs/superpowers/specs/2026-08-25-media-name-parser-core-design.md`
 
@@ -91,6 +91,7 @@ Deliberately **not** created here: anything under `app/api/`, `lib/providers/`, 
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
+    "better-auth": "^1.7.1",
     "drizzle-orm": "^0.45.2",
     "next": "^16.3.3",
     "react": "^19.2.0",
@@ -213,9 +214,10 @@ export default function Home() {
 DATABASE_URL=
 DATABASE_URL_UNPOOLED=
 TMDB_API_KEY=
-AUTH_SECRET=
-AUTH_GITHUB_ID=
-AUTH_GITHUB_SECRET=
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=http://localhost:3000
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
 CRON_SECRET=
 LOOKUP_DEADLINE_MS=8000
 STALE_AFTER_HOURS=12
@@ -292,8 +294,16 @@ git commit -m "Scaffold Next.js app with oxlint, tsc, and node:test"
 **Interfaces:**
 - Consumes: Task 1's toolchain.
 - Produces, all consumed by Plan 2:
-  - `lib/db/schema.ts` exports the tables `users`, `accounts`, `sessions`, `verificationTokens`, `apiKeys`, `rateLimitWindows`, `media`, `movieDetails`, `seriesDetails`, `seasonDetails`, `episodeDetails`, `bookDetails`, `sceneDetails`, `people`, `mediaPeople`, `parses`, `lookups`, `lookupJobs`, `providerCalls`, and the enums `categoryEnum`, `mediaKindEnum`, `providerEnum`, `personRoleEnum`, `lookupStateEnum`, `jobStateEnum`, `userRoleEnum`.
+  - `lib/db/schema.ts` exports the tables `user`, `session`, `account`, `verification`, `apiKeys`, `rateLimitWindows`, `media`, `movieDetails`, `seriesDetails`, `seasonDetails`, `episodeDetails`, `bookDetails`, `sceneDetails`, `people`, `mediaPeople`, `parses`, `lookups`, `lookupJobs`, `providerCalls`, and the enums `categoryEnum`, `mediaKindEnum`, `providerEnum`, `personRoleEnum`, `lookupStateEnum`, `jobStateEnum`.
+
   - `lib/db/client.ts` exports `db` (a `NeonHttpDatabase<typeof schema>`) and `type Db = typeof db`.
+
+**Why Better Auth's tables are hand-written here rather than CLI-generated.**
+`@better-auth/cli generate` needs a configured `auth.ts`, which is Plan 3's
+work. Writing the four tables by hand keeps the whole schema in one migration
+and lets `api_keys.user_id` be a real foreign key from day one, and the
+conformance test in Step 1 removes the risk that hand-writing them drifts from
+what the library expects.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -307,11 +317,13 @@ and by Plan 2's integration tests.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getTableConfig } from 'drizzle-orm/pg-core';
+import { getAuthTables } from 'better-auth/db';
+import { admin } from 'better-auth/plugins';
 import * as schema from '../../lib/db/schema';
 
 test('every table named in the spec exists', () => {
   const expected = [
-    'users', 'accounts', 'sessions', 'verificationTokens',
+    'user', 'session', 'account', 'verification',
     'apiKeys', 'rateLimitWindows',
     'media', 'movieDetails', 'seriesDetails', 'seasonDetails', 'episodeDetails',
     'bookDetails', 'sceneDetails',
@@ -336,6 +348,52 @@ test('lookups is unique on the literal input it was given', () => {
   const config = getTableConfig(schema.lookups);
   const unique = config.uniqueConstraints.map((c) => c.columns.map((col) => col.name).sort().join(','));
   assert.ok(unique.includes('category,name'), `found ${JSON.stringify(unique)}`);
+});
+
+test('the Better Auth tables match what the library expects', () => {
+  // Better Auth owns these four tables' shape. Hand-writing them is a
+  // deliberate trade (one migration, a real FK from api_keys), and this test
+  // is what pays for it: a version bump that adds or renames a field fails
+  // here rather than at runtime.
+  const expected = getAuthTables({ plugins: [admin()] });
+  // `unknown` here is the structural-comparison exception from Global
+  // Constraints: these values only ever reach getTableConfig.
+  const ours: Readonly<Record<string, unknown>> = {
+    user: schema.user,
+    session: schema.session,
+    account: schema.account,
+    verification: schema.verification,
+  };
+  const toSnake = (name: string): string => name.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+
+  for (const [key, definition] of Object.entries(expected)) {
+    const table = ours[key];
+    assert.notEqual(table, undefined, `Better Auth expects a '${key}' table the schema does not define`);
+    if (table === undefined) continue;
+    const config = getTableConfig(table as Parameters<typeof getTableConfig>[0]);
+    const columns = new Set(config.columns.map((c) => c.name));
+    assert.ok(columns.has('id'), `${key} has no id column`);
+    for (const [field, spec] of Object.entries(definition.fields)) {
+      const column = toSnake(field);
+      assert.ok(
+        columns.has(column),
+        `${key}.${field} (expected column '${column}', type ${String(spec.type)}) is missing`,
+      );
+    }
+  }
+});
+
+test('user.role is text, not an enum, so the admin plugin can use it', () => {
+  const config = getTableConfig(schema.user);
+  const role = config.columns.find((c) => c.name === 'role');
+  assert.notEqual(role, undefined, 'user has no role column');
+  assert.equal(role?.getSQLType(), 'text');
+});
+
+test('api_keys.user_id matches Better Auth\'s text id type', () => {
+  const config = getTableConfig(schema.apiKeys);
+  const userId = config.columns.find((c) => c.name === 'user_id');
+  assert.equal(userId?.getSQLType(), 'text');
 });
 
 test('parses is keyed on category and normalized_key together', () => {
@@ -373,49 +431,74 @@ export const personRoleEnum = pgEnum('person_role', [
 ]);
 export const lookupStateEnum = pgEnum('lookup_state', ['resolved', 'unresolved', 'pending']);
 export const jobStateEnum = pgEnum('job_state', ['pending', 'running', 'abandoned']);
-export const userRoleEnum = pgEnum('user_role', ['user', 'admin']);
 
-// --- identity (Auth.js adapter shape, extended with role) -------------------
+// --- identity (Better Auth core plus the admin plugin) ----------------------
+//
+// Shapes and names are dictated by Better Auth, not chosen: singular table
+// names, `text` primary keys because it generates its own string ids, a
+// BOOLEAN `emailVerified`, and a `session` with both an `id` and a unique
+// `token`. `role` is text rather than an enum because the admin plugin treats
+// it as a string and supports comma-separated multiple roles.
+// `test/db/schema.test.ts` checks all four against `getAuthTables()`.
 
-export const users = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name'),
+export const user = pgTable('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
   email: text('email').notNull().unique(),
-  emailVerified: timestamp('email_verified', { withTimezone: true }),
+  emailVerified: boolean('email_verified').notNull().default(false),
   image: text('image'),
-  role: userRoleEnum('role').notNull().default('user'),
+  role: text('role').notNull().default('user'),
+  banned: boolean('banned').notNull().default(false),
+  banReason: text('ban_reason'),
+  banExpires: timestamp('ban_expires', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const accounts = pgTable('accounts', {
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  type: text('type').notNull(),
-  provider: text('provider').notNull(),
-  providerAccountId: text('provider_account_id').notNull(),
-  refreshToken: text('refresh_token'),
-  accessToken: text('access_token'),
-  expiresAt: integer('expires_at'),
-  tokenType: text('token_type'),
-  scope: text('scope'),
-  idToken: text('id_token'),
-  sessionState: text('session_state'),
-}, (t) => [primaryKey({ columns: [t.provider, t.providerAccountId] })]);
-
-export const sessions = pgTable('sessions', {
-  sessionToken: text('session_token').primaryKey(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  expires: timestamp('expires', { withTimezone: true }).notNull(),
-});
-
-export const verificationTokens = pgTable('verification_tokens', {
-  identifier: text('identifier').notNull(),
+export const session = pgTable('session', {
+  id: text('id').primaryKey(),
   token: text('token').notNull(),
-  expires: timestamp('expires', { withTimezone: true }).notNull(),
-}, (t) => [primaryKey({ columns: [t.identifier, t.token] })]);
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  impersonatedBy: text('impersonated_by'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('session_token_idx').on(t.token),
+  index('session_user_idx').on(t.userId),
+]);
+
+export const account = pgTable('account', {
+  id: text('id').primaryKey(),
+  issuer: text('issuer').notNull(),
+  accountId: text('account_id').notNull(),
+  providerId: text('provider_id').notNull(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  idToken: text('id_token'),
+  accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+  scope: text('scope'),
+  password: text('password'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('account_user_idx').on(t.userId)]);
+
+export const verification = pgTable('verification', {
+  id: text('id').primaryKey(),
+  identifier: text('identifier').notNull(),
+  value: text('value').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('verification_identifier_idx').on(t.identifier)]);
 
 export const apiKeys = pgTable('api_keys', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   label: text('label').notNull(),
   tokenHash: text('token_hash').notNull(),
   prefix: text('prefix').notNull(),
@@ -671,7 +754,11 @@ git add lib/db drizzle drizzle.config.ts test/db package.json
 git commit -m "Add the full schema for all four categories
 
 Detail tables for books and scenes ship now though nothing populates
-them yet, so those slices add no migration to a shared table."
+them yet, so those slices add no migration to a shared table.
+
+The four Better Auth tables are hand-written rather than generated,
+because the CLI needs an auth.ts that does not exist until plan 3.
+A conformance test against getAuthTables() is what makes that safe."
 ```
 
 ---
