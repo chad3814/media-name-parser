@@ -1,0 +1,246 @@
+import { splitInput, SIDECAR_EXTENSIONS } from './normalize';
+import { tokenize, classifyToken, expandCompound } from './tokens';
+import { findMarker, type Marker } from './markers';
+import { findBoundary, findTitleRegion } from './boundary';
+import type { Category, ParseHints, ParseResult, Quality } from './types';
+
+const EMPTY_QUALITY: Quality = {
+  resolution: null, source: null, videoCodec: null, audioCodec: null,
+  hdr: [], threeD: [],
+};
+
+const SEASON_DIR = /^(?:season[._\s]*(\d{1,3})|s(\d{1,3}))$/i;
+const SPECIALS_DIR = /^specials?$/i;
+// Trailing separators are allowed because a library basename reads
+// `Ghosts (US) - S05E12 - ...`, so the head handed here ends `Ghosts (US) - `.
+const DISAMBIGUATOR = /\(([^)]+)\)[\s._\-–—]*$/;
+
+function extractQuality(tokens: readonly string[]): Quality {
+  let resolution: string | null = null;
+  let source: string | null = null;
+  let videoCodec: string | null = null;
+  let audioCodec: string | null = null;
+  const hdr: string[] = [];
+  const threeD: string[] = [];
+  // `Bluray-2160p` must contribute both halves, so compounds are expanded.
+  for (const token of tokens.flatMap((t) => [...expandCompound(t)])) {
+    switch (classifyToken(token)) {
+      case 'resolution': resolution ??= token; break;
+      // `UHD` classifies as a source; an explicit `1080p` elsewhere still wins
+      // because `resolution` is set only from the resolution class.
+      case 'source': source ??= token; break;
+      case 'videoCodec': videoCodec ??= token; break;
+      case 'audioCodec': audioCodec ??= token; break;
+      case 'hdr': hdr.push(token); break;
+      case 'threeD': threeD.push(token); break;
+      default: break;
+    }
+  }
+  return { resolution, source, videoCodec, audioCodec, hdr, threeD };
+}
+
+function collect(tokens: readonly string[], want: 'edition' | 'language'): readonly string[] {
+  return tokens
+    .flatMap((token) => [...expandCompound(token)])
+    .filter((token) => classifyToken(token) === want);
+}
+
+function titleFrom(tokens: readonly string[]): string {
+  return tokens.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+interface DirectoryHints {
+  readonly title: string | null;
+  readonly year: number | null;
+  readonly disambiguator: string | null;
+  readonly season: number | null;
+  readonly used: readonly string[];
+}
+
+function readDirectories(ancestors: readonly string[]): DirectoryHints {
+  let season: number | null = null;
+  const used: string[] = [];
+  for (const ancestor of ancestors) {
+    if (SPECIALS_DIR.test(ancestor)) {
+      season ??= 0;
+      used.push(ancestor);
+      continue;
+    }
+    const seasonMatch = SEASON_DIR.exec(ancestor);
+    if (seasonMatch !== null) {
+      const digits = seasonMatch[1] ?? seasonMatch[2];
+      if (digits !== undefined) season ??= Number.parseInt(digits, 10);
+      used.push(ancestor);
+      continue;
+    }
+    // The first ancestor that is neither a season nor a specials directory is
+    // the title-bearing one. Anything above it is a library root.
+    const disambiguatorMatch = DISAMBIGUATOR.exec(ancestor);
+    const disambiguator = disambiguatorMatch?.[1] ?? null;
+    const withoutParens = ancestor.replace(DISAMBIGUATOR, '').trim();
+    const boundary = findBoundary(tokenize(withoutParens));
+    const title = titleFrom(boundary.titleTokens);
+    const yearFromParens =
+      disambiguator !== null && /^\d{4}$/.test(disambiguator)
+        ? Number.parseInt(disambiguator, 10)
+        : null;
+    used.push(ancestor);
+    return {
+      title: title.length > 0 ? title : null,
+      year: boundary.year ?? yearFromParens,
+      disambiguator,
+      season,
+      used,
+    };
+  }
+  return { title: null, year: null, disambiguator: null, season, used };
+}
+
+function markerSuggestsSeries(marker: Marker | null): boolean {
+  return marker !== null && marker.kind !== 'absolute';
+}
+
+export function parseVideo(category: Category, input: string): ParseResult {
+  const split = splitInput(input);
+  if (!split.isMedia) {
+    const which = split.extension === null
+      ? 'no extension'
+      : SIDECAR_EXTENSIONS.has(split.extension)
+        ? `sidecar .${split.extension}`
+        : `unknown extension .${split.extension}`;
+    return { ok: false, refusal: `not a media file (${which})` };
+  }
+
+  const marker = findMarker(split.stem);
+  const head = marker === null ? split.stem : split.stem.slice(0, marker.start);
+  const tail = marker === null ? '' : split.stem.slice(marker.end);
+
+  const headDisambiguator = DISAMBIGUATOR.exec(head.trim())?.[1] ?? null;
+  const headClean = head.replace(DISAMBIGUATOR, ' ');
+  const headTokens = tokenize(headClean);
+
+  // With no marker, the whole stem is a release name and `findBoundary` is the
+  // right tool. With a marker, the head is title-only and the tail carries the
+  // junk run and the group, so each half gets the function that fits it.
+  const noMarker = marker === null;
+  const wholeName = noMarker ? findBoundary(headTokens) : null;
+  const headRegion = noMarker ? null : findTitleRegion(headTokens);
+  const tailTokens = noMarker ? [] : tokenize(tail);
+  const tailBoundary = findBoundary(tailTokens);
+
+  const headTitleTokens = wholeName?.titleTokens ?? headRegion?.titleTokens ?? [];
+  const headJunkTokens = wholeName?.junkTokens ?? headRegion?.junkTokens ?? [];
+  const headYear = wholeName?.year ?? headRegion?.year ?? null;
+
+  const dirs = readDirectories(split.ancestors);
+
+  // The basename's own title, or the directory's when the basename has none.
+  // A stem with no letters is not a title: `Movies/Interstellar (2014)/00136.m2ts`
+  // is a raw Blu-ray stream whose only identity lives in its parent directory.
+  const rawBasenameTitle = titleFrom(headTitleTokens);
+  const basenameTitle = /\p{L}/u.test(rawBasenameTitle) ? rawBasenameTitle : '';
+  const usedDirectories = basenameTitle.length > 0 ? [] : dirs.used;
+  const title = basenameTitle.length > 0 ? basenameTitle : dirs.title ?? '';
+  if (title.length === 0) {
+    return { ok: false, refusal: 'no title found in the filename or its directories' };
+  }
+
+  // Only genuine junk, and each token once. Including the whole tail would
+  // both double-count it and let an episode title called "The Special" register
+  // as an edition.
+  const junk = [...headJunkTokens, ...tailBoundary.junkTokens];
+  const quality = junk.length > 0 ? extractQuality(junk) : EMPTY_QUALITY;
+  const group = tailBoundary.group ?? wholeName?.group ?? null;
+  const year = headYear ?? (basenameTitle.length > 0 ? null : dirs.year);
+
+  const hints: ParseHints = {
+    fromDirectories: usedDirectories,
+    disambiguator: headDisambiguator ?? dirs.disambiguator,
+    discNumber: marker !== null && marker.kind === 'disc' ? marker.disc : null,
+  };
+
+  const common = {
+    title,
+    year,
+    quality,
+    edition: collect(junk, 'edition'),
+    language: collect(junk, 'language'),
+    group,
+    hints,
+    categoryDisagreement:
+      category === 'movies'
+        ? markerSuggestsSeries(marker)
+        : category === 'tv' && marker === null && year !== null,
+  } as const;
+
+  // The declared category fixes the shape. A `movies` lookup is always a
+  // movie, even when the tokens look episodic, because the provider namespace
+  // is chosen by the caller (see the spec's Non-goals on cross-category
+  // fallback).
+  if (category === 'movies') {
+    return { ok: true, parsed: { ...common, kind: 'movie' } };
+  }
+
+  if (marker === null) {
+    return { ok: true, parsed: { ...common, kind: 'series' } };
+  }
+
+  const episodeTitle = titleFrom(tailBoundary.titleTokens);
+
+  switch (marker.kind) {
+    case 'episode':
+      return {
+        ok: true,
+        parsed: {
+          ...common, kind: 'episode',
+          seasonNumber: marker.season,
+          episodeNumbers: marker.episodes,
+          yearSeason: marker.yearSeason,
+          airDate: null,
+          episodeTitle: episodeTitle.length > 0 ? episodeTitle : null,
+        },
+      };
+    case 'date':
+      return {
+        ok: true,
+        parsed: {
+          ...common, kind: 'episode',
+          seasonNumber: dirs.season,
+          episodeNumbers: [],
+          yearSeason: false,
+          airDate: marker.date,
+          episodeTitle: episodeTitle.length > 0 ? episodeTitle : null,
+        },
+      };
+    case 'season':
+      return {
+        ok: true,
+        parsed: { ...common, kind: 'season', seasonNumber: marker.season, yearSeason: marker.yearSeason },
+      };
+    case 'disc':
+      // A disc is a slice of a season. No provider models discs, so resolving
+      // one to an episode would be a confident wrong answer.
+      return {
+        ok: true,
+        parsed: {
+          ...common, kind: 'season',
+          seasonNumber: marker.season ?? dirs.season ?? 1,
+          yearSeason: false,
+        },
+      };
+    case 'absolute':
+      return {
+        ok: true,
+        parsed: {
+          ...common, kind: 'episode',
+          seasonNumber: dirs.season,
+          episodeNumbers: [marker.episode],
+          yearSeason: false,
+          airDate: null,
+          episodeTitle: episodeTitle.length > 0 ? episodeTitle : null,
+        },
+      };
+    default:
+      return { ok: false, refusal: 'unrecognised marker' };
+  }
+}

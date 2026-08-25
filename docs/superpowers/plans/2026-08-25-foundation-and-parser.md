@@ -1322,7 +1322,9 @@ export function tokenize(text: string): readonly string[] {
   for (let i = 0; i < acronyms.length; i += 1) {
     const part = acronyms[i];
     const next = acronyms[i + 1];
-    if (part !== undefined && next !== undefined && isSingleLetter(part) && /^\d{3}$/.test(next)) {
+    // `/^\d{3}/` not `/^\d{3}$/`: the trailing part may carry a group suffix,
+    // as in `H` + `264-GLOTZE`, and leaving them split hides the group.
+    if (part !== undefined && next !== undefined && isSingleLetter(part) && /^\d{3}(?!\d)/.test(next)) {
       codecs.push(`${part}.${next}`);
       i += 1;
       continue;
@@ -1781,7 +1783,17 @@ S03, and S02E01-E02 as a range before the single form drops E02."
 - Consumes: `tokenize`, `isJunk`, `splitGroupSuffix` from `lib/parse/tokens`.
 - Produces:
   - `interface Boundary { readonly titleTokens: readonly string[]; readonly junkTokens: readonly string[]; readonly group: string | null; readonly year: number | null }`
-  - `findBoundary(tokens: readonly string[]): Boundary`
+  - `findBoundary(tokens: readonly string[]): Boundary` — for a **whole release name**
+  - `interface TitleRegion { readonly titleTokens: readonly string[]; readonly junkTokens: readonly string[]; readonly year: number | null }`
+  - `findTitleRegion(tokens: readonly string[]): TitleRegion` — for a region already known to be title-only
+
+**Two functions, not one.** `findBoundary` assumes it is looking at a whole
+release name, so it treats a bare trailing word as a possible release group.
+That is right for `...Atmos.7.1.English-DarQ.HONE` and wrong for `Moon Knight`,
+where it takes `Knight` as the group and leaves the title as `Moon`. A
+marker-stripped head is title-only, so it gets `findTitleRegion`, which only
+sheds a trailing year and trailing vocabulary (`...Boy.Genius.FULLSCREEN.`
+before `S03D03`) and does no group detection at all.
 
 **The rule, and why it is not "split on the last hyphen."** Walk backwards
 from the end while each token is junk, treating `A-B` as junk when `A` is
@@ -2017,8 +2029,17 @@ Parabellum has hyphens that belong to the title."
 - Test: `test/parse/video.test.ts`
 
 **Interfaces:**
-- Consumes: `splitInput` (Task 3), `tokenize`/`classifyToken` (Task 4),
-  `findMarker`/`PARSER_VERSION` (Task 5), `findBoundary` (Task 6).
+- Consumes: `splitInput` (Task 3), `tokenize`/`classifyToken`/`expandCompound`
+  (Task 4), `findMarker`/`PARSER_VERSION` (Task 5), `findBoundary` **and**
+  `findTitleRegion` (Task 6).
+
+**Which boundary function goes where.** With no marker the whole stem is a
+release name, so `findBoundary` handles it and supplies title, year, junk, and
+group. With a marker, the head is title-only and goes to `findTitleRegion`,
+while the tail — episode title, then the junk run, then the group — has exactly
+the shape `findBoundary` expects. Using `findBoundary` on the head instead is
+the specific mistake that turns `Moon Knight` into title `Moon` with group
+`Knight`, and it does so silently.
 - Produces, all consumed by Plan 2:
   - `type Category = 'tv' | 'movies' | 'books' | 'xxx'`
   - `interface Quality`, `interface ParseHints`, `type ParsedVideo`, `type ParseResult`
@@ -2527,6 +2548,9 @@ sensitivities:
 - If `Interstellar` comes back with `fromDirectories: []`, the guard is keying
   off the wrong emptiness check — directories are recorded only when the
   basename contributed no title.
+- If a title loses its last word and the group gains it (`Moon` / `Knight`,
+  `Star Trek` / `Prodigy`, `Wheel of` / `Fortune`), `findBoundary` is being
+  applied to the head. Use `findTitleRegion` there.
 
 - [ ] **Step 8: Verify and commit**
 

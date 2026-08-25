@@ -394,8 +394,13 @@ type ParsedVideo =
                        episodeTitle: string | null; … }
 ```
 
-each carrying `quality`, `edition[]`, `group`, `hints.fromDirectories[]`,
-`categoryDisagreement: boolean`, and `refusal: string | null`.
+each carrying `quality`, `edition[]`, `language[]`, `group`,
+`hints.fromDirectories[]`, `hints.disambiguator`, `hints.discNumber`, and
+`categoryDisagreement: boolean`.
+
+Refusal lives on the **result wrapper**, not on the parsed value: `parseVideo`
+returns `{ ok: true, parsed }` or `{ ok: false, refusal }`. A parsed value that
+also carried a refusal string would be self-contradictory.
 
 ### Cases the corpus forced
 

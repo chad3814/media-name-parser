@@ -184,7 +184,9 @@ export function tokenize(text: string): readonly string[] {
   for (let i = 0; i < acronyms.length; i += 1) {
     const part = acronyms[i];
     const next = acronyms[i + 1];
-    if (part !== undefined && next !== undefined && isSingleLetter(part) && /^\d{3}$/.test(next)) {
+    // `/^\d{3}/` not `/^\d{3}$/`: the trailing part may carry a group suffix,
+    // as in `H` + `264-GLOTZE`, and leaving them split hides the group.
+    if (part !== undefined && next !== undefined && isSingleLetter(part) && /^\d{3}(?!\d)/.test(next)) {
       codecs.push(`${part}.${next}`);
       i += 1;
       continue;

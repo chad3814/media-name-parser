@@ -21,6 +21,44 @@ interface Candidate {
   readonly group: string;
 }
 
+export interface TitleRegion {
+  readonly titleTokens: readonly string[];
+  readonly junkTokens: readonly string[];
+  readonly year: number | null;
+}
+
+/**
+ * The title out of a region that is *already known* to be title-only — the
+ * head of a name whose marker has been stripped.
+ *
+ * `findBoundary` must not be used here. It assumes it is looking at a whole
+ * release name and so treats a bare trailing word as a possible release
+ * group, which is correct for `...Atmos.7.1.English-DarQ.HONE` and badly
+ * wrong for `Moon Knight`, where it would take `Knight` as the group and
+ * leave the title as `Moon`. All this needs to do is shed a trailing year and
+ * any trailing vocabulary (`...Boy.Genius.FULLSCREEN.` before `S03D03`).
+ */
+export function findTitleRegion(tokens: readonly string[]): TitleRegion {
+  let end = tokens.length;
+  let year: number | null = null;
+  while (end > 0) {
+    const token = tokens[end - 1];
+    if (token === undefined) break;
+    const candidateYear = asYear(token);
+    if (candidateYear !== null) {
+      year = candidateYear;
+      end -= 1;
+      continue;
+    }
+    if (isJunk(token)) {
+      end -= 1;
+      continue;
+    }
+    break;
+  }
+  return { titleTokens: tokens.slice(0, end), junkTokens: tokens.slice(end), year };
+}
+
 export function findBoundary(tokens: readonly string[]): Boundary {
   const candidates: Candidate[] = [];
   let cut = tokens.length;
