@@ -141,3 +141,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Next.js
+.next/
+next-env.d.ts
+
+# Local env
+.env*.local

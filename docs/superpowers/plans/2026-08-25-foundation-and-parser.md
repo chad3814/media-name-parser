@@ -123,8 +123,11 @@ Do not silently downgrade a major version.
 ```
 
 `tsconfig.json` — note the differences from a Node-only config: `bundler`
-resolution and `jsx: preserve` are required by Next.js, and imports are
-therefore extensionless (no `allowImportingTsExtensions`).
+resolution is required by Next.js, and imports are therefore extensionless (no
+`allowImportingTsExtensions`). `jsx`, `esModuleInterop`, `allowJs`, and the
+`.next/dev/types` include entry are all values Next 16 rewrites on first build
+if they are absent or different, so they are set here to what it wants rather
+than left to be overwritten.
 
 ```json
 {
@@ -133,7 +136,7 @@ therefore extensionless (no `allowImportingTsExtensions`).
     "lib": ["es2023", "dom", "dom.iterable"],
     "module": "esnext",
     "moduleResolution": "bundler",
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "types": ["node", "react"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
@@ -145,10 +148,12 @@ therefore extensionless (no `allowImportingTsExtensions`).
     "noEmit": true,
     "incremental": true,
     "resolveJsonModule": true,
+    "allowJs": true,
+    "esModuleInterop": true,
     "plugins": [{ "name": "next" }],
     "paths": { "@/*": ["./*"] }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
   "exclude": ["node_modules"]
 }
 ```
@@ -273,7 +278,13 @@ npm run build
 
 Expected: `check` passes with 1 passing test; `build` completes and emits
 `.next/`. If `tsc` complains about `next-env.d.ts` missing, run `npm run build`
-once first — Next.js generates it.
+once first — Next.js generates it. `npm install` will warn that esbuild's
+postinstall script was not run; ignore it, because esbuild ships its binary as
+an optional platform package and `tsx` works regardless.
+
+Verified versions at time of writing: next 16.3.3, typescript 7.0.2, react
+19.2.8, drizzle-orm 0.45.2, drizzle-kit 0.31.10, better-auth 1.7.1, zod 4.4.3,
+oxlint 1.80.0, @neondatabase/serverless 1.1.0, tsx 4.23.12.
 
 - [ ] **Step 7: Commit**
 
