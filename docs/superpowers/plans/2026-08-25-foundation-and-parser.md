@@ -16,7 +16,8 @@
 
 - **Node >= 26.** `package.json` sets `"engines": { "node": ">=26" }` and `.nvmrc` contains `26`.
 - **ESM only.** `"type": "module"` in `package.json`. No `require`.
-- **No `any`, no `unknown`.** oxlint sets `typescript/no-explicit-any` to `error`. `unknown` is likewise forbidden by project policy: parse untrusted input with a zod schema and use the inferred type. The single permitted exception is the immediate argument of a zod `.parse()` call.
+- **No `any`.** oxlint sets `typescript/no-explicit-any` to `error`.
+- **`unknown` only at a deserialization boundary.** Project policy is to avoid it; parse untrusted input with a zod schema and use the inferred type. Two narrow exceptions are permitted, because forbidding them forces worse code: the immediate argument of a zod `.parse()` call, and a zod schema field whose value is compared structurally rather than read (`test/golden.test.ts` holds the only instance in this plan). Every use must carry a comment naming which exception it is.
 - **No TypeScript enums, namespaces, or parameter properties.** `erasableSyntaxOnly: true` forbids them. Use `const` objects plus union types, or Drizzle's `pgEnum` (a runtime value, which is fine).
 - **`exactOptionalPropertyTypes: true`.** Prefer `field: T | null` over `field?: T` throughout. Every interface in this plan uses explicit `| null`.
 - **`noUncheckedIndexedAccess: true`.** `array[i]` has type `T | undefined`. Every index access must be narrowed before use.
