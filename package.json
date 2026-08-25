@@ -2,7 +2,9 @@
   "name": "media-name-parser",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=26" },
+  "engines": {
+    "node": ">=26"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,8 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"test/**/*.test.ts\"",
     "check": "npm run lint && npm run typecheck && npm run test",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:generate": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs generate",
+    "db:migrate": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs migrate",
     "corpus": "node --import tsx scripts/corpus-report.ts"
   },
   "dependencies": {
