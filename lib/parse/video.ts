@@ -222,17 +222,20 @@ export function parseVideo(category: Category, input: string): ParseResult {
         ok: true,
         parsed: { ...common, kind: 'season', seasonNumber: marker.season, yearSeason: marker.yearSeason },
       };
-    case 'disc':
+    case 'disc': {
       // A disc is a slice of a season. No provider models discs, so resolving
       // one to an episode would be a confident wrong answer.
+      const discSeason = marker.season ?? dirs.season;
+      if (discSeason === null) {
+        // `...Super.Mario.Bros.3.FULLSCREEN.DISC3` names a disc but no season.
+        // Defaulting to season 1 would invent a fact; the show is all we know.
+        return { ok: true, parsed: { ...common, kind: 'series' } };
+      }
       return {
         ok: true,
-        parsed: {
-          ...common, kind: 'season',
-          seasonNumber: marker.season ?? dirs.season ?? 1,
-          yearSeason: false,
-        },
+        parsed: { ...common, kind: 'season', seasonNumber: discSeason, yearSeason: false },
       };
+    }
     case 'absolute':
       return {
         ok: true,

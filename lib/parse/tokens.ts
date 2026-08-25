@@ -14,7 +14,7 @@ const SOURCE = new Set([
   'WEB-DL', 'WEBDL', 'WEB', 'WEBRIP', 'WEB-RIP', 'SITERIP', 'BLURAY', 'BLU-RAY',
   'BDRIP', 'BRRIP', 'DVDRIP', 'HDTV', 'AHDTV', 'SDTV', 'PDTV', 'DVD', 'DVD5',
   'DVD9', 'DVDR', 'REMUX', 'SATFEED', 'LIVESTREAM', 'UHD', 'HDDVD', 'VHS',
-  'SCREENER', 'CAM', 'TS', 'COMPLETE',
+  'SCREENER', 'CAM', 'TS',
   // From the corpus blocking-token census.
   'BLURAYRIP', 'BR', 'ULTRAHD', '4K', '8K', 'HDLIGHT', 'WEBDLRIP', 'BDMV',
 ]);
@@ -27,7 +27,7 @@ const VIDEO_CODEC = new Set([
 const AUDIO_CODEC = new Set([
   'AAC', 'AC3', 'EAC3', 'DD', 'DDP', 'DD+', 'DTS', 'DTS-HD', 'DTS-HD-MA',
   'DTSHD', 'DTS-X', 'DTSX', 'TRUEHD', 'ATMOS', 'FLAC', 'OPUS', 'MP3', 'LPCM',
-  'PCM', 'MA', 'AAC2', 'DDP2',
+  'PCM', 'MA', 'AAC2', 'DDP2', 'DOLBYD', 'DD5', 'DTSHDMA', 'DTS-HD.MA',
 ]);
 
 const HDR = new Set([
@@ -41,7 +41,11 @@ const LANGUAGE = new Set([
   'SPANISH', 'ITALIAN', 'RUSSIAN', 'DUTCH', 'JAPANESE', 'POLISH', 'CZECH',
   'ARABIC', 'PT-BR', 'ENG', 'FRA', 'GER', 'ESP', 'ITA', 'RUS', 'JPN',
   // Deliberately absent: 'IT'. It is the title of a film.
-  'VFQ', 'VOF', 'VOSTA', 'TRUEFRENCH',
+  'VFQ', 'VOF', 'VOSTA', 'TRUEFRENCH', 'VF', 'VF1', 'VF2',
+  // Deliberately absent: the two-letter codes EN, DE, NL, SE, NO, DK, FI.
+  // They are ordinary title words -- No Time to Die, Spider-Man: No Way Home,
+  // Hauru no ugoku shiro -- and a handful of `MULTi.En.De` releases is not
+  // worth losing them.
 ]);
 
 const EDITION = new Set([
@@ -66,7 +70,7 @@ const THREE_D = new Set([
   '3D', 'SBS', 'HALF-SBS', 'HALF-OU', 'OU', 'RBG', 'MVC', 'ANAGLYPH',
   // `Half.SBS` splits to a bare `Half`, and the scene also writes `H-SBS`,
   // `F-SBS`, `H-OU`, `F-OU`.
-  'HALF', 'FULL-SBS', 'H-SBS', 'F-SBS', 'H-OU', 'F-OU',
+  'HALF', 'FULL-SBS', 'H-SBS', 'F-SBS', 'H-OU', 'F-OU', 'HSBS', 'FSBS', 'HOU',
 ]);
 
 const ANCILLARY = new Set([
@@ -75,10 +79,15 @@ const ANCILLARY = new Set([
   // Site and uploader tags. Dot-splitting destroys the domain shape of
   // `yts.gg-yts.bz`, so the fragments are listed individually.
   'YTS', 'GG', 'BZ', 'MX', 'RARBG', 'TGX', 'GALAXYRG', '1337X',
+  // Describes a whole-disc dump, not a source; as a source it would outrank
+  // the BLURAY that follows it.
+  'COMPLETE',
 ]);
 
 const RESOLUTION = /^\d{3,4}[pi]$/i;
 const FRAMERATE = /^\d{2,3}fps$/i;
+/** `12PM`, `1AM` — the broadcast slot of a daily show. */
+const CLOCK_SLOT = /^\d{1,2}(?:AM|PM)$/i;
 // Must require the dot: a lone digit is never vocabulary, or the `3` in
 // `Super.Mario.Bros.3` would be eaten as a channel count.
 const CHANNELS = /^[1-9]\.[0-9]$/;
@@ -106,6 +115,7 @@ export function classifyToken(token: string): TokenClass | null {
     }
   }
   if (FRAMERATE.test(token)) return 'ancillary';
+  if (CLOCK_SLOT.test(token)) return 'ancillary';
   if (SOURCE.has(upper)) return 'source';
   if (VIDEO_CODEC.has(upper)) return 'videoCodec';
   if (AUDIO_CODEC.has(upper)) return 'audioCodec';
@@ -163,7 +173,11 @@ export function splitGroupSuffix(token: string): { readonly head: string; readon
   return { head, group };
 }
 
-const SEPARATOR = /[._\s]+/;
+// Brackets are separators, never part of a token. The bracketed grammar --
+// `John.Wick-Chapter.3-Parabellum.[2019].[1080p...English-DarQ.HONE]` -- is
+// otherwise unparseable: the year stays glued inside `[2019]` and the closing
+// bracket rides along on the group name.
+const SEPARATOR = /[._\s[\](){}]+/;
 
 function isSingleLetter(part: string): boolean {
   return part.length === 1 && /\p{L}/u.test(part);
@@ -184,7 +198,13 @@ function beginsWithLoneDigit(part: string): boolean {
 }
 
 export function tokenize(text: string): readonly string[] {
-  const raw = text.split(SEPARATOR).filter((part) => /[\p{L}\p{N}]/u.test(part));
+  const raw = text
+    .split(SEPARATOR)
+    // A hyphen adjacent to a separator is punctuation, not structure:
+    // `...AC3.5.1-.JFC` would otherwise yield the token `5.1-`, which matches
+    // no vocabulary and stops the boundary walk dead.
+    .map((part) => part.replace(/^-+/, '').replace(/-+$/, ''))
+    .filter((part) => /[\p{L}\p{N}]/u.test(part));
 
   // Pass 1: rejoin runs of three or more single letters into one acronym.
   const acronyms: string[] = [];
