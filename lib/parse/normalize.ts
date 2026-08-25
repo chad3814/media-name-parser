@@ -1,0 +1,86 @@
+export const MEDIA_EXTENSIONS: ReadonlySet<string> = new Set([
+  'mkv', 'mp4', 'avi', 'wmv', 'mov', 'm4v', 'mpg', 'mpeg', 'flv', 'ts',
+  'webm', 'iso', 'm2ts', 'nzb',
+]);
+
+/**
+ * Recognised in order to refuse. A subtitle or a Plex sidecar is not a
+ * lookup failure — refusing it is the correct answer — so these are named
+ * rather than left to fall through as unknown.
+ */
+export const SIDECAR_EXTENSIONS: ReadonlySet<string> = new Set([
+  'nfo', 'srt', 'sub', 'idx', 'ass', 'ssa', 'vtt', 'txt', 'jpg', 'jpeg',
+  'png', 'webp', 'plexmatch', 'md5', 'sfv', 'par2',
+]);
+
+export interface SplitInput {
+  readonly stem: string;
+  readonly extension: string | null;
+  /** Nearest directory first, so `ancestors[0]` is the containing folder. */
+  readonly ancestors: readonly string[];
+  readonly isMedia: boolean;
+}
+
+export function splitInput(input: string): SplitInput {
+  const segments = input.split('/').filter((segment) => segment.length > 0);
+  const basename = segments.at(-1) ?? '';
+  const ancestors = segments.slice(0, -1).reverse();
+  const dot = basename.lastIndexOf('.');
+  // A dot at index 0 is a dotfile, not an extension.
+  if (dot <= 0) {
+    return { stem: basename, extension: null, ancestors, isMedia: false };
+  }
+  const extension = basename.slice(dot + 1).toLowerCase();
+  return {
+    stem: basename.slice(0, dot),
+    extension,
+    ancestors,
+    isMedia: MEDIA_EXTENSIONS.has(extension),
+  };
+}
+
+const BRACKETS = /[[\](){}]/g;
+const SEPARATORS = /[._\s-]+/g;
+
+function normalizeSegment(segment: string): string {
+  return segment
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(BRACKETS, ' ')
+    .replace(SEPARATORS, ' ')
+    .trim();
+}
+
+/**
+ * The cache key. Directory structure is preserved (normalized per segment,
+ * rejoined with `/`) because two different shows can own the same basename;
+ * within a segment, separators and bracketing are flattened so that a dotted
+ * and a space-separated spelling of one release collapse to the same key.
+ */
+export function normalizeKey(input: string): string {
+  const split = splitInput(input);
+  const ordered = [...split.ancestors].reverse();
+  return [...ordered, split.stem]
+    .map(normalizeSegment)
+    .filter((part) => part.length > 0)
+    .join('/');
+}
+
+const DIACRITICS = /\p{Diacritic}/gu;
+const APOSTROPHES = /['‘’`]/g;
+const NON_ALNUM = /[^\p{L}\p{N}]+/gu;
+
+/**
+ * For comparing a parsed title against a provider's. Diacritics are folded
+ * and apostrophes dropped so that `90 Day Fiance` matches `90 Day Fiancé`.
+ * Never use this for a stored title — it is lossy on purpose.
+ */
+export function foldForMatch(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(DIACRITICS, '')
+    .replace(APOSTROPHES, '')
+    .toLowerCase()
+    .replace(NON_ALNUM, ' ')
+    .trim();
+}
