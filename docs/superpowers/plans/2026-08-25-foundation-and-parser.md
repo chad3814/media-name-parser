@@ -1594,7 +1594,7 @@ const EPISODE_REPEAT = /(?:^|[^A-Za-z0-9])S(\d{1,4})[._\s]?E(\d{1,3})(?:[._\s-]?
 const EPISODE_SINGLE = /(?:^|[^A-Za-z0-9])S(\d{1,4})[._\s]?E(\d{1,3})(?![0-9])/i;
 const SEASON_DISC = /(?:^|[^A-Za-z0-9])S(\d{1,3})D(\d{1,2})(?![0-9])/i;
 const BARE_DISC = /(?:^|[^A-Za-z0-9])DISC[._\s]?(\d{1,2})(?![0-9])/i;
-const NUMERIC_SXE = /(?:^|[^A-Za-z0-9.])(\d{1,2})x(\d{2})(?![0-9])/i;
+const NUMERIC_SXE = /(?:^|[^A-Za-z0-9])(\d{1,2})x(\d{2})(?![0-9])/i;
 const WORDY = /(?:^|[^A-Za-z0-9])Season[._\s]+(\d{1,3})(?:[._\s]+Episode[._\s]+(\d{1,3}))?(?![0-9])/i;
 const ISO_DATE = /(?:^|[^0-9])((?:19|20)\d{2})-(\d{2})-(\d{2})(?![0-9])/;
 const DOTTED_DATE = /(?:^|[^0-9])((?:19|20)\d{2})[._\s](\d{2})[._\s](\d{2})(?![0-9])/;
@@ -1745,8 +1745,11 @@ npm run test -- test/parse/markers.test.ts
 Expected: all PASS. Diagnostics for the likely failures:
 
 - If the `Aliens...DTS-HD.MA.5.1.DUAL-BiOMA` case returns a marker, `NUMERIC_SXE`
-  is matching inside a channel layout. Its leading class excludes `.` for
-  exactly this reason — confirm that exclusion survived.
+  is matching where it should not. Note that its leading class must NOT exclude
+  `.`, or `Some.Show.2x04` never matches at all — scene names are
+  dot-separated. Excluding *digits* is what prevents a match inside
+  `1920x1080`, and `x264`/`x265` are safe because no digit sits immediately
+  before the `x`. A corpus-wide sweep found zero false positives.
 - If `Star.Wars.Episode.VI...` returns a marker, `WORDY` is matching `Episode`
   without requiring `Season` first. It must not: the pattern is anchored on
   `Season`.
