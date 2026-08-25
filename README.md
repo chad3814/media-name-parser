@@ -1,2 +1,2 @@
 # media-name-parser
-A library to parse filenames to pinpoint media content.
+A service to parse filenames to pinpoint media content.
