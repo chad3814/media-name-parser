@@ -15,11 +15,13 @@ const SOURCE = new Set([
   'BDRIP', 'BRRIP', 'DVDRIP', 'HDTV', 'AHDTV', 'SDTV', 'PDTV', 'DVD', 'DVD5',
   'DVD9', 'DVDR', 'REMUX', 'SATFEED', 'LIVESTREAM', 'UHD', 'HDDVD', 'VHS',
   'SCREENER', 'CAM', 'TS', 'COMPLETE',
+  // From the corpus blocking-token census.
+  'BLURAYRIP', 'BR', 'ULTRAHD', '4K', '8K', 'HDLIGHT', 'WEBDLRIP', 'BDMV',
 ]);
 
 const VIDEO_CODEC = new Set([
   'X264', 'X265', 'H264', 'H265', 'H.264', 'H.265', 'HEVC', 'AVC', 'AV1',
-  'XVID', 'DIVX', 'VP9', 'MPEG2',
+  'XVID', 'DIVX', 'VP9', 'MPEG2', 'VC-1', 'VC1', 'MPEG4',
 ]);
 
 const AUDIO_CODEC = new Set([
@@ -29,7 +31,8 @@ const AUDIO_CODEC = new Set([
 ]);
 
 const HDR = new Set([
-  'HDR', 'HDR10', 'HDR10+', 'DV', 'DOVI', 'SDR', '10BIT', '8BIT', '10BITS', 'HLG',
+  'HDR', 'HDR10', 'HDR10+', 'HDR10P', 'DV', 'DOVI', 'SDR', '10BIT', '8BIT',
+  '10BITS', 'HLG',
 ]);
 
 const LANGUAGE = new Set([
@@ -37,27 +40,41 @@ const LANGUAGE = new Set([
   'MULTIAUDIOS', 'SUBBED', 'DUBBED', 'DUB', 'ENGLISH', 'FRENCH', 'GERMAN',
   'SPANISH', 'ITALIAN', 'RUSSIAN', 'DUTCH', 'JAPANESE', 'POLISH', 'CZECH',
   'ARABIC', 'PT-BR', 'ENG', 'FRA', 'GER', 'ESP', 'ITA', 'RUS', 'JPN',
+  // Deliberately absent: 'IT'. It is the title of a film.
+  'VFQ', 'VOF', 'VOSTA', 'TRUEFRENCH',
 ]);
 
 const EDITION = new Set([
   'REPACK', 'PROPER', 'INTERNAL', 'UNRATED', 'UNCUT', 'UNCENSORED', 'EXTENDED',
   'REMASTERED', 'REMASTER', 'DIRECTORS', 'DIRECTORSCUT', 'SPECIAL', 'EDITION',
   'EDITIONS', 'FULLSCREEN', 'WIDESCREEN', 'FORCED', 'LIMITED', 'THEATRICAL',
-  'SPEC', 'IMAX',
+  'SPEC', 'IMAX', 'BONUS',
+  // From the corpus blocking-token census. 'CUT' and 'AD' only ever apply
+  // inside a trailing junk run, so `Ad Astra` and a film called `Cut` are safe.
+  'CUT', 'HC', 'CONV', 'AD', 'RERIP',
 ]);
 
 const STREAMING = new Set([
   'NF', 'AMZN', 'MAX', 'HMAX', 'DSNP', 'OSN', 'PCOK', 'RTLP', 'TNAP', 'YT',
-  'ATVP', 'HULU', 'STAN', 'CRAV', 'IP', 'CR', 'RED', 'ROKU', 'PMTP', 'SHO',
+  'ATVP', 'HULU', 'STAN', 'CRAV', 'CR', 'ROKU', 'PMTP', 'SHO',
+  'SONYLIV', 'HBOMAX', 'MGMP', 'FLMC', 'CEE', 'ZEE5', 'JIO', 'SKST',
+  // Deliberately absent: 'IP' and 'RED'. Both are common title words -- IP Man,
+  // Red River, Red Dawn -- and a streaming-service tag is not worth losing them.
 ]);
 
 const THREE_D = new Set([
   '3D', 'SBS', 'HALF-SBS', 'HALF-OU', 'OU', 'RBG', 'MVC', 'ANAGLYPH',
+  // `Half.SBS` splits to a bare `Half`, and the scene also writes `H-SBS`,
+  // `F-SBS`, `H-OU`, `F-OU`.
+  'HALF', 'FULL-SBS', 'H-SBS', 'F-SBS', 'H-OU', 'F-OU',
 ]);
 
 const ANCILLARY = new Set([
   'NTSC', 'PAL', 'USA', 'HYBRID', 'DEF', 'HQ', 'LQ', 'SD', 'HD', 'FHD',
   'RERIP', 'READNFO', 'DL',
+  // Site and uploader tags. Dot-splitting destroys the domain shape of
+  // `yts.gg-yts.bz`, so the fragments are listed individually.
+  'YTS', 'GG', 'BZ', 'MX', 'RARBG', 'TGX', 'GALAXYRG', '1337X',
 ]);
 
 const RESOLUTION = /^\d{3,4}[pi]$/i;
@@ -156,9 +173,14 @@ function endsWithDigit(part: string): boolean {
   return /\d$/.test(part);
 }
 
-/** A part that begins with exactly one digit, e.g. `1`, `1-FraMeSToR`, `0`. */
+/**
+ * A part that is a channel count: one digit not followed by another digit or a
+ * letter. `1` and `1-FraMeSToR` qualify; `3D` and `4K` must not, or
+ * `Thor.2011.3D` fuses into `2011.3D`, destroying both the year and the 3D
+ * marker and taking the title boundary with them.
+ */
 function beginsWithLoneDigit(part: string): boolean {
-  return /^\d(?!\d)/.test(part);
+  return /^\d(?![\dA-Za-z])/.test(part);
 }
 
 export function tokenize(text: string): readonly string[] {
@@ -200,8 +222,18 @@ export function tokenize(text: string): readonly string[] {
   for (let i = 0; i < codecs.length; i += 1) {
     const part = codecs[i];
     const next = codecs[i + 1];
+    const after = codecs[i + 2];
+    const partIsYear = part !== undefined && /^(?:19|20)\d{2}$/.test(part);
+    // `AC3.5.1` arrives as ['AC3','5','1']. Merging left-to-right would pair
+    // AC3 with 5 and orphan the 1, so a codec only takes the digit when the
+    // digit after it is not itself a lone digit -- in which case those two are
+    // the channel pair and the codec keeps to itself.
+    const nextPairsRight = next !== undefined && after !== undefined
+      && /^\d$/.test(next) && /^\d(?![\dA-Za-z])/.test(after);
+    const partIsLoneDigit = part !== undefined && /^\d$/.test(part);
     if (
-      part !== undefined && next !== undefined &&
+      part !== undefined && next !== undefined && !partIsYear &&
+      (partIsLoneDigit || !nextPairsRight) &&
       endsWithDigit(part) && beginsWithLoneDigit(next) &&
       part.length <= 12
     ) {

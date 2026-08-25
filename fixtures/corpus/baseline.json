@@ -1,0 +1,24 @@
+{
+  "parseRate": {
+    "fixtures/corpus/movies.releases.raw.txt": 1,
+    "fixtures/corpus/movies.library.raw.txt": 1,
+    "fixtures/corpus/tv.releases.raw.txt": 1,
+    "fixtures/corpus/tv.library.raw.txt": 1,
+    "fixtures/corpus/tv.sport.raw.txt": 1
+  },
+  "titleLeaks": {
+    "fixtures/corpus/movies.releases.raw.txt": 102,
+    "fixtures/corpus/movies.library.raw.txt": 26,
+    "fixtures/corpus/tv.releases.raw.txt": 0,
+    "fixtures/corpus/tv.library.raw.txt": 0,
+    "fixtures/corpus/tv.sport.raw.txt": 41
+  },
+  "refused": {
+    "fixtures/corpus/movies.releases.raw.txt": 0,
+    "fixtures/corpus/movies.library.raw.txt": 0,
+    "fixtures/corpus/tv.releases.raw.txt": 0,
+    "fixtures/corpus/tv.library.raw.txt": 71,
+    "fixtures/corpus/tv.sport.raw.txt": 0
+  },
+  "resolveRate": null
+}

@@ -2588,6 +2588,21 @@ establishes the parse rate only and the baseline file carries a `resolveRate`
 key set to `null`. Plan 2 fills it in. This is called out here so the gap is
 visible rather than forgotten.
 
+**The parse rate alone is nearly tautological, so it is not the only gate.**
+`rate` counts a parse with a non-empty title *or* an intentional refusal as
+success, which means a parser returning the whole filename as the title would
+score 100%, and one refusing every line would score 100% too. Both were
+confirmed by sabotaging `parseVideo` and watching the gate wave it through.
+The baseline therefore records three numbers per file, two of them ceilings:
+
+- `parseRate` — a floor. May rise, must not fall.
+- `titleLeaks` — a **ceiling**: titles that still contain a vocabulary token,
+  i.e. junk that leaked past the boundary walk. This is the number that carries
+  real information, because a leak means the title is definitely wrong. It
+  over-counts slightly (a Grand Prix name legitimately contains `Dutch`, also a
+  language tag), so it is a ceiling to defend rather than a target to zero.
+- `refused` — a **ceiling**, and the only thing that catches refuse-all.
+
 - [ ] **Step 1: Write the harness**
 
 `scripts/corpus-report.ts`:

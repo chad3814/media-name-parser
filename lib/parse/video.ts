@@ -138,7 +138,12 @@ export function parseVideo(category: Category, input: string): ParseResult {
   // A stem with no letters is not a title: `Movies/Interstellar (2014)/00136.m2ts`
   // is a raw Blu-ray stream whose only identity lives in its parent directory.
   const rawBasenameTitle = titleFrom(headTitleTokens);
-  const basenameTitle = /\p{L}/u.test(rawBasenameTitle) ? rawBasenameTitle : '';
+  // A numeric title is legitimate -- `360.2012.1080p...` is the film 360 --
+  // so only a stem that is *entirely* digits counts as titleless. That is the
+  // `Movies/Interstellar (2014)/00136.m2ts` case, a raw Blu-ray stream whose
+  // only identity lives in its parent directory.
+  const stemIsAllDigits = /^\d+$/.test(split.stem);
+  const basenameTitle = stemIsAllDigits ? '' : rawBasenameTitle;
   const usedDirectories = basenameTitle.length > 0 ? [] : dirs.used;
   const title = basenameTitle.length > 0 ? basenameTitle : dirs.title ?? '';
   if (title.length === 0) {
