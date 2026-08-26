@@ -313,6 +313,14 @@ duplicate-provider-call optimisation rests on."
   - `interface Provider { readonly name: 'tmdb' | 'ibdb' | 'tpdb'; supports(category: Category): boolean; resolve(parsed: ParsedVideo, ctx: ResolveContext): Promise<ResolvedMedia | null> }`
   - `interface ResolveContext { readonly signal: AbortSignal; readonly lookupId: string | null }`
   - `createTmdbClient(options: TmdbOptions): TmdbClient` with `TmdbClient.get<T>(path: string, query: Record<string, string | number | undefined>, schema: ZodType<T>, ctx: ResolveContext): Promise<T | null>`
+  - `tmdbTokenFromEnv(): string` — reads `TMDB_READ_ACCESS_TOKEN`, falling back to `TMDB_API_KEY`
+
+**On that fallback.** The credential in use is a v4 Read Access Token (a
+244-character JWT) stored under the name `TMDB_API_KEY`. That name is
+misleading — this value belongs in an `Authorization: Bearer` header and will
+earn a `401` if anyone passes it as an `api_key` query parameter. Accepting
+both names avoids forcing a rename of an existing `.env.local`, and the
+function carries a comment saying why so the next reader does not "fix" it.
   - `class TmdbRateLimited extends Error` and `class TmdbAuthFailed extends Error` — the sweeper in Task 12 distinguishes these
 
 **Why the client takes a schema.** Every response is validated at the edge, so
