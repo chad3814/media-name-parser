@@ -1,0 +1,410 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "adult": false,
+      "backdrop_path": "/dLLNFo9wjOqCZn9i86mW2nRl4De.jpg",
+      "genre_ids": [
+        10751,
+        10764
+      ],
+      "id": 2778,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Wheel of Fortune",
+      "overview": "This game show sees contestants solve word puzzles, similar to those used in Hangman, to win cash and prizes determined by spinning a giant carnival wheel.",
+      "popularity": 30.1171,
+      "poster_path": "/4S36URhKU4sBL1gC2B5UxmTlZMl.jpg",
+      "first_air_date": "1983-09-19",
+      "softcore": false,
+      "name": "Wheel of Fortune",
+      "vote_average": 6.889,
+      "vote_count": 81
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/vKk3womxcGLqOZLiGZ2aXA2PtOV.jpg",
+      "genre_ids": [],
+      "id": 114656,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Celebrity Wheel of Fortune",
+      "overview": "Hosted by Pat Sajak and Vanna White, celebrity contestants spin the wheel and solve word puzzles for a chance to win up to one million dollars for charity.",
+      "popularity": 18.798,
+      "poster_path": "/pWKyup7doWk9AIeW6q9EXUmr61h.jpg",
+      "first_air_date": "2021-01-07",
+      "softcore": false,
+      "name": "Celebrity Wheel of Fortune",
+      "vote_average": 7.077,
+      "vote_count": 13
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/3KHsYztMdRu94K0PFeFpZHw5d2k.jpg",
+      "genre_ids": [
+        18,
+        10764,
+        35,
+        10751
+      ],
+      "id": 312551,
+      "origin_country": [
+        "IN"
+      ],
+      "original_language": "hi",
+      "original_name": "Wheel Of Fortune India",
+      "overview": "Recognised by Guinness World Records as the world's most popular TV game show, Wheel of Fortune arrives in India in spectacular fashion, hosted by Akshay Kumar- Contestants enter a thrilling word game, decoding phrases spanning Bollywood, pop culture and everyday life- Blending entertainment with edge-of- the-seat moments, every alphabet can change the game as players compete for paisa and prizes!",
+      "popularity": 4.6172,
+      "poster_path": "/rJEeYiafPQrtFI3d0bpUP7NOmCL.jpg",
+      "first_air_date": "2026-01-27",
+      "softcore": false,
+      "name": "Wheel Of Fortune India",
+      "vote_average": 8,
+      "vote_count": 2
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [],
+      "id": 4300,
+      "origin_country": [
+        "AU"
+      ],
+      "original_language": "en",
+      "original_name": "Wheel of Fortune",
+      "overview": "Wheel of Fortune is an Australian television game show produced by Grundy Television. The program aired on the Seven Network from 1981 to 2004 and November 2005 to July 2006 and is mostly based on the same general format as the original American version of the program. After Wheel of Fortune ended, the format was revived by the Nine Network in 2008 as Million Dollar Wheel of Fortune, until it was cancelled in June 2008 due to low ratings following arguments from long-time host John Burgess concerning why he did not like the show.\n\nAn earlier unrelated show also titled Wheel of Fortune had been broadcast on the Nine Network. That version had been developed by Reg Grundy as a radio game show before it transferred to television in 1959.",
+      "popularity": 12.6491,
+      "poster_path": null,
+      "first_air_date": "1981-07-21",
+      "softcore": false,
+      "name": "Wheel of Fortune",
+      "vote_average": 9,
+      "vote_count": 1
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [],
+      "id": 780,
+      "origin_country": [
+        "GB"
+      ],
+      "original_language": "en",
+      "original_name": "Wheel of Fortune",
+      "overview": "Wheel of Fortune is a British television game show created by Merv Griffin. Contestants compete to solve word puzzles, similar to those used in Hangman, to win cash and prizes. The title refers to the show's giant carnival wheel that contestants spin throughout the course of the game to determine their cash and/or prizes. The programme aired between 19 July 1988 and 21 December 2001 and was produced by Scottish Television for the ITV network and mostly follows the same general format from the original version of the programme from the United States.",
+      "popularity": 6.391,
+      "poster_path": null,
+      "first_air_date": "1988-07-19",
+      "softcore": false,
+      "name": "Wheel of Fortune",
+      "vote_average": 8,
+      "vote_count": 4
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/n8E3wJqIQBBhnUyHoWYFVp52eex.jpg",
+      "genre_ids": [],
+      "id": 243764,
+      "origin_country": [
+        "CN"
+      ],
+      "original_language": "zh",
+      "original_name": "财神有道",
+      "overview": "",
+      "popularity": 1.014,
+      "poster_path": "/kG9HvAgROMXsn7jHeU55HFZ4a23.jpg",
+      "first_air_date": "2013-01-21",
+      "softcore": false,
+      "name": "Wheel of Fortune",
+      "vote_average": 0,
+      "vote_count": 0
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/37p42RTuPg7IicoMvfS4CXBmtc8.jpg",
+      "genre_ids": [
+        18,
+        9648,
+        10765
+      ],
+      "id": 76417,
+      "origin_country": [
+        "JP"
+      ],
+      "original_language": "ja",
+      "original_name": "リピート ～運命を変える10か月～",
+      "overview": "Shinozaki Ayumi receives a strange call telling her that an earthquake will occur one hour from now. She hangs up the phone thinking it was just a prank call. But one hour later, she feels herself sway a little. When she turns on the television, she realizes that what the caller said about the time and the epicenter was on the mark. After that, she receives another phone call from the same caller who identifies himself as Kazama. He says that he knows what will happen in the future because he went back to a certain spot from the future and made a fresh start in life. Calling this time travel “Repeat”, he invites Ayumi to be his guest. Besides Ayumi, Mori Keisuke and Tendo Taro are among the eight people who have been invited by Kazama to participate in “Repeat”. These eight people who are making a repeat as a result of past regrets, are hit with a series of unanticipated events.",
+      "popularity": 1.9096,
+      "poster_path": "/zHD8kQK80laJnBIjIs3zyu0hSAP.jpg",
+      "first_air_date": "2018-01-11",
+      "softcore": false,
+      "name": "Wheel of Fortune",
+      "vote_average": 4,
+      "vote_count": 1
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/aZ6E7xbfxVoaUADhLdbZlZhuZWk.jpg",
+      "genre_ids": [
+        10751
+      ],
+      "id": 7219,
+      "origin_country": [
+        "DK"
+      ],
+      "original_language": "da",
+      "original_name": "Lykkehjulet (Classic)",
+      "overview": "Lykkehjulet is the Danish version of the Wheel of Fortune television game show. Airing in 1988, the show was the first big American game show to be imported to Denmark and it was one of the first successes for Danish broadcaster TV2 when it became Denmark's second TV channel in 1988.\n\nThe show originally used the \"shopping\" format of the American program in which winnings were used to buy studios prizes, such as furniture, appliances, and trips. In later years the format was changed to reflect the American version of all-cash winnings. The host during the first season was Michael Meyerheim with Pia Dresner as the letter-turning co-host. Thereafter, the show was hosted by Bengt Burg from 1989 to 2000, with a short stint by Keld Heick during the 1996-1997 season. The final season in 2001 season was hosted by Lars Herlow. The letter-turning co-hosts were Carina Jensen and Maria Hirse. The show's announcers during the run of the program were Ole Jacobsen, then Henrik Hannibal and later, Dennis Johannesson. The show ran for 3,599 episodes until it was cancelled in 2001 due to declining viewership and a failed attempt at modernizing the format in the final year.",
+      "popularity": 3.6638,
+      "poster_path": "/33vammCNflCP2NOFzyEVxvLifsZ.jpg",
+      "first_air_date": "1988-10-01",
+      "softcore": false,
+      "name": "Wheel of Fortune",
+      "vote_average": 0,
+      "vote_count": 0
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/zi56RHZMLiFmu1KdZVw3HVyZkf0.jpg",
+      "genre_ids": [
+        10764
+      ],
+      "id": 242267,
+      "origin_country": [
+        "GB"
+      ],
+      "original_language": "en",
+      "original_name": "Wheel of Fortune",
+      "overview": "In a thrilling game of skill and luck, contestants compete to solve word puzzles with a spin of the wheel to win cash and prizes. Everything is up for grabs, but only one lucky contestant will get the chance to take home money in their cash pot.",
+      "popularity": 1.8489,
+      "poster_path": "/8I7MYNTn1mG1L0gFWoV3dmH4c2u.jpg",
+      "first_air_date": "2024-01-06",
+      "softcore": false,
+      "name": "Wheel of Fortune",
+      "vote_average": 7,
+      "vote_count": 1
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [],
+      "id": 6954,
+      "origin_country": [
+        "PH"
+      ],
+      "original_language": "en",
+      "original_name": "Wheel of Fortune",
+      "overview": "There are two Philippine versions of Wheel of Fortune. The first was aired on ABC 5 aired from November 2001 to October 2002. It was hosted by Rustom Padilla and Victoria London. The second and more recent one was a program that aired on ABS-CBN, with Kris Aquino as main host, while Zara Aldana and Jasmine Fitzgerald alternated as puzzle assistants for each puzzle. Aquino's version started on January 14, 2008.\n\nAdvertisements for the ABS-CBN version started during that station's coverage of the Mayweather-Hatton fight on December 9, 2007. It involved a puzzle that would reveal the title of the show. Then advertisements urged viewers to join via text messaging.\n\nDespite Wheel of Fortune having two Philippine versions, the ABS-CBN version, as well as several of its advertisements and press releases, do not seem to recognize Rustom Padilla's version.\n\nThe ABS-CBN version ended its run on July 25, 2008. Unlike the ABC version, which ended unceremoniously, this one formally had its last episode, with games competed by teams each composed of a child and an adult, with Aquino even making her Deal or No Deal gestures at the end. Aquino also hosts the Philippine version of the said program.",
+      "popularity": 0.7743,
+      "poster_path": null,
+      "first_air_date": "",
+      "softcore": false,
+      "name": "Wheel of Fortune",
+      "vote_average": 0,
+      "vote_count": 0
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [],
+      "id": 17895,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Wheel of Fortune",
+      "overview": "Wheel of Fortune is an American game show hosted by Todd Russell which ran from 1952-1953 on CBS in both daytime and nighttime versions.",
+      "popularity": 0.7504,
+      "poster_path": null,
+      "first_air_date": "1952-10-03",
+      "softcore": false,
+      "name": "Wheel of Fortune",
+      "vote_average": 10,
+      "vote_count": 1
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        10764
+      ],
+      "id": 208038,
+      "origin_country": [
+        "IR",
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "wheel of fortune (IR) charkhe shans",
+      "overview": "Wheel of Fortune (IR)\n\nHosted by Arash Estilaf, this game show features 3 contestants who try to solve a puzzle by spinning the wheel and guessing letters in a word or phrase.\n\nAliases\n\n*  Charkh Shans Charkhe Shans Charkh-e Shans",
+      "popularity": 0.4971,
+      "poster_path": null,
+      "first_air_date": "2022-04-01",
+      "softcore": false,
+      "name": "wheel of fortune",
+      "vote_average": 10,
+      "vote_count": 1
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [],
+      "id": 19332,
+      "origin_country": [
+        "NZ"
+      ],
+      "original_language": "en",
+      "original_name": "Wheel of Fortune",
+      "overview": "Wheel of Fortune is a long-running New Zealand television game show that is hosted by television personality Jason Gunn and co-host Sonia Gray. It screens on TVNZ channel TV ONE.",
+      "popularity": 0.5829,
+      "poster_path": null,
+      "first_air_date": "",
+      "softcore": false,
+      "name": "Wheel of Fortune",
+      "vote_average": 10,
+      "vote_count": 1
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [],
+      "id": 235112,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Wheel of Fortune (Daytime)",
+      "overview": "The original version of Wheel was a network daytime series that ran on NBC from January 6, 1975, to June 30, 1989, and subsequently aired on CBS from July 17, 1989, to January 11, 1991; it returned to NBC on January 14, 1991, and was cancelled that year, ending on September 20, 1991.",
+      "popularity": 1.5833,
+      "poster_path": null,
+      "first_air_date": "1974-08-28",
+      "softcore": false,
+      "name": "Wheel of Fortune (Daytime)",
+      "vote_average": 4.3,
+      "vote_count": 3
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [],
+      "id": 53565,
+      "origin_country": [],
+      "original_language": "vi",
+      "original_name": "Chiec non ky dieu",
+      "overview": "",
+      "popularity": 1.2873,
+      "poster_path": null,
+      "first_air_date": "",
+      "softcore": false,
+      "name": "Wheel of Fortune",
+      "vote_average": 0,
+      "vote_count": 0
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [],
+      "id": 107361,
+      "origin_country": [],
+      "original_language": "he",
+      "original_name": "גלגל המזל",
+      "overview": "",
+      "popularity": 0.6845,
+      "poster_path": "/nKD79sUjTFgYrGnzFB52G9onnO4.jpg",
+      "first_air_date": "1994-01-01",
+      "softcore": false,
+      "name": "Wheel of Fortune",
+      "vote_average": 10,
+      "vote_count": 1
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [],
+      "id": 7275,
+      "origin_country": [
+        "AU"
+      ],
+      "original_language": "en",
+      "original_name": "Million Dollar Wheel of Fortune",
+      "overview": "Million Dollar Wheel of Fortune is a Nine Network revival of Wheel of Fortune hosted by Tim Campbell and Kelly Landry. The series premiered May 26, 2008 and was cancelled June 27, 2008 after only five weeks on air. ",
+      "popularity": 0.8311,
+      "poster_path": null,
+      "first_air_date": "2008-05-26",
+      "softcore": false,
+      "name": "Million Dollar Wheel of Fortune",
+      "vote_average": 0,
+      "vote_count": 0
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/dsAyC9xIQqFbZcz1R03LGGfWhNO.jpg",
+      "genre_ids": [
+        10751,
+        10767
+      ],
+      "id": 101829,
+      "origin_country": [
+        "ES"
+      ],
+      "original_language": "es",
+      "original_name": "La ruleta de la suerte",
+      "overview": "",
+      "popularity": 7.0079,
+      "poster_path": "/7IrzpLAQOVSjL3R4KAh5bkPNUVi.jpg",
+      "first_air_date": "1990-04-23",
+      "softcore": false,
+      "name": "La ruleta de la suerte",
+      "vote_average": 6.2,
+      "vote_count": 4
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/87uMsgHtei2x3JiNXTlDRG3pTI8.jpg",
+      "genre_ids": [
+        18
+      ],
+      "id": 1860,
+      "origin_country": [
+        "PH"
+      ],
+      "original_language": "tl",
+      "original_name": "Gulong ng Palad",
+      "overview": "Gulong ng Palad is a Philippine 50's radio drama series and 1980s soap opera hit. On January 9, 2006, the drama series came back in television under the direction of Eric Salud and Jerome Pobocan.\n\nThe television series can be watched regularly in Philippines' ABS-CBN from Monday to Friday after TV Patrol World. The show also aired simultaneously on The Filipino Channel.\n\nThe TV Dramas original inception was in 1977-1985 in 1977-1979 it aired on Fridays and aired in 1980-1985 as a primetime soap at 8:00PM\n\nThe TV Series was known for its Orgin as the Original Filipino Telenovela that starred TV and movie greats Marianne Dela Riva as Luisa and Ronald Corveau as Carding and Beth Bautista as Mimi and also known as BBC2 Now ABS-CBN Since 1985-Present and also made Award Winning Character Actress TV Veteran Caridad Sanchez a household name as Idad the loving mother and opportunist the original story was by Loida Virina for the tagalog version of the Cebuano Classic Radio Serial and in the present by Kristine Hermosa Tj Trinidad and Andrea Del Rosario as the leads and lead antagonist Cherie Gil",
+      "popularity": 4.6389,
+      "poster_path": "/lKoqbg1k3Kz3CNqFiRTbrBZiIGn.jpg",
+      "first_air_date": "2006-01-09",
+      "softcore": false,
+      "name": "Gulong ng Palad",
+      "vote_average": 8,
+      "vote_count": 1
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        10764,
+        10751
+      ],
+      "id": 107567,
+      "origin_country": [
+        "CA"
+      ],
+      "original_language": "fr",
+      "original_name": "La roue chanceuse",
+      "overview": "",
+      "popularity": 0.6888,
+      "poster_path": "/lpDwLyTrcas9MKsqpjRr3XOqT42.jpg",
+      "first_air_date": "1989-05-01",
+      "softcore": false,
+      "name": "La roue chanceuse",
+      "vote_average": 0,
+      "vote_count": 0
+    }
+  ],
+  "total_pages": 1,
+  "total_results": 20
+}

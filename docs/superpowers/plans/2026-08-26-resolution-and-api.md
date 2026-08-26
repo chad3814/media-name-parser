@@ -1603,6 +1603,11 @@ Ghosts that share one library."
 
 **Fixture strategy.** `scripts/record-tmdb.ts` hits the real API once with a
 real token and writes each response to `fixtures/tmdb/<sanitised-path>.json`.
+**Read the ids out of the recorded searches rather than trusting the ones
+written below** — Outbreak is 6950, not the 8339 this plan originally supposed.
+The two `Ghosts` are 126027 (US, first aired 2021) and 17174 (GB, 2019), which
+makes the disambiguator test a real one: `Ghosts (US)` and `Ghosts (2019)`
+resolve to genuinely different series.
 Tests then use `fixtureFetch()`, which serves those files and **throws on a
 cache miss** rather than falling through to the network — a test that
 accidentally needs a new fixture must fail loudly, not silently start
@@ -1743,13 +1748,14 @@ import type { ParsedVideo } from '../../lib/parse/types';
 
 function provider(onCall?: (n: number) => void) {
   let calls = 0;
+  const paths: string[] = [];
   const client = createTmdbClient({
     token: 'fixture',
     fetchImpl: fixtureFetch(),
-    recordCall: () => { calls += 1; onCall?.(calls); },
+    recordCall: (row) => { paths.push(row.endpoint); onCall?.(paths.length); },
     ratePerSecond: 1000,
   });
-  return { p: createTmdbProvider(client), count: () => calls };
+  return { p: createTmdbProvider(client), count: () => paths.length, paths };
 }
 
 function parsed(category: 'tv' | 'movies', name: string): ParsedVideo {
@@ -1808,14 +1814,17 @@ test('a title with no match at all resolves to null rather than throwing', async
   assert.equal(got, null);
 });
 
-test('a movie lookup never searches the tv namespace', async () => {
-  // The caller's category fixes the namespace even when the tokens look
-  // episodic. A tv fixture must not be requested, so a miss would throw.
-  const { p } = provider();
-  await assert.rejects(
-    p.resolve(parsed('movies', 'Moon.Knight.S01E03.1080p.WEB-DL-GRP.nzb'), ctx),
-    /no TMDB fixture for \/search\/movie/,
-  );
+test('a movies lookup never touches the tv namespace, whatever the tokens look like', async () => {
+  const { p, paths } = provider();
+  // The invariant under test is which namespace gets asked -- not whether a
+  // match is found -- so this asserts on the requested paths. Resolution may
+  // run out of fixtures partway and throw; that is fine, and the paths
+  // recorded up to then are the evidence. Asserting on the outcome instead
+  // fails for the wrong reason the moment a detail fixture is missing.
+  await p.resolve(parsed('movies', 'Moon.Knight.S01E03.1080p.WEB-DL-GRP.nzb'), ctx).catch(() => null);
+  assert.ok(paths.length > 0);
+  assert.ok(paths.every((x) => !x.startsWith('/search/tv') && !x.startsWith('/tv/')), paths.join(', '));
+  assert.ok(paths.includes('/search/movie'), paths.join(', '));
 });
 
 test('an aborted context stops before any request', async () => {
