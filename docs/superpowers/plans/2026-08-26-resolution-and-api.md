@@ -1312,10 +1312,20 @@ const base = {
   popularity: 1, voteCount: 100, seasonExists: null, episodeExists: null,
 };
 
-test('titleSimilarity is 1 for an exact fold-equal match and 0 for nothing alike', () => {
+test('titleSimilarity is 1 for an exact fold-equal match', () => {
   assert.equal(titleSimilarity('The Matrix', 'the matrix'), 1);
   assert.equal(titleSimilarity('90 Day Fiance', '90 Day Fiancé'), 1);
-  assert.ok(titleSimilarity('Outbreak', 'Interstellar') < 0.3);
+});
+
+test('an unrelated title cannot clear the floor however favourable everything else is', () => {
+  // Two unrelated words still share letters -- Outbreak/Interstellar folds to a
+  // similarity around 0.33 -- so a raw similarity threshold would be an
+  // arbitrary number. What matters is whether such a match could be believed.
+  const p = parsed('movies', 'Outbreak.1995.1080p.BluRay-GRP.nzb');
+  const score = scoreCandidate(p, {
+    ...base, title: 'Interstellar', year: 1995, popularity: 1e6, voteCount: 1e6,
+  });
+  assert.ok(score < CONFIDENCE_FLOOR, `an unrelated title scored ${score}`);
 });
 
 test('an exact title and year clears the floor comfortably', () => {
@@ -1552,7 +1562,7 @@ export function pickBest<T>(
 npm run test -- test/resolve/confidence.test.ts
 ```
 
-Expected: 11 passing. The weights above were chosen to satisfy exactly these
+Expected: 12 passing. The weights above were chosen to satisfy exactly these
 assertions; if one fails, adjust a weight rather than the assertion, because
 each assertion encodes a decision from the spec. In particular: "a popular
 wrong title must not beat the right one" is the whole reason popularity is
