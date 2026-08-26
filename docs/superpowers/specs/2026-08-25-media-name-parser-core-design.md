@@ -69,6 +69,16 @@ recoverable from the code.
 Next.js App Router on Vercel, Neon Postgres, Drizzle ORM over
 `@neondatabase/serverless`, Better Auth for identity.
 
+**The database driver must be the WebSocket one, not HTTP.** Drizzle's
+`neon-http` driver throws `No transactions support in neon-http driver`, and
+this design needs transactions in three places: the `pg_advisory_xact_lock`
+below (transaction-scoped by definition), the sweeper's
+`FOR UPDATE SKIP LOCKED`, and the multi-table media upsert, which must not be
+able to half-succeed. So the client is `drizzle-orm/neon-serverless` over a
+`Pool`. Verified working on Node 26 with the platform's native `WebSocket` —
+no `ws` shim needed — including real contention: a second transaction waiting
+on the advisory lock blocked until the first committed.
+
 ```
 app/
   api/v1/lookup/route.ts          POST — the lookup endpoint
@@ -471,13 +481,17 @@ people, and raw payloads. The pipeline persists it.
 
 TMDB paths:
 
-- **movie** — `search/movie?query&year`, score candidates,
+- **movie** — `search/movie?query&primary_release_year`, score candidates,
   `movie/{id}?append_to_response=credits`. Yields one media row,
-  `movie_details`, and director, writers, and top-N cast.
-- **episode** — `search/tv?query`, score, `tv/{id}` for the series,
-  `tv/{id}/season/{n}` for the season **and every episode in it** in one call,
-  then episode credits for the target. Fetching the whole season means the
-  rest of a show's files resolve with no further search calls.
+  `movie_details` (including `imdb_id`, which movie details returns directly),
+  and director, writers, and top-N cast. `primary_release_year` rather than
+  `year` because a release name carries the theatrical year.
+- **episode** — `search/tv?query`, score, `tv/{id}` for the series, then
+  `tv/{id}/season/{n}`, which returns the season **and every episode in it,
+  each already carrying its own `crew` and `guest_stars`**. Three calls, not
+  four: no separate episode-credits request is needed. Fetching the whole
+  season also means the rest of a show's files resolve with no further search
+  calls at all.
 - **date-based episode** — match `air_date` within the fetched season.
 
 **Multi-episode files.** A name like `s02e04e05` parses to
@@ -488,9 +502,19 @@ episodes. Modelling a file as pointing at several media rows would mean a join
 table on `lookups`, and a stated limitation is the better trade until something
 needs it.
 
+Search disambiguation uses what the search endpoints actually offer:
+`first_air_date_year` for a series year, and `origin_country` on each result —
+which is precisely what separates the `Ghosts (2019)` and `Ghosts (US)` that
+share one library. `hints.disambiguator` feeds both.
+
 Every fetch receives the `AbortSignal` and is logged to `provider_calls`.
-TMDB's published limit is generous enough that an in-process token bucket plus
-the advisory lock suffices; no distributed limiter.
+Authentication is the v4 **API Read Access Token** as
+`Authorization: Bearer …`, which TMDB documents as the default method and
+which works across v3 and v4; the older `api_key` query parameter still works
+but is not what this uses. TMDB's documented limit is "somewhere in the 40
+requests per second range" and explicitly not guaranteed, so an in-process
+token bucket plus the advisory lock suffices — but a `429` must be handled as
+a real outcome rather than an assumption of never hitting one.
 
 ### Confidence
 
@@ -645,7 +669,7 @@ build all pass.
 |---|---|
 | `DATABASE_URL` | Neon connection string (pooled) |
 | `DATABASE_URL_UNPOOLED` | direct connection, for migrations |
-| `TMDB_API_KEY` | TMDB v3 key |
+| `TMDB_READ_ACCESS_TOKEN` | TMDB v4 API Read Access Token, sent as a bearer |
 | `BETTER_AUTH_SECRET` | Better Auth signing secret |
 | `BETTER_AUTH_URL` | canonical app origin |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub social provider |
