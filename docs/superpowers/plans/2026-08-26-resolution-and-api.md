@@ -3072,11 +3072,12 @@ the fix will not break it.
 node --env-file=.env.local --import tsx --test "test/resolve/pipeline.test.ts"
 ```
 
-Expected: 8 passing. The two assertions worth reading carefully on failure:
+Expected: 9 passing. The three assertions worth reading carefully on failure:
 "a cache hit must not touch the provider" (if it does, `decide` is returning
-`resolve` for a row it should call fresh) and "sibling adoption must skip the
+`resolve` for a row it should call fresh); "sibling adoption must skip the
 provider" (if it does not, `normalizeKey` is producing different keys for the
-two spellings, which Plan 1's tests say it should not).
+two spellings, which Plan 1's tests say it should not); and "provider_calls
+must gain rows", which fails whenever `drainCalls` is missing from the deps.
 
 - [ ] **Step 5: Fill in the resolve rate Plan 1 left null**
 
@@ -3152,6 +3153,7 @@ plan 1 left behind."
 - [ ] An episode stores series, season, and episode rows with correct `parent_id` links.
 - [ ] `fixtures/corpus/baseline.json` has a non-null `resolveRate`.
 - [ ] No test reaches the network: `fixtures/tmdb/` serves every provider response, and a miss throws.
+- [ ] `provider_calls` gains a row for every provider request a lookup makes.
 - [ ] `fixtures/corpus/*.raw.txt` is byte-identical to its committed state.
 
 ## Handoff to the next plan
