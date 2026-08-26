@@ -70,10 +70,23 @@ export interface ResolveContext {
   readonly lookupId: string | null;
 }
 
+/**
+ * A match plus how much it is believed.
+ *
+ * The confidence has to travel with the media: the score is computed during
+ * candidate selection and is the only evidence for the choice, so discarding
+ * it would leave the pipeline writing a placeholder into every row and calling
+ * it a measurement.
+ */
+export interface ResolveOutcome {
+  readonly media: ResolvedMedia;
+  readonly confidence: number;
+}
+
 export interface Provider {
   readonly name: ProviderName;
   supports(category: Category): boolean;
-  resolve(parsed: ParsedVideo, ctx: ResolveContext): Promise<ResolvedMedia | null>;
+  resolve(parsed: ParsedVideo, ctx: ResolveContext): Promise<ResolveOutcome | null>;
 }
 
 /** What the pipeline records for observability. Never contains a credential. */

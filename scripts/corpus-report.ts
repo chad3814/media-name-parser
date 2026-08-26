@@ -76,8 +76,95 @@ export function measure(file: string, category: Category): CorpusRate {
   };
 }
 
-function main(): void {
+/**
+ * How many sampled lines reach a provider match.
+ *
+ * Opt-in via `--resolve` because it needs a database and fixtures, unlike the
+ * parse rate which is pure. Sampled rather than exhaustive: running all 5951
+ * lines against recorded fixtures would mostly measure fixture coverage, not
+ * resolution quality.
+ */
+export interface ResolveRate {
+  readonly file: string;
+  readonly sampled: number;
+  /** Reached a provider match at or above the confidence floor. */
+  readonly resolved: number;
+  /** Ran, but the provider found nothing good enough. A real outcome. */
+  readonly unmatched: number;
+  /** No recorded fixture, so nothing could be measured. Not a failure. */
+  readonly unmeasurable: number;
+  /** resolved / (sampled - unmeasurable). Null when nothing was measurable. */
+  readonly rate: number | null;
+}
+
+/**
+ * How many *measurable* sampled lines reach a provider match.
+ *
+ * `unmeasurable` is separated out and excluded from the rate, and that
+ * distinction is the whole point. Fixtures exist for a handful of specific
+ * titles, so most arbitrary corpus lines have no recording. Counting those as
+ * unresolved produces a rate near zero that looks like a resolution failure
+ * and is really a statement about how many fixtures have been recorded --
+ * which would be a number that lies.
+ */
+export async function measureResolve(
+  file: string,
+  category: Category,
+  sampleSize: number,
+  run: (category: Category, name: string) => Promise<{
+    readonly state: string;
+    readonly refusal: string | null;
+    readonly cached: boolean;
+  }>,
+  reset?: (names: readonly string[]) => Promise<void>,
+): Promise<ResolveRate> {
+  const lines = readLines(file);
+  const step = Math.max(1, Math.floor(lines.length / sampleSize));
+
+  // Clear any cached verdict for the lines about to be measured.
+  //
+  // Without this the measurement poisons itself: the first run writes a
+  // `pending` row for every line, and every later run hits the cooling path,
+  // returns `cached` without calling the provider, and reports a rate that
+  // describes the previous run rather than the current code.
+  const chosen: string[] = [];
+  for (let i = 0; i < lines.length; i += step) {
+    const line = lines[i];
+    if (line !== undefined) chosen.push(line);
+  }
+  if (reset !== undefined) await reset(chosen);
+
+  let sampled = 0;
+  let resolved = 0;
+  let unmatched = 0;
+  let unmeasurable = 0;
+  for (const line of chosen) {
+    sampled += 1;
+    // The pipeline catches provider errors and reports them as `pending` with
+    // the message on `refusal`, so a fixture miss arrives as a result rather
+    // than a throw. Both paths are checked, and a `cached` answer means the
+    // reset did not take -- it is not evidence about the provider either way.
+    try {
+      const result = await run(category, line);
+      if ((result.refusal ?? '').includes('no TMDB fixture')) unmeasurable += 1;
+      else if (result.cached) unmeasurable += 1;
+      else if (result.state === 'resolved') resolved += 1;
+      else unmatched += 1;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('no TMDB fixture')) unmeasurable += 1;
+      else unmatched += 1;
+    }
+  }
+  const measurable = sampled - unmeasurable;
+  return {
+    file, sampled, resolved, unmatched, unmeasurable,
+    rate: measurable === 0 ? null : resolved / measurable,
+  };
+}
+
+async function main(): Promise<void> {
   const write = process.argv.includes('--write');
+  const wantResolve = process.argv.includes('--resolve');
   const rates = CORPUS.map(({ file, category }) => measure(file, category));
   for (const r of rates) {
     const pct = (r.rate * 100).toFixed(2);
@@ -88,6 +175,52 @@ function main(): void {
       `leaks=${String(r.titleLeaks).padStart(4)} rate=${pct}%`,
     );
   }
+  let resolveRate: Record<string, number> | null = null;
+  if (wantResolve) {
+    // Imported here, not at the top: the parse-rate path must stay usable with
+    // no database and no TMDB fixtures at all.
+    const { resolveLookup } = await import('../lib/resolve/pipeline');
+    const { createTmdbClient } = await import('../lib/providers/tmdb/client');
+    const { createTmdbProvider } = await import('../lib/providers/tmdb/resolve');
+    const { fixtureFetch } = await import('../test/support/tmdb-fixtures');
+    const { closeDb, withTransaction } = await import('../lib/db/client');
+    const { inArray } = await import('drizzle-orm');
+    const { lookups } = await import('../lib/db/schema');
+
+    const provider = createTmdbProvider(createTmdbClient({
+      token: 'fixture', fetchImpl: fixtureFetch(), ratePerSecond: 1000,
+    }));
+    const deps = { provider, now: (): Date => new Date() };
+    const sampleSize = 20;
+    resolveRate = {};
+    console.log('\nResolve rate is over *measurable* lines only. A line with no recorded');
+    console.log('fixture is counted as nofixture and excluded, because including it would');
+    console.log('report fixture coverage while calling it resolution quality.\n');
+    for (const { file, category } of CORPUS) {
+      const measured = await measureResolve(
+        file, category, sampleSize,
+        async (c, name) => resolveLookup({ category: c, name }, deps),
+        async (names) => {
+          // The query builder rather than raw SQL: drizzle does not expand a
+          // JS array into a Postgres array inside a template literal, so both
+          // `= ANY($1)` and `= ANY($1::text[])` are rejected by the server.
+          await withTransaction(async (tx) => {
+            await tx.delete(lookups).where(inArray(lookups.name, [...names]));
+          });
+        },
+      );
+      if (measured.rate !== null) resolveRate[file] = Number(measured.rate.toFixed(4));
+      console.log(
+        `${file.padEnd(42)} sampled=${String(measured.sampled).padStart(4)} ` +
+        `resolved=${String(measured.resolved).padStart(4)} ` +
+        `unmatched=${String(measured.unmatched).padStart(4)} ` +
+        `nofixture=${String(measured.unmeasurable).padStart(4)} ` +
+        `rate=${measured.rate === null ? 'n/a' : `${(measured.rate * 100).toFixed(2)}%`}`,
+      );
+    }
+    await closeDb();
+  }
+
   if (write) {
     const baseline = {
       parseRate: Object.fromEntries(rates.map((r) => [r.file, Number(r.rate.toFixed(4))])),
@@ -96,7 +229,7 @@ function main(): void {
       // Without this, `rate` cannot detect a parser that refuses everything:
       // refusals count toward the rate, so refuse-all scores 100%.
       refused: Object.fromEntries(rates.map((r) => [r.file, r.refused])),
-      resolveRate: null,
+      resolveRate,
     };
     writeFileSync('fixtures/corpus/baseline.json', `${JSON.stringify(baseline, null, 2)}\n`);
     console.log('\nwrote fixtures/corpus/baseline.json');
@@ -104,5 +237,5 @@ function main(): void {
 }
 
 if (process.argv[1]?.endsWith('corpus-report.ts') === true) {
-  main();
+  await main();
 }

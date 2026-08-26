@@ -20,5 +20,11 @@
     "fixtures/corpus/tv.library.raw.txt": 71,
     "fixtures/corpus/tv.sport.raw.txt": 0
   },
-  "resolveRate": null
+  "resolveRate": {
+    "fixtures/corpus/movies.releases.raw.txt": 0.75,
+    "fixtures/corpus/movies.library.raw.txt": 0.619,
+    "fixtures/corpus/tv.releases.raw.txt": 0.85,
+    "fixtures/corpus/tv.library.raw.txt": 0.9048,
+    "fixtures/corpus/tv.sport.raw.txt": 0.15
+  }
 }

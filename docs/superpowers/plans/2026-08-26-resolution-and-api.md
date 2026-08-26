@@ -3085,13 +3085,19 @@ export async function resolveLookup(
 }
 ```
 
-**One known simplification, flagged rather than buried.** `confidence` is
-written as `CONFIDENCE_FLOOR` rather than the score the provider actually
-computed, because `Provider.resolve` returns only a `ResolvedMedia` and throws
-the score away. That is wrong and the next plan fixes it by widening the return
-to `{ media, confidence }`. It is left here so this task stays about the
-pipeline, and the pipeline test asserts `>= 0.75` rather than an exact value so
-the fix will not break it.
+**Two things done during execution rather than deferred.**
+
+1. `Provider.resolve` was going to return only a `ResolvedMedia`, discarding
+   the score computed during candidate selection, which would have made the
+   pipeline write `CONFIDENCE_FLOOR` into every row and call it a measurement.
+   The contract now returns `{ media, confidence }`. Deferring a fabricated
+   value into the database was not worth the smaller diff.
+2. The score is **re-computed after the season fetch**, once `seasonExists` and
+   `episodeExists` are known rather than null. This is not a refinement: a
+   library path carries no year, so the search-time score for an exactly
+   matching title lands near 0.72 — below the floor. Measured: Moon Knight
+   S01E03 scored 0.723 before and 0.843 after. Without it most of a Plex
+   library would be marked unresolved despite matching perfectly.
 
 - [ ] **Step 4: Run the tests against a real branch**
 
@@ -3178,7 +3184,12 @@ plan 1 left behind."
 - [ ] A cold movie lookup resolves; the same lookup again makes zero provider calls.
 - [ ] A second spelling of one release adopts the sibling with zero provider calls.
 - [ ] An episode stores series, season, and episode rows with correct `parent_id` links.
-- [ ] `fixtures/corpus/baseline.json` has a non-null `resolveRate`.
+- [ ] `fixtures/corpus/baseline.json` has a non-null `resolveRate` for every file.
+- [ ] The resolve rate is **not** gated in the default suite. It costs ~100
+      provider-backed lookups and needs both a database and fixtures, so it is
+      recorded by `--resolve --write` and compared by hand. Gating it would add
+      half a minute to every run for a number that moves only when the resolver
+      changes.
 - [ ] No test reaches the network: `fixtures/tmdb/` serves every provider response, and a miss throws.
 - [ ] `provider_calls` gains a row for every provider request a lookup makes.
 - [ ] `fixtures/corpus/*.raw.txt` is byte-identical to its committed state.

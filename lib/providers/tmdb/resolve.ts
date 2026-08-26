@@ -1,6 +1,6 @@
 import type { Category, ParsedVideo } from '../../parse/types';
-import type { Provider, ResolveContext, ResolvedMedia } from '../types';
-import { pickBest, type Candidate } from '../../resolve/confidence';
+import type { Provider, ResolveContext, ResolveOutcome } from '../types';
+import { pickBest, scoreCandidate, type Candidate } from '../../resolve/confidence';
 import type { TmdbClient } from './client';
 import {
   tmdbMovieDetails, tmdbMovieSearch, tmdbSeasonDetails, tmdbTvDetails, tmdbTvSearch,
@@ -50,7 +50,7 @@ function searchYear(parsed: ParsedVideo): number | undefined {
 
 async function resolveMovie(
   client: TmdbClient, parsed: ParsedVideo, ctx: ResolveContext,
-): Promise<ResolvedMedia | null> {
+): Promise<ResolveOutcome | null> {
   const search = await client.get('/search/movie', {
     query: parsed.title,
     primary_release_year: searchYear(parsed),
@@ -61,7 +61,7 @@ async function resolveMovie(
   const details = await client.get(
     `/movie/${best.item.id}`, { append_to_response: 'credits' }, tmdbMovieDetails, ctx,
   );
-  return details === null ? null : normalizeMovie(details);
+  return details === null ? null : { media: normalizeMovie(details), confidence: best.confidence };
 }
 
 /**
@@ -83,7 +83,7 @@ function seasonFromAirDate(details: TmdbTvDetails, airDate: string | null): numb
 
 async function resolveTv(
   client: TmdbClient, parsed: ParsedVideo, ctx: ResolveContext,
-): Promise<ResolvedMedia | null> {
+): Promise<ResolveOutcome | null> {
   const search = await client.get('/search/tv', {
     query: parsed.title,
     first_air_date_year: searchYear(parsed),
@@ -95,7 +95,10 @@ async function resolveTv(
   const details = await client.get(`/tv/${best.item.id}`, {}, tmdbTvDetails, ctx);
   if (details === null) return null;
   const series = normalizeSeries(details);
-  if (parsed.kind === 'series' || parsed.kind === 'movie') return series;
+  const chosen = tvCandidate(best.item);
+  if (parsed.kind === 'series' || parsed.kind === 'movie') {
+    return { media: series, confidence: best.confidence };
+  }
 
   // A year-season (`S2013`) does not name a TMDB season, so fall back to the
   // air date, then to season 1.
@@ -106,17 +109,31 @@ async function resolveTv(
   const season = await client.get(
     `/tv/${best.item.id}/season/${seasonNumber}`, {}, tmdbSeasonDetails, ctx,
   );
-  if (season === null) return series;
-  const normalizedSeason = normalizeSeason(series, season);
-  if (parsed.kind !== 'episode') return normalizedSeason;
-
-  const wantedEpisode = parsed.episodeNumbers[0];
-  const episode = season.episodes.find((e) => (
+  // Re-score now that existence is known rather than null.
+  //
+  // This is not a refinement, it is the difference between resolving and not.
+  // A library path carries no year, so the search-time score gets no year
+  // boost and lands around 0.72 -- below the floor -- for a title that matched
+  // exactly. Whether the season and episode actually exist on this series is
+  // the strongest evidence available, and it is only knowable after this fetch.
+  const seasonExists = season !== null;
+  const wantedEpisode = parsed.kind === 'episode' ? parsed.episodeNumbers[0] : undefined;
+  const episode = season === null ? undefined : season.episodes.find((e) => (
     wantedEpisode !== undefined
       ? e.episode_number === wantedEpisode
       : airDate !== null && e.air_date === airDate
   ));
-  return episode === undefined ? normalizedSeason : normalizeEpisode(normalizedSeason, episode);
+  const confidence = scoreCandidate(parsed, {
+    ...chosen,
+    seasonExists,
+    episodeExists: parsed.kind === 'episode' ? episode !== undefined : null,
+  });
+
+  if (season === null) return { media: series, confidence };
+  const normalizedSeason = normalizeSeason(series, season);
+  if (parsed.kind !== 'episode') return { media: normalizedSeason, confidence };
+  if (episode === undefined) return { media: normalizedSeason, confidence };
+  return { media: normalizeEpisode(normalizedSeason, episode), confidence };
 }
 
 export function createTmdbProvider(client: TmdbClient): Provider {
@@ -125,7 +142,7 @@ export function createTmdbProvider(client: TmdbClient): Provider {
     supports(category: Category): boolean {
       return category === 'movies' || category === 'tv';
     },
-    async resolve(parsed: ParsedVideo, ctx: ResolveContext): Promise<ResolvedMedia | null> {
+    async resolve(parsed: ParsedVideo, ctx: ResolveContext): Promise<ResolveOutcome | null> {
       ctx.signal.throwIfAborted();
       // The declared category fixes the namespace. `kind` says what shape the
       // name had; it never redirects the search.

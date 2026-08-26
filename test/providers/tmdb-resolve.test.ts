@@ -35,25 +35,29 @@ test('supports only the categories it can resolve', () => {
 
 test('a movie resolves to one node with people and no parent, in two calls', async () => {
   const { p, count } = provider();
-  const got = await p.resolve(parsed('movies', 'Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb'), ctx);
-  assert.ok(got !== null);
+  const outcome = await p.resolve(parsed('movies', 'Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb'), ctx);
+  assert.ok(outcome !== null);
+  const got = outcome.media;
+  assert.ok(outcome.confidence >= 0.75, `confidence should clear the floor, got ${outcome.confidence}`);
   assert.equal(got.kind, 'movie');
   assert.equal(got.title, 'Outbreak');
   assert.equal(got.year, 1995);
   assert.equal(got.parent, null);
   assert.equal(got.details.movie?.imdbId, 'tt0114069');
-  assert.ok(got.people.some((x) => x.role === 'director' && x.name === 'Wolfgang Petersen'));
-  assert.ok(got.people.filter((x) => x.role === 'performer').length <= 15, 'cast is capped');
+  assert.ok(got.people.some((x: (typeof got.people)[number]) => x.role === 'director' && x.name === 'Wolfgang Petersen'));
+  assert.ok(got.people.filter((x: (typeof got.people)[number]) => x.role === 'performer').length <= 15, 'cast is capped');
   assert.equal(count(), 2, 'a movie is one search plus one detail call');
 });
 
 test('an episode resolves with its season and series as parents, in three calls', async () => {
   const { p, count } = provider();
-  const got = await p.resolve(
+  const outcome = await p.resolve(
     parsed('tv', 'TV Shows/Moon Knight/Season 1/Moon Knight - S01E03 - The Friendly Type Bluray-2160p Remux.mkv'),
     ctx,
   );
-  assert.ok(got !== null);
+  assert.ok(outcome !== null);
+  const got = outcome.media;
+  assert.ok(outcome.confidence > 0, 'an episode match carries the series score');
   assert.equal(got.kind, 'episode');
   assert.equal(got.title, 'The Friendly Type');
   assert.equal(got.details.episode?.seasonNumber, 1);
@@ -62,23 +66,52 @@ test('an episode resolves with its season and series as parents, in three calls'
   assert.equal(got.parent?.parent?.kind, 'series');
   assert.equal(got.parent?.parent?.title, 'Moon Knight');
   // The season payload carries the episode crew, so there is no fourth call.
-  assert.ok(got.people.some((x) => x.role === 'director' && x.name === 'Mohamed Diab'));
+  assert.ok(got.people.some((x: (typeof got.people)[number]) => x.role === 'director' && x.name === 'Mohamed Diab'));
   assert.equal(count(), 3);
 });
 
 test('the (US) and (2019) disambiguators pick two different series called Ghosts', async () => {
-  const us = await provider().p.resolve(
+  const usOutcome = await provider().p.resolve(
     parsed('tv', 'TV Shows/Ghosts (US)/Season 5/Ghosts (US) - S05E12 - The List WEBRip-1080p.mkv'), ctx,
   );
-  const gb = await provider().p.resolve(
+  const gbOutcome = await provider().p.resolve(
     parsed('tv', 'TV Shows/Ghosts (2019)/Season 1/Ghosts (2019) - S01E01 - Pilot WEBDL-1080p.mkv'), ctx,
   );
-  assert.ok(us !== null && gb !== null);
+  assert.ok(usOutcome !== null && gbOutcome !== null);
+  const us = usOutcome.media;
+  const gb = gbOutcome.media;
   const usSeries = us.parent?.parent ?? us;
   const gbSeries = gb.parent?.parent ?? gb;
   assert.equal(usSeries.providerRef, 'tmdb:tv:126027', 'Ghosts (US) is the 2021 US series');
   assert.equal(gbSeries.providerRef, 'tmdb:tv:17174', 'Ghosts (2019) is the 2019 UK series');
   assert.notEqual(usSeries.providerRef, gbSeries.providerRef);
+});
+
+test('an existing episode clears the floor even though a library path has no year', async () => {
+  // The search-time score for `Moon Knight` is about 0.72 -- an exact title
+  // with no year boost -- which is below the floor. Knowing the season and
+  // episode actually exist is what lifts it, and that is only knowable after
+  // the season fetch. Without the re-score, most of a Plex library would be
+  // marked unresolved despite matching perfectly.
+  const outcome = await provider().p.resolve(
+    parsed('tv', 'TV Shows/Moon Knight/Season 1/Moon Knight - S01E03 - The Friendly Type Bluray-2160p Remux.mkv'),
+    ctx,
+  );
+  assert.ok(outcome !== null);
+  assert.ok(outcome.confidence >= 0.75, `expected >= 0.75, got ${outcome.confidence}`);
+});
+
+test('an episode that does not exist falls back to the season and says so', async () => {
+  const outcome = await provider().p.resolve(
+    parsed('tv', 'TV Shows/Moon Knight/Season 1/Moon Knight - S01E99 - Nonexistent Bluray-2160p.mkv'),
+    ctx,
+  );
+  assert.ok(outcome !== null);
+  assert.equal(outcome.media.kind, 'season', 'no such episode, so the season is the best answer');
+  assert.ok(
+    outcome.confidence < 0.75,
+    `a missing episode must not be claimed confidently, got ${outcome.confidence}`,
+  );
 });
 
 test('a title with no match at all resolves to null rather than throwing', async () => {
