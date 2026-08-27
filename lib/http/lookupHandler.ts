@@ -7,9 +7,9 @@ import { badRequest, notFound, unavailable } from './problem';
 import { logFailure } from './log';
 import { toEnvelope, type LookupEnvelope } from './envelope';
 import { readMediaTree } from '../media/read';
-import { resolveLookup, type PipelineDeps, type PipelineOptions } from '../resolve/pipeline';
+import { resolveLookup, type PipelineDeps } from '../resolve/pipeline';
 import type { Category } from '../parse/types';
-import { enqueue } from '../jobs/queue';
+import { enqueue, settle } from '../jobs/queue';
 
 const BATCH_CAP = 100;
 
@@ -39,9 +39,9 @@ function isBatchShaped(value: unknown): boolean {
 }
 
 async function runOne(
-  category: Category, name: string, deps: PipelineDeps, options: PipelineOptions = {},
+  category: Category, name: string, deps: PipelineDeps,
 ): Promise<LookupEnvelope> {
-  const result = await resolveLookup({ category, name }, deps, options);
+  const result = await resolveLookup({ category, name }, deps);
   // Bound to a const so the null check narrows inside the closure. Casting
   // `result.mediaId as string` would compile and would also be a lie the day
   // someone reorders these lines.
@@ -50,6 +50,47 @@ async function runOne(
     ? null
     : await withTransaction(async (tx) => readMediaTree(tx, mediaId));
   return toEnvelope(result, media);
+}
+
+/**
+ * Finishes a lookup whose in-request attempt blew the deadline, then clears the
+ * job row that attempt left behind.
+ *
+ * The settle is the point. Only `settle(..., { kind: 'done' })` deletes a job
+ * row, and without this call the happy path -- the continuation completing in
+ * the same invocation, which is what makes the hybrid fast -- left a `pending`
+ * job due immediately. The next cron minute then re-ran the whole provider
+ * resolution for an already-resolved lookup, and if that redundant retry blew
+ * its own deadline it wrote `media_id = NULL, state = 'pending'` over a good
+ * answer. The spec is explicit that a job row exists only while work is
+ * outstanding.
+ *
+ * Any state other than `pending` counts as settled, matching the sweeper's own
+ * rule: an `unresolved` answer is a completed attempt, not outstanding work,
+ * and the 12-hour rule is what revisits it. A still-`pending` outcome leaves
+ * the durable row exactly as `enqueue` left it, which is the whole reason the
+ * row is written before the continuation starts rather than after.
+ */
+async function finishAfterDeadline(
+  category: Category, name: string, deps: PipelineDeps, jobId: string,
+): Promise<void> {
+  const result = await resolveLookup({ category, name }, deps, { force: true });
+  if (result.state === 'pending') return;
+  await withTransaction(async (tx) => settle(tx, jobId, { kind: 'done' }));
+}
+
+export interface LookupHandlerOptions {
+  /**
+   * Where the post-response continuation is handed off. Defaults to Vercel's
+   * `waitUntil`, which is the only correct answer in production.
+   *
+   * Injectable because outside a Vercel invocation `waitUntil` has no context
+   * to register with and drops the promise on the floor, leaving a test with a
+   * detached continuation still writing to the database after it finished.
+   * A test that needs to assert what the continuation did -- that it settled
+   * its job, for instance -- has to be able to await it.
+   */
+  readonly defer?: (promise: Promise<void>) => void;
 }
 
 /**
@@ -74,7 +115,9 @@ async function runOne(
 export async function handleLookup(
   request: Request,
   makeDeps: () => PipelineDeps,
+  options: LookupHandlerOptions = {},
 ): Promise<Response> {
+  const defer = options.defer ?? waitUntil;
   const auth = await authenticate(request);
   if (!auth.ok) return auth.response;
 
@@ -127,21 +170,38 @@ export async function handleLookup(
 
     const envelope = await runOne(parsed.data.category, parsed.data.name, deps);
     if (envelope.partial) {
-      // Two mechanisms, on purpose. `waitUntil` usually finishes the job in
-      // this same invocation, which is what makes the hybrid path fast; the
-      // durable row is what covers the case where the function dies first.
-      await withTransaction(async (tx) => enqueue(tx, envelope.lookupId));
-      // A fresh `makeDeps()` call, not the `deps` already in scope: that one's
-      // `drainCalls` has already been consumed by the in-request attempt, and
-      // this continuation runs after the response is sent, so it should not
-      // share a token bucket across that boundary either. `force: true`
-      // because the write above just set `last_attempt_at = now()`, so
-      // without it `decide()` would return `cooling` and this continuation
-      // would serve the stale row instead of ever calling the provider.
-      waitUntil(
-        runOne(parsed.data.category, parsed.data.name, makeDeps(), { force: true })
-          .catch(() => undefined),
-      );
+      // Only the request that actually made the attempt owns the follow-up
+      // work. A partial *and cached* envelope is the cooling-window answer:
+      // some earlier request attempted this lookup within the last 12 hours
+      // and its job is already queued. The spec's step 4 says such a request
+      // returns current data with `partial: true` and does "no external
+      // work", and success criterion 2 says it makes zero provider calls.
+      //
+      // Acting on `partial` alone did the opposite, twice over: it
+      // re-enqueued -- resetting `next_attempt_at` to now, so a client
+      // retrying in a loop reset the backoff on every pass and got unbounded
+      // provider attempts, and an `abandoned` job was resurrected to
+      // `pending` each time -- and it fired a second continuation that called
+      // the provider again for a lookup nothing had asked to be retried.
+      if (!envelope.cached) {
+        // Two mechanisms, on purpose. The continuation usually finishes the
+        // job in this same invocation, which is what makes the hybrid path
+        // fast; the durable row, written first, is what covers the case where
+        // the function dies before it can.
+        const jobId = await withTransaction(async (tx) => enqueue(tx, envelope.lookupId));
+        // A fresh `makeDeps()` call, not the `deps` already in scope: that
+        // one's `drainCalls` has already been consumed by the in-request
+        // attempt, and this continuation runs after the response is sent, so
+        // it should not share a token bucket across that boundary either.
+        defer(finishAfterDeadline(
+          parsed.data.category, parsed.data.name, makeDeps(), jobId,
+        ).catch((error: unknown) => {
+          // Nothing is swallowed. The continuation is past the response, so
+          // there is no status left to set; the durable job row is what
+          // actually recovers the work.
+          logFailure(`lookup continuation ${envelope.lookupId}`, error);
+        }));
+      }
       const response = Response.json(envelope, { status: 202 });
       response.headers.set('retry-after', '5');
       return response;

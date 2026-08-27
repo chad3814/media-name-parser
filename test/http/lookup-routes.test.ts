@@ -60,6 +60,46 @@ async function token(): Promise<string> {
   return minted.token;
 }
 
+/**
+ * The same wiring, with every provider request counted.
+ *
+ * The count is the assertion in the cooling-window test below: "no external
+ * work" is not observable from the envelope -- a cooling hit and a fresh
+ * attempt both answer 202 -- so the only honest check is that the fetch the
+ * provider would have made never happened.
+ */
+function countingDeps(counter: { calls: number }): PipelineDeps {
+  const inner = fixtureFetch();
+  let pending: ProviderCallRecord[] = [];
+  const counted = ((input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    counter.calls += 1;
+    return inner(input as Parameters<typeof fetch>[0], init);
+  }) as unknown as typeof fetch;
+  const client = createTmdbClient({
+    token: 'fixture',
+    fetchImpl: counted,
+    recordCall: (row) => { pending.push(row); },
+    ratePerSecond: 1000,
+  });
+  return {
+    provider: createTmdbProvider(client),
+    now: () => new Date(),
+    drainCalls: () => {
+      const out = pending;
+      pending = [];
+      return out;
+    },
+  };
+}
+
+/** Provider wiring whose every request fails, standing in for a blown deadline. */
+function failingDeps(): PipelineDeps {
+  const refuses = ((): Promise<Response> =>
+    Promise.reject(new Error('the deadline tripped'))) as unknown as typeof fetch;
+  const client = createTmdbClient({ token: 'fixture', fetchImpl: refuses, ratePerSecond: 1000 });
+  return { provider: createTmdbProvider(client), now: () => new Date() };
+}
+
 async function post(body: unknown, auth = true): Promise<Response> {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (auth) headers.authorization = `Bearer ${await token()}`;
@@ -68,12 +108,34 @@ async function post(body: unknown, auth = true): Promise<Response> {
   }), () => testDeps());
 }
 
+/**
+ * A POST whose post-response continuation is captured instead of handed to
+ * `waitUntil`.
+ *
+ * Outside a Vercel invocation `waitUntil` has nothing to register with and
+ * drops the promise, which leaves a detached continuation writing to the
+ * database after the test that started it has finished. Capturing it is what
+ * makes "the continuation settled its job" assertable at all.
+ */
+async function postDeferred(
+  body: unknown, makeDeps: () => PipelineDeps, deferred: Promise<void>[],
+): Promise<Response> {
+  return handleLookup(new Request('https://x.test/api/v1/lookup', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${await token()}` },
+    body: JSON.stringify(body),
+  }), makeDeps, { defer: (promise) => { deferred.push(promise); } });
+}
+
 async function json(response: Response): Promise<Record<string, unknown>> {
   const parsed: unknown = await response.json();
   return parsed as Record<string, unknown>;
 }
 
 async function clean(prefix: string): Promise<void> {
+  await getDb().execute(sql`
+    DELETE FROM lookup_jobs WHERE lookup_id IN (
+      SELECT id FROM lookups WHERE name LIKE ${`${prefix}%`})`);
   await getDb().execute(sql`DELETE FROM lookups WHERE name LIKE ${`${prefix}%`}`);
 }
 
@@ -261,10 +323,11 @@ test('a partial lookup enqueues a durable job', opts, async () => {
   await clean('rtestg');
   // A name with no recorded fixture blows the provider call, which the
   // pipeline reports as pending -- the same shape a real timeout produces.
-  const response = await post({
+  const deferred: Promise<void>[] = [];
+  const response = await postDeferred({
     category: 'movies',
     name: 'rtestg/Some.Film.Nobody.Recorded.2019.1080p.BluRay-GRP.nzb',
-  });
+  }, () => testDeps(), deferred);
   const body = await json(response);
   assert.equal(body.state, 'pending');
   assert.equal(body.partial, true);
@@ -274,7 +337,95 @@ test('a partial lookup enqueues a durable job', opts, async () => {
     SELECT count(*)::int AS n FROM lookup_jobs
      WHERE lookup_id = ${String(body.lookupId)}::uuid`);
   assert.equal(jobs.rows[0]?.n, 1, 'a partial result must leave a durable job behind');
-  await getDb().execute(sql`
-    DELETE FROM lookup_jobs WHERE lookup_id = ${String(body.lookupId)}::uuid`);
+  // The continuation is awaited rather than abandoned: it fails too (still no
+  // fixture), so the durable row survives, which is the point of writing it
+  // before the continuation starts.
+  await Promise.all(deferred);
+  const after = await getDb().execute(sql`
+    SELECT count(*)::int AS n FROM lookup_jobs
+     WHERE lookup_id = ${String(body.lookupId)}::uuid`);
+  assert.equal(after.rows[0]?.n, 1, 'a continuation that did not finish leaves the job alone');
   await clean('rtestg');
+});
+
+test('a repeat request inside the cooling window does no external work', opts, async () => {
+  await clean('rtesth');
+  const name = 'rtesth/Some.Film.Nobody.Recorded.2019.1080p.BluRay-GRP.nzb';
+  const counter = { calls: 0 };
+  const deferred: Promise<void>[] = [];
+
+  const first = await postDeferred({ category: 'movies', name }, () => countingDeps(counter), deferred);
+  assert.equal(first.status, 202);
+  const firstBody = await json(first);
+  assert.equal(firstBody.cached, false, 'the first request really did attempt it');
+  await Promise.all(deferred);
+  assert.ok(counter.calls > 0, 'and really did reach the provider');
+
+  const lookupId = String(firstBody.lookupId);
+  const before = await getDb().execute(sql`
+    SELECT id, next_attempt_at FROM lookup_jobs WHERE lookup_id = ${lookupId}::uuid`);
+  assert.equal(before.rows.length, 1);
+  const attempted = counter.calls;
+  deferred.length = 0;
+
+  // Second request, one moment later: inside the 12-hour cooling window. The
+  // spec's step 4 says this returns current data with `partial: true` and does
+  // "no external work"; success criterion 2 says zero provider calls. Acting
+  // on `partial` without checking `cached` did the opposite -- it re-enqueued,
+  // resetting next_attempt_at to now and defeating the backoff for a client
+  // retrying in a loop, and fired a second continuation that called out again.
+  const second = await postDeferred({ category: 'movies', name }, () => countingDeps(counter), deferred);
+  assert.equal(second.status, 202);
+  const secondBody = await json(second);
+  assert.equal(secondBody.cached, true);
+  assert.equal(secondBody.partial, true);
+  assert.equal(secondBody.lookupId, lookupId);
+  assert.equal(counter.calls, attempted, 'a cooling-window repeat makes zero provider calls');
+  assert.equal(deferred.length, 0, 'and starts no continuation');
+
+  const after = await getDb().execute(sql`
+    SELECT id, next_attempt_at FROM lookup_jobs WHERE lookup_id = ${lookupId}::uuid`);
+  assert.equal(after.rows.length, 1, 'no second job row');
+  assert.equal(String(after.rows[0]?.id), String(before.rows[0]?.id));
+  assert.equal(String(after.rows[0]?.next_attempt_at), String(before.rows[0]?.next_attempt_at),
+    'and the schedule the backoff depends on is not reset');
+
+  await clean('rtesth');
+});
+
+test('a continuation that finishes the lookup deletes its own job row', opts, async () => {
+  await clean('rtesti');
+  const name = 'rtesti/Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb';
+  // The in-request attempt fails and the continuation succeeds: exactly the
+  // happy path of a blown deadline, which `waitUntil` usually finishes inside
+  // the same invocation. `makeDeps` is called once for the request and once
+  // for the continuation, so the attempt counter is the seam.
+  let attempt = 0;
+  const makeDeps = (): PipelineDeps => {
+    attempt += 1;
+    return attempt === 1 ? failingDeps() : testDeps();
+  };
+  const deferred: Promise<void>[] = [];
+  const response = await postDeferred({ category: 'movies', name }, makeDeps, deferred);
+  assert.equal(response.status, 202);
+  const body = await json(response);
+  assert.equal(body.partial, true);
+  const lookupId = String(body.lookupId);
+  assert.equal(deferred.length, 1, 'the attempt that failed owns the continuation');
+
+  const queued = await getDb().execute(sql`
+    SELECT count(*)::int AS n FROM lookup_jobs WHERE lookup_id = ${lookupId}::uuid`);
+  assert.equal(queued.rows[0]?.n, 1, 'the durable row is written before the continuation runs');
+
+  await Promise.all(deferred);
+
+  const left = await getDb().execute(sql`
+    SELECT count(*)::int AS n FROM lookup_jobs WHERE lookup_id = ${lookupId}::uuid`);
+  assert.equal(left.rows[0]?.n, 0,
+    'a continuation that resolved the lookup must delete its job, or the next cron '
+    + 'minute re-runs the whole resolution and can overwrite the answer with nulls');
+  const row = await getDb().execute(sql`SELECT state FROM lookups WHERE id = ${lookupId}::uuid`);
+  assert.equal(row.rows[0]?.state, 'resolved');
+
+  await clean('rtesti');
 });

@@ -3,6 +3,7 @@ import { normalizeKey } from '../parse/normalize';
 import { parseVideo } from '../parse/video';
 import type { Category, ParsedVideo } from '../parse/types';
 import type { JsonValue, Provider, ProviderCallRecord } from '../providers/types';
+import { ProviderAuthFailed } from '../providers/errors';
 import { CONFIDENCE_FLOOR } from './confidence';
 import { persistResolved, recordProviderCalls } from './persist';
 import {
@@ -48,18 +49,37 @@ export interface PipelineResult {
   readonly refusal: string | null;
   readonly cached: boolean;
   readonly partial: boolean;
+  /**
+   * The failure will fail identically on every retry, so there is no point
+   * attempting it again -- a rejected credential, principally.
+   *
+   * This exists because the catch below flattens every provider error into a
+   * `pending` result, which is right for the request path (a 202, never a
+   * throw) and destroys the one thing the sweeper needs to know. The spec
+   * requires a provider auth failure to go straight to `abandoned` "so the
+   * sweeper does not grind against a bad key"; without a field on the result
+   * the class never crosses the seam and the sweeper burns all six attempts.
+   */
+  readonly terminal: boolean;
 }
 
 export interface PipelineOptions {
   readonly deadlineMs?: number;
   readonly signal?: AbortSignal;
   /**
-   * Skip the freshness check and attempt the provider regardless.
+   * Ignore the cooling window -- and nothing else.
    *
    * For queue-driven retries only. The sweeper and the waitUntil continuation
    * both run moments after a `pending` write set `last_attempt_at = now()`,
-   * so `decide()` would return `cooling` and they would never call out --
-   * which would make the durable-retry path a no-op.
+   * so `decide()` returns `cooling` and they would never call out -- which
+   * would make the durable-retry path a no-op.
+   *
+   * Narrowly scoped on purpose. `decide()` makes three other judgements --
+   * a pinned row is never re-resolved, a stale parser version forces a
+   * re-parse, an already-complete row is served as-is -- and every one of
+   * them is still true for a queue-driven retry. Skipping the whole decision
+   * meant a job whose lookup had since been resolved re-ran the entire
+   * provider resolution, and a pinned row was re-resolved against the spec.
    */
   readonly force?: boolean;
 }
@@ -84,29 +104,27 @@ export async function resolveLookup(
   const existing = await withTransaction(async (tx) => readLookup(tx, category, name));
   const force = options.force === true;
 
-  // `force` skips the freshness check entirely: it exists for queue-driven
-  // retries, which run moments after a `pending` write set
-  // `last_attempt_at = now()`. Calling `decide()` at all here would return
-  // `cooling` and serve the stale row, never reaching the provider -- making
-  // the durable-retry path a no-op. Everything below this still applies:
-  // sibling adoption, the advisory lock, and the write path are unchanged.
-  if (!force) {
-    const decision = decide(existing, deps.now(), CONFIDENCE_FLOOR);
-
-    if (decision.kind === 'fresh' || decision.kind === 'cooling') {
-      const row = decision.lookup;
-      await withTransaction(async (tx) => recordHit(tx, row.id));
-      return {
-        state: row.state,
-        lookupId: row.id,
-        confidence: row.confidence,
-        mediaId: row.mediaId,
-        parsed: null,
-        refusal: null,
-        cached: true,
-        partial: decision.kind === 'cooling' && row.state !== 'resolved',
-      };
-    }
+  const decision = decide(existing, deps.now(), CONFIDENCE_FLOOR);
+  // `force` drops only the `cooling` arm, because that is the only judgement a
+  // queue-driven retry knows better than `decide()` does: it runs moments
+  // after a `pending` write set `last_attempt_at = now()`, so serving the
+  // stale row would make the durable-retry path a no-op. `fresh` still stands
+  // -- a pinned row, or one another worker has since resolved, has nothing
+  // left to attempt.
+  if (decision.kind === 'fresh' || (decision.kind === 'cooling' && !force)) {
+    const row = decision.lookup;
+    await withTransaction(async (tx) => recordHit(tx, row.id));
+    return {
+      state: row.state,
+      lookupId: row.id,
+      confidence: row.confidence,
+      mediaId: row.mediaId,
+      parsed: null,
+      refusal: null,
+      cached: true,
+      partial: decision.kind === 'cooling' && row.state !== 'resolved',
+      terminal: false,
+    };
   }
 
   const parse = parseVideo(category, name);
@@ -122,6 +140,7 @@ export async function resolveLookup(
     return {
       state: 'unresolved', lookupId, confidence: null, mediaId: null,
       parsed: null, refusal: parse.refusal, cached: false, partial: false,
+      terminal: false,
     };
   }
 
@@ -144,7 +163,7 @@ export async function resolveLookup(
     return {
       state: 'resolved', lookupId: adopted.lookupId,
       confidence: adopted.sibling.confidence, mediaId: adopted.sibling.mediaId,
-      parsed, refusal: null, cached: true, partial: false,
+      parsed, refusal: null, cached: true, partial: false, terminal: false,
     };
   }
 
@@ -155,6 +174,7 @@ export async function resolveLookup(
     return {
       state: 'unresolved', lookupId, confidence: null, mediaId: null,
       parsed, refusal: `no provider supports ${category}`, cached: false, partial: false,
+      terminal: false,
     };
   }
 
@@ -176,9 +196,15 @@ export async function resolveLookup(
     });
 
     const written = await withTransaction(async (tx) => {
-      // Two concurrent misses for one release make one set of provider calls.
-      // Correctness does not depend on this -- every write is an upsert on a
-      // natural key -- but the duplicate call does cost money and quota.
+      // Serialises the *write* for one release, nothing more: the provider
+      // call above has already happened by the time this lock is taken, so two
+      // concurrent misses still make two sets of provider calls. The spec asks
+      // for the lock to prevent that duplicate call (Request flow 5.3), and
+      // that is not implemented -- holding a transaction-scoped lock across an
+      // 8-second provider call would pin a database connection for the
+      // duration, which is a trade the design has not made. Recorded as debt
+      // rather than described as done. Correctness does not depend on either
+      // reading: every write below is an upsert on a natural key.
       await advisoryLock(tx, `${category}:${normalizedKey}`);
       const mediaId = outcome === null ? null : await persistResolved(tx, outcome.media);
       const confidence = outcome === null ? null : outcome.confidence;
@@ -199,7 +225,7 @@ export async function resolveLookup(
     return {
       state: written.state, lookupId: written.lookupId,
       confidence: written.confidence, mediaId: written.mediaId,
-      parsed, refusal: null, cached: false, partial: false,
+      parsed, refusal: null, cached: false, partial: false, terminal: false,
     };
   } catch (error) {
     // A blown deadline is not a failure of the request: the parse is real and
@@ -213,6 +239,10 @@ export async function resolveLookup(
       state: 'pending', lookupId, confidence: null, mediaId: null, parsed,
       refusal: aborted ? null : String(error instanceof Error ? error.message : error),
       cached: false, partial: true,
+      // The catch stays -- the request path must answer 202, not throw -- but
+      // terminality has to survive it, or the sweeper cannot tell a bad
+      // credential from a slow network.
+      terminal: error instanceof ProviderAuthFailed,
     };
   } finally {
     clearTimeout(timer);

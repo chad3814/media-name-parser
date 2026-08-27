@@ -1,9 +1,14 @@
 import type { ZodType } from 'zod';
 import type { ProviderCallRecord, ResolveContext } from '../types';
+import { ProviderAuthFailed } from '../errors';
 
 const BASE = 'https://api.themoviedb.org/3';
 
-export class TmdbAuthFailed extends Error {
+/**
+ * Extends `ProviderAuthFailed` rather than `Error` so the pipeline and the
+ * sweeper can recognise "not retryable" without importing anything TMDB.
+ */
+export class TmdbAuthFailed extends ProviderAuthFailed {
   constructor(status: number) {
     super(`TMDB rejected the credential (${status})`);
     this.name = 'TmdbAuthFailed';

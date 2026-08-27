@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { Tx } from '../db/client';
-import { JOB_MAX_ATTEMPTS, nextDelayMs } from './backoff';
+import { JOB_LEASE_MS, JOB_MAX_ATTEMPTS, nextDelayMs } from './backoff';
 
 export interface ClaimedJob {
   readonly jobId: string;
@@ -19,18 +19,31 @@ export type JobOutcome =
   | { readonly kind: 'abandon'; readonly error: string };
 
 /**
- * Marks a lookup as needing more work.
+ * Marks a lookup as needing more work. Returns the job's id.
  *
  * Idempotent on `lookup_id`, which has a unique index: a lookup that blows its
  * deadline twice has one job, not two. Re-enqueueing resets the schedule
  * without resetting `attempts`, so a repeatedly-slow lookup still backs off.
+ *
+ * The id is returned because the caller that enqueued the work is usually the
+ * one that finishes it -- the `waitUntil` continuation -- and it has to be able
+ * to settle exactly this row. Looking it back up by `lookup_id` afterwards
+ * would be a second query for something the upsert already knows.
+ *
+ * Only ever called by a request that actually attempted the lookup. Calling it
+ * for a cooling-window hit would reset `next_attempt_at` to now on every
+ * repeat, which defeats the backoff, and would resurrect an `abandoned` job.
  */
-export async function enqueue(tx: Tx, lookupId: string): Promise<void> {
-  await tx.execute(sql`
+export async function enqueue(tx: Tx, lookupId: string): Promise<string> {
+  const result = await tx.execute(sql`
     INSERT INTO lookup_jobs (lookup_id, state, next_attempt_at)
     VALUES (${lookupId}::uuid, 'pending', now())
     ON CONFLICT (lookup_id) DO UPDATE
-      SET state = 'pending', next_attempt_at = now(), updated_at = now()`);
+      SET state = 'pending', next_attempt_at = now(), updated_at = now()
+    RETURNING id`);
+  const id = result.rows[0]?.id;
+  if (typeof id !== 'string') throw new Error('job upsert returned no id');
+  return id;
 }
 
 /**
@@ -40,6 +53,13 @@ export async function enqueue(tx: Tx, lookupId: string): Promise<void> {
  * one steps over rows the first has locked instead of blocking on them or
  * double-running them. This must be inside a transaction, which is why the
  * whole service uses the WebSocket driver.
+ *
+ * The second arm of the `WHERE` is a lease reaper, and it is not optional.
+ * `state = 'running'` is set here and cleared only by `settle`, so any exit
+ * between the two -- a platform timeout mid-sweep, an unhandled throw, the
+ * function being torn down -- strands the row in `running` where a
+ * pending-only query can never see it again. `locked_at` was written by three
+ * call sites and read by none; this is the read that makes it mean something.
  */
 export async function claimDue(
   tx: Tx, limit: number, workerId: string,
@@ -47,7 +67,10 @@ export async function claimDue(
   const result = await tx.execute(sql`
     WITH due AS (
       SELECT j.id FROM lookup_jobs j
-       WHERE j.state = 'pending' AND j.next_attempt_at <= now()
+       WHERE (j.state = 'pending' AND j.next_attempt_at <= now())
+          OR (j.state = 'running'
+              AND (j.locked_at IS NULL
+                   OR j.locked_at < now() - (${JOB_LEASE_MS} * interval '1 millisecond')))
        ORDER BY j.next_attempt_at
        FOR UPDATE SKIP LOCKED
        LIMIT ${limit}
