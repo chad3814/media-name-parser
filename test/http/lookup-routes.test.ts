@@ -256,3 +256,25 @@ test('an unauthenticated request is 401 and never calls the deps factory', opts,
   assert.equal(response.status, 401);
   assert.equal(invoked, false, 'authentication must be checked before the deps factory runs');
 });
+
+test('a partial lookup enqueues a durable job', opts, async () => {
+  await clean('rtestg');
+  // A name with no recorded fixture blows the provider call, which the
+  // pipeline reports as pending -- the same shape a real timeout produces.
+  const response = await post({
+    category: 'movies',
+    name: 'rtestg/Some.Film.Nobody.Recorded.2019.1080p.BluRay-GRP.nzb',
+  });
+  const body = await json(response);
+  assert.equal(body.state, 'pending');
+  assert.equal(body.partial, true);
+  assert.equal(response.status, 202);
+  assert.ok(Number(response.headers.get('retry-after')) >= 1);
+  const jobs = await getDb().execute(sql`
+    SELECT count(*)::int AS n FROM lookup_jobs
+     WHERE lookup_id = ${String(body.lookupId)}::uuid`);
+  assert.equal(jobs.rows[0]?.n, 1, 'a partial result must leave a durable job behind');
+  await getDb().execute(sql`
+    DELETE FROM lookup_jobs WHERE lookup_id = ${String(body.lookupId)}::uuid`);
+  await clean('rtestg');
+});

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { sql } from 'drizzle-orm';
+import { waitUntil } from '@vercel/functions';
 import { withTransaction } from '../db/client';
 import { authenticate } from './authenticate';
 import { badRequest, notFound, unavailable } from './problem';
@@ -8,6 +9,7 @@ import { toEnvelope, type LookupEnvelope } from './envelope';
 import { readMediaTree } from '../media/read';
 import { resolveLookup, type PipelineDeps } from '../resolve/pipeline';
 import type { Category } from '../parse/types';
+import { enqueue } from '../jobs/queue';
 
 const BATCH_CAP = 100;
 
@@ -125,6 +127,18 @@ export async function handleLookup(
 
     const envelope = await runOne(parsed.data.category, parsed.data.name, deps);
     if (envelope.partial) {
+      // Two mechanisms, on purpose. `waitUntil` usually finishes the job in
+      // this same invocation, which is what makes the hybrid path fast; the
+      // durable row is what covers the case where the function dies first.
+      await withTransaction(async (tx) => enqueue(tx, envelope.lookupId));
+      // A fresh `makeDeps()` call, not the `deps` already in scope: that one's
+      // `drainCalls` has already been consumed by the in-request attempt, and
+      // this continuation runs after the response is sent, so it should not
+      // share a token bucket across that boundary either.
+      waitUntil(
+        runOne(parsed.data.category, parsed.data.name, makeDeps())
+          .catch(() => undefined),
+      );
       const response = Response.json(envelope, { status: 202 });
       response.headers.set('retry-after', '5');
       return response;
