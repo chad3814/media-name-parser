@@ -2,14 +2,46 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { sql } from 'drizzle-orm';
 import { getDb, withTransaction, closeDb } from '../../lib/db/client';
-import { POST as lookup } from '../../app/api/v1/lookup/route';
-import { GET as poll } from '../../app/api/v1/lookup/[id]/route';
+import { handleLookup, handlePoll } from '../../lib/http/lookupHandler';
+import { createTmdbClient } from '../../lib/providers/tmdb/client';
+import { createTmdbProvider } from '../../lib/providers/tmdb/resolve';
+import { fixtureFetch } from '../support/tmdb-fixtures';
 import { mintApiKey } from '../../lib/auth/apiKey';
+import type { PipelineDeps } from '../../lib/resolve/pipeline';
+import type { ProviderCallRecord } from '../../lib/providers/types';
 
 const hasDb = (process.env.DATABASE_URL ?? '').length > 0;
 const opts = hasDb ? {} : { skip: 'DATABASE_URL is not set' };
 
 after(async () => { if (hasDb) await closeDb(); });
+
+/**
+ * Provider wiring backed by recorded fixtures rather than the live TMDB API.
+ *
+ * A fresh instance per call, the same shape `buildTmdbDeps()` builds per
+ * request: this is what keeps these route-level tests offline while still
+ * exercising `handleLookup` end to end. `fixtureFetch()` throws on a miss
+ * rather than falling through to the network, so a missing recording fails
+ * the test loudly instead of quietly reaching out.
+ */
+function testDeps(): PipelineDeps {
+  let pending: ProviderCallRecord[] = [];
+  const client = createTmdbClient({
+    token: 'fixture',
+    fetchImpl: fixtureFetch(),
+    recordCall: (row) => { pending.push(row); },
+    ratePerSecond: 1000,
+  });
+  return {
+    provider: createTmdbProvider(client),
+    now: () => new Date(),
+    drainCalls: () => {
+      const out = pending;
+      pending = [];
+      return out;
+    },
+  };
+}
 
 let cachedToken: string | null = null;
 async function token(): Promise<string> {
@@ -31,9 +63,9 @@ async function token(): Promise<string> {
 async function post(body: unknown, auth = true): Promise<Response> {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (auth) headers.authorization = `Bearer ${await token()}`;
-  return lookup(new Request('https://x.test/api/v1/lookup', {
+  return handleLookup(new Request('https://x.test/api/v1/lookup', {
     method: 'POST', headers, body: JSON.stringify(body),
-  }));
+  }), testDeps());
 }
 
 async function json(response: Response): Promise<Record<string, unknown>> {
@@ -147,7 +179,7 @@ test('polling a lookup id returns the same envelope', opts, async () => {
     name: 'rteste/Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb',
   }));
   const id = String(created.lookupId);
-  const response = await poll(
+  const response = await handlePoll(
     new Request('https://x.test/api/v1/lookup/' + id, {
       headers: { authorization: `Bearer ${await token()}` },
     }),
@@ -162,12 +194,12 @@ test('polling a lookup id returns the same envelope', opts, async () => {
 
 test('polling an unknown lookup id is 404 and a malformed one is 400', opts, async () => {
   const headers = { authorization: `Bearer ${await token()}` };
-  const unknown = await poll(
+  const unknown = await handlePoll(
     new Request('https://x.test/api/v1/lookup/x', { headers }),
     { params: Promise.resolve({ id: '00000000-0000-0000-0000-000000000000' }) },
   );
   assert.equal(unknown.status, 404);
-  const malformed = await poll(
+  const malformed = await handlePoll(
     new Request('https://x.test/api/v1/lookup/x', { headers }),
     { params: Promise.resolve({ id: 'nope' }) },
   );
@@ -185,11 +217,11 @@ test('a rate-limited caller gets 429 with Retry-After', opts, async () => {
       INSERT INTO api_keys (user_id, label, token_hash, prefix, rate_limit_per_min)
       VALUES ('u-tight', 'tight', ${minted.tokenHash}, ${minted.prefix}, 1)`);
   });
-  const send = (): Promise<Response> => lookup(new Request('https://x.test/api/v1/lookup', {
+  const send = (): Promise<Response> => handleLookup(new Request('https://x.test/api/v1/lookup', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${minted.token}` },
     body: JSON.stringify({ category: 'tv', name: 'rtestf/Moon Knight/.plexmatch' }),
-  }));
+  }), testDeps());
   await clean('rtestf');
   assert.equal((await send()).status, 200);
   const refused = await send();
