@@ -155,23 +155,74 @@ export async function resolveLookup(
 
   const parsed = parse.parsed;
 
-  // Adopt a sibling before spending anything on the provider.
-  const adopted = await withTransaction(async (tx) => {
+  // Claim the work before spending anything on the provider.
+  //
+  // This is the double-checked pattern the spec's step 5.3 is really asking
+  // for: check, lock, check again, act. The first `readLookup` above is
+  // unlocked and therefore only advisory -- two concurrent misses can both
+  // pass it. Inside the lock the row is re-read, so exactly one of them
+  // proceeds to call the provider and the others see what it wrote.
+  //
+  // The lock is transaction-scoped, so it is released when this short
+  // transaction commits -- before the provider call, not across it. Holding it
+  // across an eight-second HTTP call would pin a pooled connection for the
+  // duration and cap concurrency at the pool size. What serialises the
+  // provider call is the in-flight marker this writes, not the lock itself:
+  // a request arriving afterwards reads a `pending` row with a fresh
+  // `last_attempt_at`, decides `cooling`, and returns without calling out.
+  const claim = await withTransaction(async (tx) => {
+    await advisoryLock(tx, `${category}:${normalizedKey}`);
+
     // The second permitted `unknown`: a ParsedVideo is structurally JSON, but
     // TypeScript cannot see that through the discriminated union.
     await upsertParse(tx, category, normalizedKey, parsed as unknown as JsonValue);
-    const sibling = await findResolvedSibling(tx, category, normalizedKey, existing?.id ?? null);
-    if (sibling === null) return null;
+
+    // Re-read under the lock. Someone may have resolved this, or claimed it,
+    // between the unlocked read and here.
+    const current = await readLookup(tx, category, name);
+    const recheck = decide(current, deps.now(), CONFIDENCE_FLOOR);
+    if (current !== null && (recheck.kind === 'fresh' || (recheck.kind === 'cooling' && !force))) {
+      return { kind: 'yield' as const, row: current, cooling: recheck.kind === 'cooling' };
+    }
+
+    const sibling = await findResolvedSibling(tx, category, normalizedKey, current?.id ?? null);
+    if (sibling !== null) {
+      const lookupId = await writeLookupOutcome(tx, {
+        category, name, normalizedKey,
+        mediaId: sibling.mediaId, confidence: sibling.confidence, state: 'resolved',
+      });
+      return { kind: 'adopted' as const, lookupId, sibling };
+    }
+
+    // The in-flight marker. `state: 'pending'` with `last_attempt_at = now()`
+    // is exactly what `decide` reads as "someone is working on this".
     const lookupId = await writeLookupOutcome(tx, {
-      category, name, normalizedKey,
-      mediaId: sibling.mediaId, confidence: sibling.confidence, state: 'resolved',
+      category, name, normalizedKey, mediaId: null, confidence: null, state: 'pending',
     });
-    return { lookupId, sibling };
+    return { kind: 'claimed' as const, lookupId };
   });
-  if (adopted !== null) {
+
+  if (claim.kind === 'yield') {
+    // Another caller got here first. Serve what they have written rather than
+    // duplicating their provider calls.
     return {
-      state: 'resolved', lookupId: adopted.lookupId,
-      confidence: adopted.sibling.confidence, mediaId: adopted.sibling.mediaId,
+      state: claim.row.state,
+      lookupId: claim.row.id,
+      confidence: claim.row.confidence,
+      mediaId: claim.row.mediaId,
+      parsed: null,
+      cachedParse: claim.row.tokens,
+      refusal: null,
+      cached: true,
+      partial: claim.cooling && claim.row.state !== 'resolved',
+      terminal: false,
+    };
+  }
+
+  if (claim.kind === 'adopted') {
+    return {
+      state: 'resolved', lookupId: claim.lookupId,
+      confidence: claim.sibling.confidence, mediaId: claim.sibling.mediaId,
       parsed, cachedParse: null, refusal: null, cached: true, partial: false, terminal: false,
     };
   }
@@ -205,15 +256,13 @@ export async function resolveLookup(
     });
 
     const written = await withTransaction(async (tx) => {
-      // Serialises the *write* for one release, nothing more: the provider
-      // call above has already happened by the time this lock is taken, so two
-      // concurrent misses still make two sets of provider calls. The spec asks
-      // for the lock to prevent that duplicate call (Request flow 5.3), and
-      // that is not implemented -- holding a transaction-scoped lock across an
-      // 8-second provider call would pin a database connection for the
-      // duration, which is a trade the design has not made. Recorded as debt
-      // rather than described as done. Correctness does not depend on either
-      // reading: every write below is an upsert on a natural key.
+      // Serialises the write for one release. The duplicate provider call the
+      // spec's step 5.3 is concerned with is prevented earlier, by the
+      // in-flight claim above -- not by this lock, which is taken after the
+      // provider has already answered. Kept because it costs one cheap
+      // statement and makes concurrent writers queue rather than interleave.
+      // Correctness does not depend on it either way: every write below is an
+      // upsert on a natural key.
       await advisoryLock(tx, `${category}:${normalizedKey}`);
       const mediaId = outcome === null ? null : await persistResolved(tx, outcome.media);
       const confidence = outcome === null ? null : outcome.confidence;

@@ -47,6 +47,44 @@ async function cleanup(prefix: string): Promise<void> {
   });
 }
 
+test('two concurrent misses for one release make one set of provider calls', opts, async () => {
+  // Spec step 5.3. This is not a timing race: the claim transactions for a
+  // given normalized key are serialised by the advisory lock, so whichever
+  // runs second re-reads the row under that lock, finds the in-flight marker
+  // the first one wrote, and yields instead of calling the provider.
+  const name = 'ptestconc/Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb';
+  await cleanup('ptestconc');
+
+  const a = tmdb();
+  const b = tmdb();
+  const callsA = { n: 0 };
+  const callsB = { n: 0 };
+  const countA = { provider: a.provider, now: () => new Date(), drainCalls: a.drainCalls };
+  const countB = { provider: b.provider, now: () => new Date(), drainCalls: b.drainCalls };
+
+  // Count through the drain, which the pipeline calls exactly once per attempt.
+  const wrapA = { ...countA, drainCalls: () => { const r = a.drainCalls(); callsA.n += r.length; return r; } };
+  const wrapB = { ...countB, drainCalls: () => { const r = b.drainCalls(); callsB.n += r.length; return r; } };
+
+  const [first, second] = await Promise.all([
+    resolveLookup({ category: 'movies', name }, wrapA),
+    resolveLookup({ category: 'movies', name }, wrapB),
+  ]);
+
+  const results = [first, second];
+  const resolved = results.filter((r) => r.state === 'resolved');
+  const yielded = results.filter((r) => r.cached);
+
+  assert.equal(resolved.length >= 1, true, 'one of them must actually resolve');
+  assert.equal(yielded.length, 1, 'and exactly one must yield to the other');
+  assert.equal(
+    callsA.n + callsB.n,
+    2,
+    `one movie resolution is a search plus a detail call; got ${callsA.n + callsB.n}`,
+  );
+  await cleanup('ptestconc');
+});
+
 test('a cold movie lookup resolves and stores a media id', opts, async () => {
   const name = 'ptesta/Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb';
   await cleanup('ptesta');
