@@ -144,3 +144,21 @@ test('pruning removes old windows and keeps recent ones', opts, async () => {
     assert.equal(after.rows[0]?.n, 1, 'the recent window should still be present');
   });
 });
+
+test('the default retention is the two windows the spec asks for', opts, async () => {
+  // The cron calls `pruneRateWindows(tx)` with no argument, so the default is
+  // the number that actually runs in production. It was 5 while the spec said
+  // "older than two windows"; `consume` never reads past the current minute,
+  // so the extra three were rows kept for nobody.
+  await inRollback(async (tx) => {
+    const apiKeyId = await seedKey(tx);
+    const now = new Date();
+    await consume(tx, apiKeyId, 10, new Date(now.getTime() - 3 * 60 * 1000));
+    await consume(tx, apiKeyId, 10, now);
+    const removed = await pruneRateWindows(tx);
+    assert.ok(removed >= 1, 'a three-minute-old window is outside a two-window retention');
+    const left = await tx.execute(sql`
+      SELECT count(*)::int AS n FROM rate_limit_windows WHERE api_key_id = ${apiKeyId}::uuid`);
+    assert.equal(left.rows[0]?.n, 1, 'the window in progress survives');
+  });
+});

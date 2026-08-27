@@ -65,6 +65,9 @@ test('the cron route with the correct bearer runs the sweep and returns a report
       assert.equal(typeof report.retried, 'number');
       assert.equal(typeof report.abandoned, 'number');
       assert.equal(typeof report.prunedRateWindows, 'number');
+      // The spec puts the 30-day `provider_calls` retention on this same cron,
+      // so the report has to account for it too.
+      assert.equal(typeof report.prunedProviderCalls, 'number');
     });
   } finally {
     globalThis.fetch = realFetch;

@@ -43,8 +43,13 @@ export async function consume(
 /**
  * Drops windows older than `keepWindows` minutes. Called by the sweep cron so
  * the table does not grow without bound; it holds one row per key per minute.
+ *
+ * Two by default, which is what the spec fixes it at. The window in progress
+ * plus the one before it is all `consume` can ever read -- it only ever touches
+ * `date_trunc('minute', now())` -- so anything older is dead weight, and the
+ * one-window margin covers a prune racing a request across a minute boundary.
  */
-export async function pruneRateWindows(tx: Tx, keepWindows = 5): Promise<number> {
+export async function pruneRateWindows(tx: Tx, keepWindows = 2): Promise<number> {
   const result = await tx.execute(sql`
     DELETE FROM rate_limit_windows
      WHERE window_start < date_trunc('minute', now()) - (${keepWindows} * interval '1 minute')`);

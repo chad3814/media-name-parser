@@ -4,10 +4,11 @@ import { sql } from 'drizzle-orm';
 import { getDb, withTransaction, closeDb } from '../../lib/db/client';
 import { claimDue, enqueue, settle } from '../../lib/jobs/queue';
 import { sweep } from '../../lib/jobs/sweep';
-import { JOB_MAX_ATTEMPTS } from '../../lib/jobs/backoff';
+import { JOB_LEASE_MS, JOB_MAX_ATTEMPTS } from '../../lib/jobs/backoff';
 import { resolveLookup } from '../../lib/resolve/pipeline';
 import { createTmdbClient } from '../../lib/providers/tmdb/client';
 import { createTmdbProvider } from '../../lib/providers/tmdb/resolve';
+import { fixtureFetch } from '../support/tmdb-fixtures';
 
 const hasDb = (process.env.DATABASE_URL ?? '').length > 0;
 const opts = hasDb ? {} : { skip: 'DATABASE_URL is not set' };
@@ -137,7 +138,6 @@ test('sweep runs a due job and reports what it did', opts, async () => {
   // catch (a `force`-less retry gets `cooling` from the freshness check and
   // is booked as a retry having never called out).
   const id = await pendingLookup('jtesth/Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb');
-  const { fixtureFetch } = await import('../support/tmdb-fixtures');
   const report = await sweep({
     fetchImpl: fixtureFetch(),
     workerId: 'test-worker',
@@ -159,7 +159,6 @@ test('resolveLookup with force reaches the provider despite a fresh last_attempt
   // -- exactly the row a blown-deadline write or a previous sweep retry
   // leaves behind, and exactly the row `decide()` calls `cooling` for.
   const id = await pendingLookup(name);
-  const { fixtureFetch } = await import('../support/tmdb-fixtures');
   const client = createTmdbClient({ token: 'fixture', fetchImpl: fixtureFetch(), ratePerSecond: 1000 });
   const deps = { provider: createTmdbProvider(client), now: () => new Date() };
 
@@ -179,8 +178,163 @@ test('resolveLookup with force reaches the provider despite a fresh last_attempt
   await clean('jtesti');
 });
 
+test('a job stranded in running past its lease is reclaimed', opts, async () => {
+  await clean('jtestj');
+  const id = await pendingLookup('jtestj/x.mkv');
+  // Exactly the row a platform timeout between claim and settle leaves behind:
+  // `running`, with a lease nobody is holding. Nothing clears `state` except
+  // `settle`, so before `claimDue` read `locked_at` this row was invisible to
+  // every future sweep -- permanently, not just for a while.
+  await getDb().execute(sql`
+    UPDATE lookup_jobs
+       SET state = 'running', locked_by = 'dead-worker',
+           locked_at = now() - (${JOB_LEASE_MS * 2} * interval '1 millisecond')
+     WHERE lookup_id = ${id}::uuid`);
+  const claimed = await withTransaction(async (tx) => claimDue(tx, 50, 'worker-2'));
+  assert.equal(claimed.filter((j) => j.lookupId === id).length, 1,
+    'a running job whose lease has expired must be claimable again');
+  await clean('jtestj');
+});
+
+test('a sweep does not re-resolve a lookup that is already resolved', opts, async () => {
+  await clean('jtestk');
+  // A resolved lookup above the floor that still has a job row: exactly what a
+  // continuation which finished the lookup but never settled its job leaves
+  // behind. Re-resolving it spends a provider call to overwrite a good answer
+  // with the same value -- or, if that retry blows its own deadline, with nulls.
+  const name = 'jtestk/x.mkv';
+  const id = await withTransaction(async (tx) => {
+    const mediaRow = await tx.execute(sql`
+      INSERT INTO media (category, kind, title, sort_title, provider, provider_ref, raw, raw_fetched_at)
+      VALUES ('movies', 'movie', 'Jtestk', 'jtestk', 'tmdb', 'tmdb:movie:jtestk', '{}'::jsonb, now())
+      ON CONFLICT (provider, provider_ref) DO UPDATE SET title = excluded.title
+      RETURNING id`);
+    const mediaId = String(mediaRow.rows[0]?.id);
+    await tx.execute(sql`
+      INSERT INTO parses (category, normalized_key, tokens, parser_version)
+      VALUES ('movies', ${name.toLowerCase()}, '{}'::jsonb, 1)
+      ON CONFLICT (category, normalized_key) DO NOTHING`);
+    const row = await tx.execute(sql`
+      INSERT INTO lookups (category, name, normalized_key, media_id, confidence, state,
+                           last_attempt_at, resolved_at)
+      VALUES ('movies', ${name}, ${name.toLowerCase()}, ${mediaId}::uuid, 0.95, 'resolved',
+              now(), now())
+      RETURNING id`);
+    const lookupId = String(row.rows[0]?.id);
+    await enqueue(tx, lookupId);
+    return lookupId;
+  });
+  const before = await getDb().execute(sql`
+    SELECT last_attempt_at, hit_count FROM lookups WHERE id = ${id}::uuid`);
+
+  // A fetch that refuses to be called: any provider call for this job fails
+  // the assertions below rather than quietly succeeding from a fixture.
+  const forbidden = ((): Promise<Response> => {
+    throw new Error('the sweep must not call the provider for a resolved lookup');
+  }) as unknown as typeof fetch;
+  const report = await sweep({
+    fetchImpl: forbidden, workerId: 'test-worker', now: () => new Date(),
+  }, { limit: 25 });
+
+  assert.ok(report.done >= 1, `the resolved job must be settled done, got done=${report.done}`);
+  const left = await getDb().execute(sql`
+    SELECT count(*)::int AS n FROM lookup_jobs WHERE lookup_id = ${id}::uuid`);
+  assert.equal(left.rows[0]?.n, 0, 'settling done deletes the job row');
+  const after = await getDb().execute(sql`
+    SELECT state, last_attempt_at, hit_count FROM lookups WHERE id = ${id}::uuid`);
+  assert.equal(after.rows[0]?.state, 'resolved');
+  assert.equal(String(after.rows[0]?.last_attempt_at), String(before.rows[0]?.last_attempt_at),
+    'nothing was re-attempted, so last_attempt_at cannot have moved');
+  // The sweeper stopped before the pipeline, not inside it. Reaching the
+  // pipeline at all would serve the row from cache and count a cache hit, and
+  // a sweeper visit is not a hit -- nobody asked for this lookup.
+  assert.equal(Number(after.rows[0]?.hit_count), Number(before.rows[0]?.hit_count),
+    'a job settled without work must not be recorded as a cache hit');
+  const calls = await getDb().execute(sql`
+    SELECT count(*)::int AS n FROM provider_calls WHERE lookup_id = ${id}::uuid`);
+  assert.equal(calls.rows[0]?.n, 0, 'zero provider calls for an already-resolved lookup');
+
+  await clean('jtestk');
+  await getDb().execute(sql`DELETE FROM media WHERE provider_ref = 'tmdb:movie:jtestk'`);
+});
+
+test('a provider auth failure abandons the job on the first attempt', opts, async () => {
+  await clean('jtestl');
+  const id = await pendingLookup('jtestl/Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb');
+  // 401 is the one provider outcome the spec calls terminal: "the job goes to
+  // abandoned with last_error set, so the sweeper does not grind against a bad
+  // key". The pipeline catches the TmdbAuthFailed and reports `pending`, so the
+  // only way the sweeper can know is the `terminal` flag on the result.
+  const rejecting = ((): Promise<Response> => Promise.resolve(new Response(
+    JSON.stringify({ status_message: 'Invalid API key' }),
+    { status: 401, headers: { 'content-type': 'application/json' } },
+  ))) as unknown as typeof fetch;
+  await sweep({ fetchImpl: rejecting, workerId: 'test-worker', now: () => new Date() }, { limit: 25 });
+  const row = await getDb().execute(sql`
+    SELECT state, attempts, last_error FROM lookup_jobs WHERE lookup_id = ${id}::uuid`);
+  assert.equal(row.rows[0]?.state, 'abandoned', 'a rejected credential is not retryable');
+  assert.equal(row.rows[0]?.attempts, 1, 'abandoned on the first attempt, not after six');
+  assert.match(String(row.rows[0]?.last_error), /credential/i);
+  await clean('jtestl');
+});
+
+test('one job whose resolution throws does not strand the jobs claimed alongside it', opts, async () => {
+  await clean('jtestm');
+  const first = await pendingLookup('jtestm/a.1999.1080p.BluRay-GRP.nzb');
+  const second = await pendingLookup('jtestm/b.1999.1080p.BluRay-GRP.nzb');
+  // With no TMDB credential in the environment, `tmdbTokenFromEnv()` throws
+  // for every job. It used to be called in the sweep loop but outside the try,
+  // so the first throw aborted the whole sweep and left every row claimed in
+  // that invocation stranded in `running`. Both env vars are removed and
+  // restored here; neither value is ever read or printed.
+  const saved = {
+    readAccess: process.env.TMDB_READ_ACCESS_TOKEN,
+    apiKey: process.env.TMDB_API_KEY,
+  };
+  delete process.env.TMDB_READ_ACCESS_TOKEN;
+  delete process.env.TMDB_API_KEY;
+  try {
+    await sweep({ workerId: 'test-worker', now: () => new Date() }, { limit: 25 });
+  } finally {
+    if (saved.readAccess !== undefined) process.env.TMDB_READ_ACCESS_TOKEN = saved.readAccess;
+    if (saved.apiKey !== undefined) process.env.TMDB_API_KEY = saved.apiKey;
+  }
+  const rows = await getDb().execute(sql`
+    SELECT lookup_id, state, attempts, last_error FROM lookup_jobs
+     WHERE lookup_id IN (${first}::uuid, ${second}::uuid)`);
+  assert.equal(rows.rows.length, 2);
+  for (const row of rows.rows) {
+    assert.equal(row.state, 'pending',
+      'every claimed job must be settled, not left holding a lease nobody owns');
+    assert.equal(Number(row.attempts), 1);
+    assert.match(String(row.last_error), /TMDB_READ_ACCESS_TOKEN/);
+  }
+  await clean('jtestm');
+});
+
+test('the sweep prunes provider_calls past the retention window', opts, async () => {
+  const clear = async (): Promise<void> => {
+    await getDb().execute(sql`DELETE FROM provider_calls WHERE endpoint LIKE '/jtestn/%'`);
+  };
+  await clear();
+  await getDb().execute(sql`
+    INSERT INTO provider_calls (provider, endpoint, status, duration_ms, created_at)
+    VALUES ('tmdb', '/jtestn/old', 200, 1, now() - interval '31 days'),
+           ('tmdb', '/jtestn/new', 200, 1, now())`);
+  // `limit: 0` claims nothing: the prune is the whole subject of this test, and
+  // the spec puts the 30-day `provider_calls` retention on the same cron.
+  const report = await sweep({
+    fetchImpl: fixtureFetch(), workerId: 'test-worker', now: () => new Date(),
+  }, { limit: 0 });
+  assert.ok(report.prunedProviderCalls >= 1, 'the old row is pruned and counted');
+  const left = await getDb().execute(sql`
+    SELECT endpoint FROM provider_calls WHERE endpoint LIKE '/jtestn/%'`);
+  assert.deepEqual(left.rows.map((r) => String(r.endpoint)), ['/jtestn/new'],
+    'a row inside the window survives');
+  await clear();
+});
+
 test('sweep with nothing due is a no-op that does not throw', opts, async () => {
-  const { fixtureFetch } = await import('../support/tmdb-fixtures');
   const report = await sweep({
     fetchImpl: fixtureFetch(), workerId: 'test-worker', now: () => new Date(),
   }, { limit: 0 });

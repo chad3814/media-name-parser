@@ -112,6 +112,21 @@ async function persistPeople(
   }
 }
 
+/**
+ * Drops `provider_calls` rows older than `keepDays`.
+ *
+ * The spec fixes the retention at 30 days and puts the prune on the cron that
+ * sweeps jobs, which is where this is called from. Without it the table is the
+ * one thing in the schema that grows without bound: a row per provider request,
+ * forever, for observability nobody will read a year later.
+ */
+export async function pruneProviderCalls(tx: Tx, keepDays = 30): Promise<number> {
+  const result = await tx.execute(sql`
+    DELETE FROM provider_calls
+     WHERE created_at < now() - (${keepDays} * interval '1 day')`);
+  return Number(result.rowCount ?? 0);
+}
+
 export async function recordProviderCalls(
   tx: Tx, rows: readonly ProviderCallRecord[],
 ): Promise<void> {
