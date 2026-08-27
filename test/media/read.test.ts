@@ -83,13 +83,48 @@ test('an unknown id is null, not an error', opts, async () => {
   });
 });
 
+/**
+ * Wraps a transaction so calls to `execute` are counted, without touching
+ * production code. `readMediaTree` only ever calls `tx.execute`, so
+ * intercepting that one method is enough to pin "three queries regardless of
+ * depth" as an actual, checked commitment -- a per-level `parent_id` loop
+ * would call `execute` once per ancestor on top of the base three, and this
+ * makes that show up as a failing assertion instead of a passing one.
+ */
+function countingTx(tx: Tx, calls: { count: number }): Tx {
+  return new Proxy(tx, {
+    get(target, prop, receiver) {
+      if (prop === 'execute') {
+        return (...args: Parameters<Tx['execute']>) => {
+          calls.count += 1;
+          return target.execute(...args);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
 test('hydration costs a bounded number of queries regardless of depth', opts, async () => {
-  // Three media rows deep must not mean three round trips per row. The parent
-  // chain is one recursive query; people are one more.
+  // The claim is not just "an episode's ancestry resolves" (the first test
+  // already covers that) but that the query count does not grow with depth.
+  // A loop over parent_id would pass a bare parents.length assertion just as
+  // well as the recursive CTE does, so this counts `tx.execute` calls
+  // directly and checks the same count for zero ancestors and for two.
   await inRollback(async (tx) => {
-    const id = await persistResolved(tx, EPISODE);
-    const view = await readMediaTree(tx, id);
-    assert.ok(view !== null);
-    assert.equal(view.parents.length, 2);
+    const episodeId = await persistResolved(tx, EPISODE);
+    const seriesId = await persistResolved(tx, SERIES);
+
+    const episodeCalls = { count: 0 };
+    const episodeView = await readMediaTree(countingTx(tx, episodeCalls), episodeId);
+    assert.ok(episodeView !== null);
+    assert.equal(episodeView.parents.length, 2, 'season then series');
+    assert.equal(episodeCalls.count, 3, 'ancestry + details + people, however deep');
+
+    const seriesCalls = { count: 0 };
+    const seriesView = await readMediaTree(countingTx(tx, seriesCalls), seriesId);
+    assert.ok(seriesView !== null);
+    assert.equal(seriesView.parents.length, 0);
+    assert.equal(seriesCalls.count, 3, 'the same three queries with no ancestors at all');
   });
 });
