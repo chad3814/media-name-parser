@@ -8,7 +8,6 @@ import { resolveLookup } from '../resolve/pipeline';
 import { pruneProviderCalls } from '../resolve/persist';
 import { CONFIDENCE_FLOOR } from '../resolve/confidence';
 import { decide, readLookup } from '../cache/lookup';
-import type { Category } from '../parse/types';
 import { claimDue, settle, type ClaimedJob } from './queue';
 
 export interface SweepDeps {
@@ -42,7 +41,7 @@ type JobResult = 'done' | 'retried' | 'abandoned';
  * before `claimDue` grew a lease reaper, meant permanently invisible.
  */
 async function runJob(job: ClaimedJob, deps: SweepDeps): Promise<JobResult> {
-  const category = job.category as Category;
+  const category = job.category;
 
   try {
     // Nothing left to do is the common case worth checking for: the

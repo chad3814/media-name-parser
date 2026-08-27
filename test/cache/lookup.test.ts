@@ -10,7 +10,7 @@ const FLOOR = 0.75;
 const row = (over: Partial<LookupRow>): LookupRow => ({
   id: 'l1', category: 'tv', name: 'x', normalizedKey: 'x',
   mediaId: 'm1', confidence: 0.9, pinned: false, state: 'resolved',
-  lastAttemptAt: hoursAgo(100), parserVersion: PARSER_VERSION,
+  lastAttemptAt: hoursAgo(100), parserVersion: PARSER_VERSION, tokens: null,
   ...over,
 });
 

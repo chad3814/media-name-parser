@@ -1,11 +1,12 @@
 import { sql } from 'drizzle-orm';
 import type { Tx } from '../db/client';
 import { JOB_LEASE_MS, JOB_MAX_ATTEMPTS, nextDelayMs } from './backoff';
+import type { Category } from '../parse/types';
 
 export interface ClaimedJob {
   readonly jobId: string;
   readonly lookupId: string;
-  readonly category: string;
+  readonly category: Category;
   readonly name: string;
   readonly attempts: number;
 }
@@ -39,7 +40,17 @@ export async function enqueue(tx: Tx, lookupId: string): Promise<string> {
     INSERT INTO lookup_jobs (lookup_id, state, next_attempt_at)
     VALUES (${lookupId}::uuid, 'pending', now())
     ON CONFLICT (lookup_id) DO UPDATE
-      SET state = 'pending', next_attempt_at = now(), updated_at = now()
+      SET state = 'pending', next_attempt_at = now(), updated_at = now(),
+          -- Reviving an abandoned job resets its attempt budget. Without this
+          -- the revived job spends one attempt, hits the max-attempts guard
+          -- immediately and is abandoned again, so the sweeper safety net stays
+          -- permanently dead for that lookup while the request path keeps
+          -- retrying it every twelve hours. A row that is merely re-enqueued
+          -- while still pending keeps its count, so ordinary backoff is intact.
+          attempts = CASE WHEN lookup_jobs.state = 'abandoned' THEN 0
+                          ELSE lookup_jobs.attempts END,
+          last_error = CASE WHEN lookup_jobs.state = 'abandoned' THEN NULL
+                            ELSE lookup_jobs.last_error END
     RETURNING id`);
   const id = result.rows[0]?.id;
   if (typeof id !== 'string') throw new Error('job upsert returned no id');
@@ -84,7 +95,7 @@ export async function claimDue(
   return result.rows.map((row) => ({
     jobId: String(row.job_id),
     lookupId: String(row.lookup_id),
-    category: String(row.category),
+    category: String(row.category) as Category,
     name: String(row.name),
     attempts: Number(row.attempts),
   }));

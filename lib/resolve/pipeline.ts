@@ -40,7 +40,20 @@ export interface PipelineResult {
   readonly lookupId: string;
   readonly confidence: number | null;
   readonly mediaId: string | null;
+  /** Set only when this request did the parsing. */
   readonly parsed: ParsedVideo | null;
+  /**
+   * The parse already on record, when this request served a cached row.
+   *
+   * Deliberately not typed as `ParsedVideo`: a refused lookup stores
+   * `{ refusal }` rather than a parse, so casting the column to `ParsedVideo`
+   * would be a lie the type system could not catch. The HTTP envelope treats
+   * it as opaque JSON, which is what it is.
+   *
+   * `unknown` here is the deserialization exception: passed through, never
+   * read field by field.
+   */
+  readonly cachedParse: Readonly<Record<string, unknown>> | null;
   readonly refusal: string | null;
   readonly cached: boolean;
   readonly partial: boolean;
@@ -115,6 +128,7 @@ export async function resolveLookup(
       confidence: row.confidence,
       mediaId: row.mediaId,
       parsed: null,
+      cachedParse: row.tokens,
       refusal: null,
       cached: true,
       partial: decision.kind === 'cooling' && row.state !== 'resolved',
@@ -134,7 +148,7 @@ export async function resolveLookup(
     });
     return {
       state: 'unresolved', lookupId, confidence: null, mediaId: null,
-      parsed: null, refusal: parse.refusal, cached: false, partial: false,
+      parsed: null, cachedParse: null, refusal: parse.refusal, cached: false, partial: false,
       terminal: false,
     };
   }
@@ -158,7 +172,7 @@ export async function resolveLookup(
     return {
       state: 'resolved', lookupId: adopted.lookupId,
       confidence: adopted.sibling.confidence, mediaId: adopted.sibling.mediaId,
-      parsed, refusal: null, cached: true, partial: false, terminal: false,
+      parsed, cachedParse: null, refusal: null, cached: true, partial: false, terminal: false,
     };
   }
 
@@ -168,7 +182,7 @@ export async function resolveLookup(
     }));
     return {
       state: 'unresolved', lookupId, confidence: null, mediaId: null,
-      parsed, refusal: `no provider supports ${category}`, cached: false, partial: false,
+      parsed, cachedParse: null, refusal: `no provider supports ${category}`, cached: false, partial: false,
       terminal: false,
     };
   }
@@ -220,7 +234,7 @@ export async function resolveLookup(
     return {
       state: written.state, lookupId: written.lookupId,
       confidence: written.confidence, mediaId: written.mediaId,
-      parsed, refusal: null, cached: false, partial: false, terminal: false,
+      parsed, cachedParse: null, refusal: null, cached: false, partial: false, terminal: false,
     };
   } catch (error) {
     // A blown deadline is not a failure of the request: the parse is real and
@@ -231,7 +245,7 @@ export async function resolveLookup(
     }));
     const aborted = controller.signal.aborted;
     return {
-      state: 'pending', lookupId, confidence: null, mediaId: null, parsed,
+      state: 'pending', lookupId, confidence: null, mediaId: null, parsed, cachedParse: null,
       refusal: aborted ? null : String(error instanceof Error ? error.message : error),
       cached: false, partial: true,
       // The catch stays -- the request path must answer 202, not throw -- but

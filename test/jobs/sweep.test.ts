@@ -127,6 +127,44 @@ test('settling abandon is terminal and keeps the row for a human to see', opts, 
   await clean('jtestg');
 });
 
+test('reviving an abandoned job resets its attempt budget', opts, async () => {
+  // Without the reset the revived job spends one attempt, trips the
+  // max-attempts guard immediately and is abandoned again -- so the sweeper
+  // safety net stays permanently dead for that lookup while the request path
+  // keeps retrying it every twelve hours.
+  await clean('jtestrevive');
+  const id = await pendingLookup('jtestrevive/x.mkv');
+  await getDb().execute(sql`
+    UPDATE lookup_jobs SET state = 'abandoned', attempts = ${JOB_MAX_ATTEMPTS},
+           last_error = 'gave up earlier'
+     WHERE lookup_id = ${id}::uuid`);
+
+  await withTransaction(async (tx) => { await enqueue(tx, id); });
+
+  const row = await getDb().execute(sql`
+    SELECT state, attempts, last_error FROM lookup_jobs WHERE lookup_id = ${id}::uuid`);
+  assert.equal(row.rows[0]?.state, 'pending');
+  assert.equal(row.rows[0]?.attempts, 0, 'the attempt budget must be restored');
+  assert.equal(row.rows[0]?.last_error, null, 'and the stale error cleared');
+  await clean('jtestrevive');
+});
+
+test('re-enqueueing a job that is still pending keeps its attempt count', opts, async () => {
+  // The reset is scoped to revival. An ordinary re-enqueue must not hand a
+  // repeatedly-failing job a fresh budget, or backoff never converges.
+  await clean('jtestkeep');
+  const id = await pendingLookup('jtestkeep/x.mkv');
+  await getDb().execute(sql`
+    UPDATE lookup_jobs SET attempts = 3 WHERE lookup_id = ${id}::uuid`);
+
+  await withTransaction(async (tx) => { await enqueue(tx, id); });
+
+  const row = await getDb().execute(sql`
+    SELECT attempts FROM lookup_jobs WHERE lookup_id = ${id}::uuid`);
+  assert.equal(row.rows[0]?.attempts, 3);
+  await clean('jtestkeep');
+});
+
 test('sweep runs a due job and reports what it did', opts, async () => {
   await clean('jtesth');
   // A real, resolvable name so the sweep can finish it -- and this test

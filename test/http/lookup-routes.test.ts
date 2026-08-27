@@ -197,8 +197,13 @@ test('the second identical lookup is cached and still returns the media', opts, 
   assert.equal(body.state, 'resolved');
   const media = body.media as { readonly title: string };
   assert.equal(media.title, 'Outbreak', 'a cache hit must still hydrate the media');
-  // `parsed` is null on a cache hit: nothing was parsed this time round.
-  assert.equal(body.parsed, null);
+  // `parsed` is present on a cache hit too. The spec says the poll endpoint
+  // returns "the same envelope", and a consumer aggregating a parse rate over
+  // responses would otherwise score every cached row as unparsed.
+  const parsed = body.parsed as { readonly kind: string; readonly title: string } | null;
+  assert.notEqual(parsed, null, 'a cache hit must still carry the stored parse');
+  assert.equal(parsed?.kind, 'movie');
+  assert.equal(parsed?.title, 'Outbreak', 'and it must be the same parse the cold lookup returned');
   await clean('rtestb');
 });
 

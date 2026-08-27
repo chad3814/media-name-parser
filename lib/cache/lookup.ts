@@ -22,6 +22,16 @@ export interface LookupRow {
   readonly lastAttemptAt: Date | null;
   /** From the joined `parses` row; null when no parse exists yet. */
   readonly parserVersion: number | null;
+  /**
+   * The stored parse, so a cache hit can return the same envelope a fresh
+   * lookup does. The spec says `GET /v1/lookup/{id}` returns "the same
+   * envelope", and a consumer computing a parse rate over responses would
+   * otherwise score every cached row as unparsed.
+   *
+   * `unknown` here is the deserialization exception: the value is jsonb that
+   * this layer passes through untouched and never reads field by field.
+   */
+  readonly tokens: Readonly<Record<string, unknown>> | null;
 }
 
 export type CacheDecision =
@@ -66,7 +76,7 @@ export async function readLookup(
 ): Promise<LookupRow | null> {
   const result = await tx.execute(sql`
     SELECT l.id, l.category, l.name, l.normalized_key, l.media_id, l.confidence,
-           l.pinned, l.state, l.last_attempt_at, p.parser_version
+           l.pinned, l.state, l.last_attempt_at, p.parser_version, p.tokens
       FROM lookups l
       LEFT JOIN parses p
         ON p.category = l.category AND p.normalized_key = l.normalized_key
@@ -84,6 +94,9 @@ export async function readLookup(
     state: row.state as LookupState,
     lastAttemptAt: row.last_attempt_at === null ? null : new Date(String(row.last_attempt_at)),
     parserVersion: row.parser_version === null ? null : Number(row.parser_version),
+    tokens: row.tokens === null || row.tokens === undefined
+      ? null
+      : (row.tokens as Readonly<Record<string, unknown>>),
   };
 }
 

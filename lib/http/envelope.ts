@@ -11,7 +11,16 @@ export interface LookupEnvelope {
   readonly cached: boolean;
   readonly confidence: number | null;
   readonly refusal: string | null;
-  /** The tokens this request derived. Null on a cache hit: nothing was parsed. */
+  /**
+   * The parse behind this answer, whether this request derived it or read it
+   * from the cache.
+   *
+   * The spec says `GET /v1/lookup/{id}` returns "the same envelope" as a POST,
+   * and a consumer aggregating a parse rate over responses would otherwise
+   * score every cached row as unparsed. For a refused lookup this is the
+   * stored `{ refusal }` record rather than a parse, which is why the type is
+   * opaque JSON rather than `ParsedVideo`.
+   */
   readonly parsed: Readonly<Record<string, unknown>> | null;
   readonly media: MediaView | null;
 }
@@ -26,8 +35,11 @@ export function toEnvelope(result: PipelineResult, media: MediaView | null): Loo
     refusal: result.refusal,
     // `unknown` here is the structural exception: the parse is serialised
     // wholesale into the response and never read field by field.
+    // A fresh parse when this request made one, the stored parse otherwise.
+    // `unknown` here is the structural exception: the value is serialised into
+    // the response wholesale and never read field by field.
     parsed: result.parsed === null
-      ? null
+      ? result.cachedParse
       : (result.parsed as unknown as Readonly<Record<string, unknown>>),
     media,
   };
