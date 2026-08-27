@@ -67,9 +67,16 @@ export async function sweep(
     };
 
     try {
+      // `force: true`: this job's lookup row just had `last_attempt_at` set
+      // to now (either by the original blown-deadline write or by a previous
+      // sweep's retry), so `decide()` would return `cooling` and serve the
+      // stale row without ever calling the provider -- which would make
+      // every sweep a no-op that backs off and eventually abandons the job
+      // having never retried anything.
       const result = await resolveLookup(
         { category: job.category as Category, name: job.name },
         pipelineDeps,
+        { force: true },
       );
       // `pending` still means unfinished, so it is a retry rather than a
       // success -- otherwise a job that keeps timing out would be deleted and

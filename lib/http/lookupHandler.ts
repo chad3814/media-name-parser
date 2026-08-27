@@ -7,7 +7,7 @@ import { badRequest, notFound, unavailable } from './problem';
 import { logFailure } from './log';
 import { toEnvelope, type LookupEnvelope } from './envelope';
 import { readMediaTree } from '../media/read';
-import { resolveLookup, type PipelineDeps } from '../resolve/pipeline';
+import { resolveLookup, type PipelineDeps, type PipelineOptions } from '../resolve/pipeline';
 import type { Category } from '../parse/types';
 import { enqueue } from '../jobs/queue';
 
@@ -39,9 +39,9 @@ function isBatchShaped(value: unknown): boolean {
 }
 
 async function runOne(
-  category: Category, name: string, deps: PipelineDeps,
+  category: Category, name: string, deps: PipelineDeps, options: PipelineOptions = {},
 ): Promise<LookupEnvelope> {
-  const result = await resolveLookup({ category, name }, deps);
+  const result = await resolveLookup({ category, name }, deps, options);
   // Bound to a const so the null check narrows inside the closure. Casting
   // `result.mediaId as string` would compile and would also be a lie the day
   // someone reorders these lines.
@@ -134,9 +134,12 @@ export async function handleLookup(
       // A fresh `makeDeps()` call, not the `deps` already in scope: that one's
       // `drainCalls` has already been consumed by the in-request attempt, and
       // this continuation runs after the response is sent, so it should not
-      // share a token bucket across that boundary either.
+      // share a token bucket across that boundary either. `force: true`
+      // because the write above just set `last_attempt_at = now()`, so
+      // without it `decide()` would return `cooling` and this continuation
+      // would serve the stale row instead of ever calling the provider.
       waitUntil(
-        runOne(parsed.data.category, parsed.data.name, makeDeps())
+        runOne(parsed.data.category, parsed.data.name, makeDeps(), { force: true })
           .catch(() => undefined),
       );
       const response = Response.json(envelope, { status: 202 });

@@ -53,6 +53,15 @@ export interface PipelineResult {
 export interface PipelineOptions {
   readonly deadlineMs?: number;
   readonly signal?: AbortSignal;
+  /**
+   * Skip the freshness check and attempt the provider regardless.
+   *
+   * For queue-driven retries only. The sweeper and the waitUntil continuation
+   * both run moments after a `pending` write set `last_attempt_at = now()`,
+   * so `decide()` would return `cooling` and they would never call out --
+   * which would make the durable-retry path a no-op.
+   */
+  readonly force?: boolean;
 }
 
 /**
@@ -73,21 +82,31 @@ export async function resolveLookup(
   const normalizedKey = normalizeKey(name);
 
   const existing = await withTransaction(async (tx) => readLookup(tx, category, name));
-  const decision = decide(existing, deps.now(), CONFIDENCE_FLOOR);
+  const force = options.force === true;
 
-  if (decision.kind === 'fresh' || decision.kind === 'cooling') {
-    const row = decision.lookup;
-    await withTransaction(async (tx) => recordHit(tx, row.id));
-    return {
-      state: row.state,
-      lookupId: row.id,
-      confidence: row.confidence,
-      mediaId: row.mediaId,
-      parsed: null,
-      refusal: null,
-      cached: true,
-      partial: decision.kind === 'cooling' && row.state !== 'resolved',
-    };
+  // `force` skips the freshness check entirely: it exists for queue-driven
+  // retries, which run moments after a `pending` write set
+  // `last_attempt_at = now()`. Calling `decide()` at all here would return
+  // `cooling` and serve the stale row, never reaching the provider -- making
+  // the durable-retry path a no-op. Everything below this still applies:
+  // sibling adoption, the advisory lock, and the write path are unchanged.
+  if (!force) {
+    const decision = decide(existing, deps.now(), CONFIDENCE_FLOOR);
+
+    if (decision.kind === 'fresh' || decision.kind === 'cooling') {
+      const row = decision.lookup;
+      await withTransaction(async (tx) => recordHit(tx, row.id));
+      return {
+        state: row.state,
+        lookupId: row.id,
+        confidence: row.confidence,
+        mediaId: row.mediaId,
+        parsed: null,
+        refusal: null,
+        cached: true,
+        partial: decision.kind === 'cooling' && row.state !== 'resolved',
+      };
+    }
   }
 
   const parse = parseVideo(category, name);

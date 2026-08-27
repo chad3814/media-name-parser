@@ -5,6 +5,9 @@ import { getDb, withTransaction, closeDb } from '../../lib/db/client';
 import { claimDue, enqueue, settle } from '../../lib/jobs/queue';
 import { sweep } from '../../lib/jobs/sweep';
 import { JOB_MAX_ATTEMPTS } from '../../lib/jobs/backoff';
+import { resolveLookup } from '../../lib/resolve/pipeline';
+import { createTmdbClient } from '../../lib/providers/tmdb/client';
+import { createTmdbProvider } from '../../lib/providers/tmdb/resolve';
 
 const hasDb = (process.env.DATABASE_URL ?? '').length > 0;
 const opts = hasDb ? {} : { skip: 'DATABASE_URL is not set' };
@@ -125,8 +128,15 @@ test('settling abandon is terminal and keeps the row for a human to see', opts, 
 
 test('sweep runs a due job and reports what it did', opts, async () => {
   await clean('jtesth');
-  // A real, resolvable name so the sweep can finish it.
-  await pendingLookup('jtesth/Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb');
+  // A real, resolvable name so the sweep can finish it -- and this test
+  // checks that it actually did, not just that some three-way count of
+  // done/retried/abandoned adds up to claimed. That weaker check is true by
+  // construction for any correct branch and cannot distinguish "the job
+  // resolved" from "the job was retried without ever reaching the
+  // provider", which is exactly the shape of the bug this test exists to
+  // catch (a `force`-less retry gets `cooling` from the freshness check and
+  // is booked as a retry having never called out).
+  const id = await pendingLookup('jtesth/Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb');
   const { fixtureFetch } = await import('../support/tmdb-fixtures');
   const report = await sweep({
     fetchImpl: fixtureFetch(),
@@ -135,7 +145,38 @@ test('sweep runs a due job and reports what it did', opts, async () => {
   }, { limit: 25 });
   assert.ok(report.claimed >= 1, `expected to claim at least one, got ${report.claimed}`);
   assert.ok(report.done + report.retried + report.abandoned === report.claimed);
+  assert.ok(report.done >= 1, `the resolvable fixture job must actually resolve, got done=${report.done}`);
+  const row = await getDb().execute(sql`SELECT state FROM lookups WHERE id = ${id}::uuid`);
+  assert.equal(row.rows[0]?.state, 'resolved',
+    'the sweep must actually reach the provider and resolve the lookup, not just retry it');
   await clean('jtesth');
+});
+
+test('resolveLookup with force reaches the provider despite a fresh last_attempt_at, unlike a plain retry', opts, async () => {
+  await clean('jtesti');
+  const name = 'jtesti/Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb';
+  // `pendingLookup` writes `state = 'pending'` with `last_attempt_at = now()`
+  // -- exactly the row a blown-deadline write or a previous sweep retry
+  // leaves behind, and exactly the row `decide()` calls `cooling` for.
+  const id = await pendingLookup(name);
+  const { fixtureFetch } = await import('../support/tmdb-fixtures');
+  const client = createTmdbClient({ token: 'fixture', fetchImpl: fixtureFetch(), ratePerSecond: 1000 });
+  const deps = { provider: createTmdbProvider(client), now: () => new Date() };
+
+  // Without force: inside the cooling window, so the stale row is served
+  // and the provider is never called.
+  const cooling = await resolveLookup({ category: 'movies', name }, deps);
+  assert.equal(cooling.cached, true, 'a fresh last_attempt_at must be served from cache, not retried');
+  assert.equal(cooling.state, 'pending');
+
+  // With force: the freshness check is skipped and the provider is actually
+  // reached, resolving the same row this time.
+  const forced = await resolveLookup({ category: 'movies', name }, deps, { force: true });
+  assert.equal(forced.cached, false, 'force must bypass the cache and call the provider');
+  assert.equal(forced.state, 'resolved');
+  assert.equal(forced.lookupId, id);
+
+  await clean('jtesti');
 });
 
 test('sweep with nothing due is a no-op that does not throw', opts, async () => {
