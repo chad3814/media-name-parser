@@ -51,14 +51,28 @@ async function runOne(
 }
 
 /**
- * The `POST /api/v1/lookup` body, given the provider wiring to resolve with.
+ * The `POST /api/v1/lookup` body, given a way to build the provider wiring
+ * to resolve with.
  *
- * `deps` is a parameter rather than built inside so this is directly
- * testable against `test/support/tmdb-fixtures.ts` instead of the live TMDB
- * API -- the route wrapper is the only caller that supplies
- * `buildTmdbDeps()`.
+ * `makeDeps` is a factory, not a built `PipelineDeps`, and it is called only
+ * once auth and body validation have already succeeded, inside the `try`
+ * that already turns a failure into a logged 503. Accepting a built object
+ * instead would mean the caller's expression -- `buildTmdbDeps()` in
+ * production -- evaluates before this function ever runs, since JavaScript
+ * evaluates call arguments eagerly. `buildTmdbDeps()` calls
+ * `tmdbTokenFromEnv()`, which throws when neither TMDB env var is set; with
+ * an eager argument that throw happens outside any `catch` here, so a
+ * request that should cleanly 401 (bad token) or 400 (bad body) would
+ * instead surface as an uncaught exception before either check ran. Delaying
+ * construction behind a factory, and constructing only after those checks
+ * pass, keeps a missing credential a 503 -- a server misconfiguration, which
+ * is what it actually is -- rather than a crash that bypasses the
+ * problem+json contract and `logFailure` entirely.
  */
-export async function handleLookup(request: Request, deps: PipelineDeps): Promise<Response> {
+export async function handleLookup(
+  request: Request,
+  makeDeps: () => PipelineDeps,
+): Promise<Response> {
   const auth = await authenticate(request);
   if (!auth.ok) return auth.response;
 
@@ -88,6 +102,12 @@ export async function handleLookup(request: Request, deps: PipelineDeps): Promis
   }
 
   try {
+    // Built here, not passed in already built: this is the one call site
+    // that can turn "no TMDB credential configured" into a clean 503 instead
+    // of an uncaught throw, because it runs after auth and validation have
+    // already succeeded and it is covered by the catch below.
+    const deps = makeDeps();
+
     if ('items' in parsed.data) {
       // Sequential rather than parallel: a batch of 100 fired at once would
       // burn the whole TMDB budget in a burst and the token bucket would then

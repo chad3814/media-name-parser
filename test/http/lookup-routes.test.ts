@@ -65,7 +65,7 @@ async function post(body: unknown, auth = true): Promise<Response> {
   if (auth) headers.authorization = `Bearer ${await token()}`;
   return handleLookup(new Request('https://x.test/api/v1/lookup', {
     method: 'POST', headers, body: JSON.stringify(body),
-  }), testDeps());
+  }), () => testDeps());
 }
 
 async function json(response: Response): Promise<Record<string, unknown>> {
@@ -221,11 +221,38 @@ test('a rate-limited caller gets 429 with Retry-After', opts, async () => {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${minted.token}` },
     body: JSON.stringify({ category: 'tv', name: 'rtestf/Moon Knight/.plexmatch' }),
-  }), testDeps());
+  }), () => testDeps());
   await clean('rtestf');
   assert.equal((await send()).status, 200);
   const refused = await send();
   assert.equal(refused.status, 429);
   assert.ok(Number(refused.headers.get('retry-after')) >= 1);
   await clean('rtestf');
+});
+
+test('a deps factory that throws is a 503 problem response, not a crash', opts, async () => {
+  // A missing TMDB credential is what actually throws here in production
+  // (`buildTmdbDeps()` -> `tmdbTokenFromEnv()`); a plain throw stands in for
+  // it without needing to touch real env vars. The point is that this throw,
+  // happening after auth and validation have already succeeded, is caught
+  // and turned into the same 503 problem+json shape as any other failure
+  // inside the pipeline -- not an uncaught exception.
+  const response = await handleLookup(new Request('https://x.test/api/v1/lookup', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${await token()}` },
+    body: JSON.stringify({ category: 'movies', name: 'x.mkv' }),
+  }), () => { throw new Error('no token configured'); });
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get('content-type'), 'application/problem+json');
+});
+
+test('an unauthenticated request is 401 and never calls the deps factory', opts, async () => {
+  let invoked = false;
+  const response = await handleLookup(new Request('https://x.test/api/v1/lookup', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ category: 'movies', name: 'x.mkv' }),
+  }), () => { invoked = true; throw new Error('must not run'); });
+  assert.equal(response.status, 401);
+  assert.equal(invoked, false, 'authentication must be checked before the deps factory runs');
 });
