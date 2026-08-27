@@ -1,5 +1,6 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { SQL, StringChunk } from 'drizzle-orm';
 import { withTransaction, closeDb, type Tx } from '../../lib/db/client';
 import { readMediaTree } from '../../lib/media/read';
 import { persistResolved } from '../../lib/resolve/persist';
@@ -104,6 +105,56 @@ function countingTx(tx: Tx, calls: { count: number }): Tx {
     },
   });
 }
+
+/**
+ * The static text of a drizzle `sql` template, with the bound parameters
+ * elided. Enough to see which columns a query asks for, which is the one thing
+ * the test below is about.
+ */
+function staticText(query: SQL): string {
+  return query.queryChunks
+    .map((chunk) => (chunk instanceof StringChunk ? chunk.value.join('') : ' ? '))
+    .join('');
+}
+
+/** Like `countingTx`, but keeps the statements so they can be inspected. */
+function capturingTx(tx: Tx, statements: string[]): Tx {
+  return new Proxy(tx, {
+    get(target, prop, receiver) {
+      if (prop === 'execute') {
+        return (...args: Parameters<Tx['execute']>) => {
+          const [query] = args;
+          if (query instanceof SQL) statements.push(staticText(query));
+          return target.execute(...args);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
+test('hydration never selects the raw provider payload', opts, async () => {
+  // `media.raw` is the whole provider response: recorded season payloads run
+  // 348-388 KB. `readMediaTree` runs on every lookup response, cache hits
+  // included, so an ancestry CTE selecting `m.*` moved roughly half a megabyte
+  // per cached episode out of Neon purely to throw it away -- and tens of
+  // megabytes for a 100-item batch. Nine scalar columns are all anything below
+  // reads. Asserted against the statement text because the cost is invisible
+  // from the returned value: `m.*` and an enumerated list build the identical
+  // `MediaView`.
+  await inRollback(async (tx) => {
+    const id = await persistResolved(tx, EPISODE);
+    const statements: string[] = [];
+    const view = await readMediaTree(capturingTx(tx, statements), id);
+    assert.ok(view !== null);
+    assert.equal(view.parents.length, 2, 'still the full ancestry');
+    const ancestry = statements[0] ?? '';
+    assert.doesNotMatch(ancestry, /\bm\.\*|\bp\.\*/,
+      'the ancestry CTE must enumerate its columns, not take every column of media');
+    assert.doesNotMatch(ancestry, /\braw\b/,
+      'and must not fetch raw or raw_fetched_at, which nothing in MediaView reads');
+  });
+});
 
 test('hydration costs a bounded number of queries regardless of depth', opts, async () => {
   // The claim is not just "an episode's ancestry resolves" (the first test

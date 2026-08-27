@@ -49,11 +49,22 @@ function node(row: Readonly<Record<string, unknown>>): MediaNode {
  * an episode is three -- and the recursive form is no harder to read.
  */
 export async function readMediaTree(tx: Tx, mediaId: string): Promise<MediaView | null> {
+  // Columns enumerated, never `m.*`: `media.raw` is the whole provider payload
+  // and a recorded season runs 348-388 KB. Every lookup response hydrates a
+  // tree, cache hits included, so `*` moved half a megabyte per cached episode
+  // out of Neon to be discarded unread -- tens of megabytes for a 100-item
+  // batch. Nothing below reads more than these nine. The two arms of the UNION
+  // must list the same columns in the same order or Postgres rejects the CTE,
+  // so they are kept adjacent and identical apart from the depth expression.
   const chain = await tx.execute(sql`
     WITH RECURSIVE ancestry AS (
-      SELECT m.*, 0 AS depth FROM media m WHERE m.id = ${mediaId}::uuid
+      SELECT m.id, m.parent_id, m.kind, m.title, m.release_date, m.year,
+             m.overview, m.provider, m.provider_ref, 0 AS depth
+        FROM media m WHERE m.id = ${mediaId}::uuid
       UNION ALL
-      SELECT p.*, a.depth + 1 FROM media p JOIN ancestry a ON p.id = a.parent_id
+      SELECT p.id, p.parent_id, p.kind, p.title, p.release_date, p.year,
+             p.overview, p.provider, p.provider_ref, a.depth + 1
+        FROM media p JOIN ancestry a ON p.id = a.parent_id
     )
     SELECT * FROM ancestry ORDER BY depth`);
 
