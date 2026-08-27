@@ -160,11 +160,28 @@ export async function handleLookup(
       const results: (LookupEnvelope & { readonly status: number })[] = [];
       for (const item of parsed.data.items) {
         const envelope = await runOne(item.category, item.name, deps);
-        results.push({ ...envelope, status: 200 });
+        // A batch item gets the same durability guarantee a single lookup
+        // does. The spec's Batch form says "misses are enqueued", and without
+        // this an item that blew its deadline came back `pending` with no job
+        // row -- so it was only ever retried if somebody asked again, twelve
+        // hours later. That is the endpoint the corpus runner uses, which is
+        // exactly where silently dropped work is least likely to be noticed.
+        //
+        // Enqueued but not continued: a hundred `waitUntil` continuations
+        // fired from one invocation would burst the provider budget the
+        // sequential loop above exists to protect. The cron picks them up
+        // within the minute instead.
+        if (envelope.partial && !envelope.cached) {
+          await withTransaction(async (tx) => enqueue(tx, envelope.lookupId));
+        }
+        // Per-item status, not a constant: the spec introduced this field to
+        // carry per-item state, and hardcoding 200 meant it carried none. An
+        // item still resolving is a 202 for the same reason a single lookup is.
+        results.push({ ...envelope, status: envelope.partial ? 202 : 200 });
       }
-      // Always 200: the transport succeeded even when an item is still
-      // resolving. A top-level 202 would force callers to re-inspect every
-      // entry regardless.
+      // The envelope is always 200: the transport succeeded even when an item
+      // is still resolving, and a top-level 202 would force callers to
+      // re-inspect every entry regardless.
       return Response.json({ results });
     }
 

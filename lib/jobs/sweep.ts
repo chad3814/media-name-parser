@@ -1,4 +1,5 @@
 import { withTransaction } from '../db/client';
+import { envInt } from '../env';
 import { pruneRateWindows } from '../auth/rateLimit';
 import { logFailure } from '../http/log';
 import { createTmdbClient, tmdbTokenFromEnv } from '../providers/tmdb/client';
@@ -26,7 +27,20 @@ export interface SweepReport {
   readonly prunedProviderCalls: number;
 }
 
-const DEFAULT_LIMIT = 25;
+/**
+ * Jobs claimed per sweep.
+ *
+ * Six, not twenty-five. The cron fires every minute and each job may spend up
+ * to `LOOKUP_DEADLINE_MS` (8s by default), so twenty-five was up to 200
+ * seconds of sequential work in one invocation -- past the route's
+ * `maxDuration`. The lease reaper makes an interrupted sweep recoverable
+ * rather than destructive, but a reclaim still counts as an attempt, so a job
+ * repeatedly at the tail of an over-long sweep could reach `abandoned`
+ * carrying a stale error. Six is a worst case near 48 seconds, inside the
+ * route's 60, and at once a minute the queue still drains far faster than any
+ * plausible fill rate.
+ */
+const DEFAULT_LIMIT = envInt('SWEEP_LIMIT', 6);
 
 /** How one job ended, in the vocabulary the report counts. */
 type JobResult = 'done' | 'retried' | 'abandoned';
@@ -40,7 +54,17 @@ type JobResult = 'done' | 'retried' | 'abandoned';
  * up to 25 jobs, died on the first, and left all 25 rows in `running` -- which,
  * before `claimDue` grew a lease reaper, meant permanently invisible.
  */
-async function runJob(job: ClaimedJob, deps: SweepDeps): Promise<JobResult> {
+interface SharedProvider {
+  readonly client: ReturnType<typeof createTmdbClient>;
+  readonly drain: () => readonly ProviderCallRecord[];
+}
+
+async function runJob(
+  job: ClaimedJob,
+  deps: SweepDeps,
+  /** Built once per sweep and shared across jobs. See `sweep`. */
+  client: () => SharedProvider,
+): Promise<JobResult> {
   const category = job.category;
 
   try {
@@ -57,20 +81,17 @@ async function runJob(job: ClaimedJob, deps: SweepDeps): Promise<JobResult> {
       return 'done';
     }
 
-    let pending: ProviderCallRecord[] = [];
-    const client = createTmdbClient({
-      token: tmdbTokenFromEnv(),
-      ...(deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl }),
-      recordCall: (row) => { pending.push(row); },
-    });
+    // One client, and therefore one token bucket, for the whole sweep. A
+    // fresh bucket per job enforced nothing -- every job got a full
+    // allowance, and what actually bounded provider load was the sequential
+    // loop and the network round trip. That stops being true the moment
+    // anyone parallelises this loop, and a limiter that works only by
+    // accident is worse than none.
+    const shared = client();
     const pipelineDeps = {
-      provider: createTmdbProvider(client),
+      provider: createTmdbProvider(shared.client),
       now: deps.now,
-      drainCalls: (): readonly ProviderCallRecord[] => {
-        const out = pending;
-        pending = [];
-        return out;
-      },
+      drainCalls: shared.drain,
     };
 
     // `force: true`: this job's lookup row just had `last_attempt_at` set
@@ -143,6 +164,30 @@ export async function sweep(
     ? []
     : await withTransaction(async (tx) => claimDue(tx, limit, deps.workerId));
 
+  // Lazily, not up front: `tmdbTokenFromEnv()` throws when no token is
+  // configured, and that throw must land inside a job's own try -- settling
+  // that job -- rather than aborting the loop and stranding every job claimed
+  // alongside it.
+  let built: SharedProvider | null = null;
+  const sharedProvider = (): SharedProvider => {
+    if (built === null) {
+      let pending: ProviderCallRecord[] = [];
+      built = {
+        client: createTmdbClient({
+          token: tmdbTokenFromEnv(),
+          ...(deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl }),
+          recordCall: (row) => { pending.push(row); },
+        }),
+        drain: (): readonly ProviderCallRecord[] => {
+          const out = pending;
+          pending = [];
+          return out;
+        },
+      };
+    }
+    return built;
+  };
+
   let done = 0;
   let retried = 0;
   let abandoned = 0;
@@ -150,7 +195,7 @@ export async function sweep(
   for (const job of claimed) {
     let outcome: JobResult;
     try {
-      outcome = await runJob(job, deps);
+      outcome = await runJob(job, deps, sharedProvider);
     } catch (error) {
       // `runJob` settles its own failures, so reaching here means the settle
       // itself failed -- the database went away mid-sweep. The row keeps its

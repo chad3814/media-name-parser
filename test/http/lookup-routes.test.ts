@@ -239,6 +239,45 @@ test('a batch returns one result per input, in order, each with a status', opts,
   await clean('rtestd');
 });
 
+test('a batch item that blows its deadline leaves a durable job and reports 202', opts, async () => {
+  // The spec's Batch form says misses are enqueued. Without it an item that
+  // blew its deadline came back pending with no job row, so it was only ever
+  // retried if somebody asked again twelve hours later -- on the endpoint the
+  // corpus runner uses, where dropped work is least likely to be noticed.
+  await clean('rtestbatchq');
+  const good = 'rtestbatchq/Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb';
+  const missing = 'rtestbatchq/Some.Film.Nobody.Recorded.2019.1080p.BluRay-GRP.nzb';
+
+  const body = await json(await post({
+    items: [
+      { category: 'movies', name: good },
+      { category: 'movies', name: missing },
+    ],
+  }));
+  const results = body.results as readonly Record<string, unknown>[];
+  assert.equal(results.length, 2);
+
+  assert.equal(results[0]?.state, 'resolved');
+  assert.equal(results[0]?.status, 200, 'a resolved item is 200');
+
+  assert.equal(results[1]?.state, 'pending');
+  assert.equal(results[1]?.status, 202, 'an item still resolving is 202, not a constant 200');
+
+  const jobs = await getDb().execute(sql`
+    SELECT count(*)::int AS n FROM lookup_jobs
+     WHERE lookup_id = ${String(results[1]?.lookupId)}::uuid`);
+  assert.equal(jobs.rows[0]?.n, 1, 'the partial batch item must leave a durable job');
+
+  const noJobForResolved = await getDb().execute(sql`
+    SELECT count(*)::int AS n FROM lookup_jobs
+     WHERE lookup_id = ${String(results[0]?.lookupId)}::uuid`);
+  assert.equal(noJobForResolved.rows[0]?.n, 0, 'a resolved item must not be queued');
+
+  await getDb().execute(sql`
+    DELETE FROM lookup_jobs WHERE lookup_id = ${String(results[1]?.lookupId)}::uuid`);
+  await clean('rtestbatchq');
+});
+
 test('polling a lookup id returns the same envelope', opts, async () => {
   await clean('rteste');
   const created = await json(await post({

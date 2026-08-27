@@ -1,31 +1,25 @@
-import { unauthorized, unavailable } from '../../../../lib/http/problem';
-import { logFailure } from '../../../../lib/http/log';
-import { sweep } from '../../../../lib/jobs/sweep';
+import { handleSweep } from '../../../../lib/http/sweepHandler';
 
 /**
  * Vercel sends `Authorization: Bearer $CRON_SECRET` when `CRON_SECRET` is set,
- * so the same header check serves both the platform and a manual curl.
- *
- * A missing `CRON_SECRET` refuses every request rather than allowing them: an
- * unset secret is a misconfiguration, and the safe reading of a
- * misconfiguration on a route that mutates data is "no".
+ * so one header check serves both the platform and a manual curl. The check
+ * itself lives in `handleSweep`.
  */
-export async function GET(request: Request): Promise<Response> {
-  const secret = process.env.CRON_SECRET;
-  const header = request.headers.get('authorization');
-  if (secret === undefined || secret.length === 0 || header !== `Bearer ${secret}`) {
-    return unauthorized();
-  }
 
-  try {
-    const report = await sweep({
-      workerId: `cron-${process.env.VERCEL_DEPLOYMENT_ID ?? 'local'}`,
-      now: () => new Date(),
-    });
-    return Response.json(report);
-  } catch (error) {
-    // The report is the only output, so a failure has to be visible somewhere.
-    logFailure('cron sweep', error);
-    return unavailable('the sweep could not be completed');
-  }
+/**
+ * Sixty seconds, paired with `SWEEP_LIMIT`.
+ *
+ * The sweep is sequential and each job may spend up to `LOOKUP_DEADLINE_MS`
+ * (8s), so the worst case is the limit times that — six jobs is about 48
+ * seconds. Raising one without the other is what put the previous default of
+ * twenty-five jobs at 200 seconds against an unset duration, where a cut-short
+ * sweep booked reclaims as attempts and could abandon a job on a stale error.
+ */
+export const maxDuration = 60;
+
+export async function GET(request: Request): Promise<Response> {
+  return handleSweep(request, {
+    workerId: `cron-${process.env.VERCEL_DEPLOYMENT_ID ?? 'local'}`,
+    now: () => new Date(),
+  });
 }
