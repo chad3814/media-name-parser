@@ -148,3 +148,6 @@ next-env.d.ts
 
 # Local env
 .env*.local
+
+# Local API key minted by npm run seed:key
+.api-key.local

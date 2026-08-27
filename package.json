@@ -15,7 +15,8 @@
     "check": "npm run lint && npm run typecheck && npm run test",
     "db:generate": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs migrate",
-    "corpus": "node --import tsx scripts/corpus-report.ts"
+    "corpus": "node --import tsx scripts/corpus-report.ts",
+    "seed:key": "node --env-file=.env.local --import tsx scripts/seed-api-key.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
