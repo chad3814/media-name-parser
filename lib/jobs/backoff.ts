@@ -1,11 +1,6 @@
-function envNumber(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (raw === undefined || raw.length === 0) return fallback;
-  const value = Number.parseInt(raw, 10);
-  return Number.isNaN(value) ? fallback : value;
-}
+import { envInt } from '../env';
 
-export const JOB_MAX_ATTEMPTS = envNumber('JOB_MAX_ATTEMPTS', 6);
+export const JOB_MAX_ATTEMPTS = envInt('JOB_MAX_ATTEMPTS', 6);
 
 /**
  * How long a sweeper's claim on a job is honoured before another sweeper may
@@ -22,7 +17,7 @@ export const JOB_MAX_ATTEMPTS = envNumber('JOB_MAX_ATTEMPTS', 6);
  * are permanently invisible to `claimDue`, which is the whole failure this
  * constant exists to bound.
  */
-export const JOB_LEASE_MS = envNumber('JOB_LEASE_MS', 5 * 60_000);
+export const JOB_LEASE_MS = envInt('JOB_LEASE_MS', 5 * 60_000);
 
 const BASE_MS = 15_000;
 const CAP_MS = 6 * 3600_000;

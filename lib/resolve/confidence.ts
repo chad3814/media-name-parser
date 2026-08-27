@@ -1,12 +1,7 @@
 import { foldForMatch } from '../parse/normalize';
 import type { ParsedVideo } from '../parse/types';
+import { envNumber } from '../env';
 
-function envNumber(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (raw === undefined || raw.length === 0) return fallback;
-  const value = Number.parseFloat(raw);
-  return Number.isNaN(value) ? fallback : value;
-}
 
 export const CONFIDENCE_FLOOR = envNumber('CONFIDENCE_FLOOR', 0.75);
 

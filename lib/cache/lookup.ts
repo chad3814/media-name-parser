@@ -3,13 +3,8 @@ import type { Tx } from '../db/client';
 import type { Category } from '../parse/types';
 import type { JsonValue } from '../providers/types';
 import { PARSER_VERSION } from '../parse/markers';
+import { envNumber } from '../env';
 
-function envNumber(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (raw === undefined || raw.length === 0) return fallback;
-  const value = Number.parseFloat(raw);
-  return Number.isNaN(value) ? fallback : value;
-}
 
 export const STALE_AFTER_HOURS = envNumber('STALE_AFTER_HOURS', 12);
 

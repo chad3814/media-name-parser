@@ -10,15 +10,10 @@ import {
   decide, findResolvedSibling, readLookup, recordHit, upsertParse, writeLookupOutcome,
   type LookupState,
 } from '../cache/lookup';
+import { envInt } from '../env';
 
-function envNumber(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (raw === undefined || raw.length === 0) return fallback;
-  const value = Number.parseInt(raw, 10);
-  return Number.isNaN(value) ? fallback : value;
-}
 
-export const LOOKUP_DEADLINE_MS = envNumber('LOOKUP_DEADLINE_MS', 8000);
+export const LOOKUP_DEADLINE_MS = envInt('LOOKUP_DEADLINE_MS', 8000);
 
 export interface PipelineDeps {
   readonly provider: Provider;
