@@ -61,6 +61,27 @@ test('a refusal carries a Retry-After inside the current minute', opts, async ()
   });
 });
 
+test('retryAfterSeconds reflects time remaining in the window', opts, async () => {
+  await inRollback(async (tx) => {
+    const apiKeyId = await seedKey(tx);
+
+    // At :30 seconds, exactly 30 seconds remain in the minute
+    const at30 = new Date('2026-08-27T12:00:30Z');
+    const refusal30 = await consume(tx, apiKeyId, 0, at30);
+    assert.equal(refusal30.retryAfterSeconds, 30, 'at :30, 30 seconds remain');
+
+    // At :00 seconds (start of minute), exactly 60 seconds remain
+    const at00 = new Date('2026-08-27T12:01:00Z');
+    const refusal00 = await consume(tx, apiKeyId, 0, at00);
+    assert.equal(refusal00.retryAfterSeconds, 60, 'at :00, 60 seconds remain');
+
+    // At :59 seconds, exactly 1 second remains
+    const at59 = new Date('2026-08-27T12:02:59Z');
+    const refusal59 = await consume(tx, apiKeyId, 0, at59);
+    assert.equal(refusal59.retryAfterSeconds, 1, 'at :59, 1 second remains');
+  });
+});
+
 test('two different keys do not share a budget', opts, async () => {
   await inRollback(async (tx) => {
     const a = await seedKey(tx);
@@ -98,15 +119,28 @@ test('a limit of zero refuses everything', opts, async () => {
 test('pruning removes old windows and keeps recent ones', opts, async () => {
   await inRollback(async (tx) => {
     const apiKeyId = await seedKey(tx);
-    await consume(tx, apiKeyId, 10, new Date('2026-08-27T09:00:00Z'));
-    await consume(tx, apiKeyId, 10, new Date('2026-08-27T12:00:00Z'));
+    const now = new Date();
+
+    // Create windows relative to now: one older than keepWindows, one recent
+    const threeMinutesAgo = new Date(now.getTime() - 3 * 60 * 1000);
+    const oneMinuteAgo = new Date(now.getTime() - 1 * 60 * 1000);
+
+    // Seed both windows
+    await consume(tx, apiKeyId, 10, threeMinutesAgo);
+    await consume(tx, apiKeyId, 10, oneMinuteAgo);
+
+    // Verify both are present before pruning
     const before = await tx.execute(sql`
       SELECT count(*)::int AS n FROM rate_limit_windows WHERE api_key_id = ${apiKeyId}::uuid`);
     assert.equal(before.rows[0]?.n, 2);
+
+    // Prune keeping last 2 minutes (should remove the 3-minute-old window)
     const removed = await pruneRateWindows(tx, 2);
-    assert.ok(removed >= 1, 'the 09:00 window is older than two minutes');
+    assert.ok(removed >= 1, 'the 3-minute-old window should be removed');
+
+    // Verify the recent window still exists and old one is gone
     const after = await tx.execute(sql`
       SELECT count(*)::int AS n FROM rate_limit_windows WHERE api_key_id = ${apiKeyId}::uuid`);
-    assert.ok(Number(after.rows[0]?.n ?? 0) < 2);
+    assert.equal(after.rows[0]?.n, 1, 'the recent window should still be present');
   });
 });
