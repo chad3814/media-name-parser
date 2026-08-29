@@ -333,7 +333,10 @@ export async function AppShell({ children }: { readonly children: ReactNode }) {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/" className="font-semibold">media-name-parser</Link>
-            <Link href="/keys" className="text-muted-foreground hover:text-foreground">Keys</Link>
+            {/* The Keys link is added in Task 5, not here. `typedRoutes: true`
+                types `Link href` against the routes that exist, so linking to
+                /keys before app/keys/page.tsx exists is a TS2322 error, not a
+                dead link. */}
             {user?.isAdmin === true ? (
               <Link href="/admin" className="text-muted-foreground hover:text-foreground">Admin</Link>
             ) : null}
@@ -355,6 +358,8 @@ export async function AppShell({ children }: { readonly children: ReactNode }) {
 ```
 
 The admin link appears only for an admin — not as security, which lives in the route, but because a link that always 403s is a bug report waiting to happen.
+
+**There is deliberately no Keys link yet.** `next.config.ts` sets `typedRoutes: true`, so `Link href` is typed against the routes that actually exist. `href="/keys"` before `app/keys/page.tsx` exists is a compile error — measured: `error TS2322: Type '"/keys"' is not assignable to type 'UrlObject | RouteImpl<"/keys">'`. Task 5 adds the link along with the route. Do not work around this by widening the type or using an `UrlObject`; the check is doing its job.
 
 - [ ] **Step 11: Wire the shell into the root layout**
 
@@ -1572,6 +1577,7 @@ asserted never to echo it or the hash."
 
 **Files:**
 - Create: `app/keys/page.tsx`, `components/keys-manager.tsx`
+- Modify: `components/app-shell.tsx` (add the Keys link, which only typechecks once this task's route exists)
 - Test: `test/ui/keysManager.test.ts`
 
 **Interfaces:**
@@ -1828,7 +1834,17 @@ export default async function KeysPage() {
 }
 ```
 
-- [ ] **Step 5: Run everything**
+- [ ] **Step 5: Add the Keys link to the shell**
+
+Task 1 deliberately left it out: with `typedRoutes: true`, `Link href="/keys"` is a compile error until `app/keys/page.tsx` exists. It exists now, so add it to `components/app-shell.tsx` beside the existing links, replacing the comment Task 1 left in its place:
+
+```tsx
+            <Link href="/keys" className="text-muted-foreground hover:text-foreground">Keys</Link>
+```
+
+`npm run typecheck` is the proof it is legal now; it would have failed in Task 1.
+
+- [ ] **Step 6: Run everything**
 
 ```bash
 npm run check
@@ -1837,11 +1853,11 @@ npm run build
 
 Expected: 4 new tests passing, the suite green with 0 skipped, and `/keys` listed as `ƒ` (Dynamic).
 
-- [ ] **Step 6: Exercise the round trip**
+- [ ] **Step 7: Exercise the round trip**
 
 Without a browser, drive the routes with a session cookie obtained the way `test/helpers/signIn.ts` does, and confirm the whole cycle: create a key, use it against `/api/v1/lookup` with `Authorization: Bearer`, revoke it, and confirm the same key is then refused. This is the spec's success criterion 6 — "a user can register, mint an API token, and use it against `/v1/lookup`" — end to end. Report each status code. Redirect the secret to a variable, never to a log or your report.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add app/keys/page.tsx components/keys-manager.tsx test/ui/keysManager.test.ts
