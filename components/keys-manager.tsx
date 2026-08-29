@@ -10,8 +10,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 // Type-only: lib/keys/manage.ts imports Drizzle.
 import type { KeyRow } from '../lib/keys/manage';
 
-function when(value: string | null): string {
-  return value === null ? '—' : new Date(value).toLocaleString();
+/**
+ * Formats a timestamp for display, deterministically regardless of the
+ * ambient timezone.
+ *
+ * Exported so the determinism claim is testable directly: `toLocaleString()`
+ * renders in the server's timezone during SSR and the visitor's on
+ * hydration, a mismatch invisible to tests and the build until a real
+ * browser disagrees with a real server.
+ */
+export function when(value: string | null): string {
+  if (value === null) return '—';
+  return `${new Date(value).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 }
 
 /**
@@ -36,6 +46,9 @@ export function KeysManager({ initialKeys }: { readonly initialKeys: readonly Ke
   // The one and only copy of the secret, held in memory for as long as the
   // panel is open and never written anywhere else.
   const [fresh, setFresh] = useState<{ readonly prefix: string; readonly token: string } | null>(null);
+  // Ids currently mid-revoke, so a fast double-click on the same row is
+  // ignored rather than firing a second DELETE while the first is in flight.
+  const [revoking, setRevoking] = useState<ReadonlySet<string>>(new Set());
 
   async function create(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -57,22 +70,38 @@ export function KeysManager({ initialKeys }: { readonly initialKeys: readonly Ke
         return;
       }
       const payload = await response.json() as { key: KeyRow; token: string };
-      setKeys([payload.key, ...keys]);
+      setKeys((current) => [payload.key, ...current]);
       setFresh({ prefix: payload.key.prefix, token: payload.token });
       setLabel('');
+    } catch {
+      setError('The request could not be sent.');
     } finally {
       setBusy(false);
     }
   }
 
   async function revoke(id: string): Promise<void> {
+    if (revoking.has(id)) return;
     setError(null);
-    const response = await fetch(`/api/keys/${id}`, { method: 'DELETE' });
-    if (response.status !== 204) {
-      setError('Could not revoke that key.');
-      return;
+    setRevoking((current) => new Set(current).add(id));
+    try {
+      const response = await fetch(`/api/keys/${id}`, { method: 'DELETE' });
+      if (response.status !== 204) {
+        setError('Could not revoke that key.');
+        return;
+      }
+      setKeys((current) => current.map(
+        (key) => (key.id === id ? { ...key, revokedAt: new Date().toISOString() } : key),
+      ));
+    } catch {
+      setError('The request could not be sent.');
+    } finally {
+      setRevoking((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
     }
-    setKeys(keys.map((key) => (key.id === id ? { ...key, revokedAt: new Date().toISOString() } : key)));
   }
 
   return (
@@ -157,8 +186,14 @@ export function KeysManager({ initialKeys }: { readonly initialKeys: readonly Ke
               <TableCell>{when(key.lastUsedAt)}</TableCell>
               <TableCell className="text-right">
                 {key.revokedAt === null ? (
-                  <Button type="button" size="sm" variant="outline" onClick={() => { void revoke(key.id); }}>
-                    Revoke
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={revoking.has(key.id)}
+                    onClick={() => { void revoke(key.id); }}
+                  >
+                    {revoking.has(key.id) ? 'Revoking…' : 'Revoke'}
                   </Button>
                 ) : null}
               </TableCell>

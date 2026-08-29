@@ -9,8 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 // Type-only: lib/http/envelope.ts imports the TMDB client and the database,
 // and a value import would put both in the browser bundle.
 import type { LookupEnvelope } from '../lib/http/envelope';
-
-const CATEGORIES = ['tv', 'movies', 'books', 'xxx'] as const;
+// lib/parse/types.ts is dependency-free, so importing its value here pulls
+// nothing extra into the browser bundle -- unlike envelope.ts above.
+import { CATEGORIES, type Category } from '../lib/parse/types';
 
 type State =
   | { readonly kind: 'idle' }
@@ -19,7 +20,7 @@ type State =
   | { readonly kind: 'error'; readonly message: string };
 
 export function LookupForm() {
-  const [category, setCategory] = useState<string>('movies');
+  const [category, setCategory] = useState<Category>('movies');
   const [name, setName] = useState('');
   const [state, setState] = useState<State>({ kind: 'idle' });
 
@@ -58,7 +59,7 @@ export function LookupForm() {
             id="category"
             name="category"
             value={category}
-            onChange={(event) => setCategory(event.target.value)}
+            onChange={(event) => setCategory(event.target.value as Category)}
             className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
           >
             {CATEGORIES.map((value) => <option key={value} value={value}>{value}</option>)}

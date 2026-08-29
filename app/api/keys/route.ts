@@ -29,6 +29,11 @@ export async function POST(request: Request): Promise<Response> {
   const guard = await requireUser(request.headers);
   if (!guard.ok) return guard.response;
 
+  const contentType = request.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    return badRequest('the body must be application/json');
+  }
+
   let raw: unknown;
   try {
     raw = await request.json();

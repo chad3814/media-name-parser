@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { getCurrentUser } from '../lib/auth/session';
+import { getCurrentUser, type CurrentUser } from '../lib/auth/session';
+import { logFailure } from '../lib/http/log';
 import { SignOutButton } from './sign-out-button';
 
 /**
@@ -16,7 +17,22 @@ import { SignOutButton } from './sign-out-button';
  * give a false sense of protection.
  */
 export async function AppShell({ children }: { readonly children: ReactNode }) {
-  const user = await getCurrentUser(await headers());
+  // Outside the try on purpose. `headers()` throws Next's dynamic-usage signal
+  // during static generation, and that throw is how a route gets marked
+  // dynamic -- catching it logs a control-flow signal as an error and, for a
+  // page that reached `headers()` only through this shell, would let Next
+  // prerender a page that must not be prerendered. Same rule as `redirect()`:
+  // a function that throws control flow does not belong in a try.
+  const requestHeaders = await headers();
+
+  let user: CurrentUser | null = null;
+  try {
+    user = await getCurrentUser(requestHeaders);
+  } catch (error) {
+    // The shell wraps every page, including /sign-in. A database outage here
+    // must not turn the sign-in page into a 500, and must not go unlogged.
+    logFailure('appShell', error);
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">

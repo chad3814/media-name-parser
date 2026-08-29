@@ -55,10 +55,15 @@ test('sessionGate refuses a bearer token', opts, async () => {
   assert.equal(result.ok, false);
 });
 
-test('a gate result carries no caller', () => {
-  // Deliberate: handleLookup never reads one, so the gate does not invent one.
-  // If a future handler needs the caller, widen the type on purpose rather
-  // than stuffing a synthetic Caller through here.
-  const shape: Awaited<ReturnType<typeof sessionGate>> = { ok: true };
-  assert.deepEqual(Object.keys(shape), ['ok']);
+test('a gate result carries no caller', opts, async () => {
+  // handleLookup never reads one, so the gate does not invent one. Asserted
+  // against a real result rather than a literal the test wrote itself.
+  const email = 'gate-shape@example.test';
+  try {
+    const result = await sessionGate(req(await signIn(email)));
+    assert.equal(result.ok, true);
+    assert.equal('caller' in result, false, 'the gate must not surface a caller');
+  } finally {
+    await deleteUser(email);
+  }
 });

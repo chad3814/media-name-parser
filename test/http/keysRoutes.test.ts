@@ -68,6 +68,28 @@ test('a label is required', opts, async () => {
   }
 });
 
+test('creating a key requires an application/json content type', opts, async () => {
+  // The safety of trusting the body at all rests on this rather than on
+  // SameSite=Lax alone -- that mitigates the practical CSRF risk, but nothing
+  // asserted that a non-JSON body was refused before this test did.
+  await cleanup();
+  try {
+    const cookie = await signIn(A);
+
+    const textHeaders = new Headers(cookie);
+    textHeaders.set('content-type', 'text/plain');
+    const textResponse = await createRoute(new Request('http://localhost:3000/api/keys', {
+      method: 'POST', headers: textHeaders, body: JSON.stringify({ label: 'plain' }),
+    }));
+    assert.equal(textResponse.status, 400);
+
+    const jsonResponse = await createRoute(post(cookie, 'json'));
+    assert.equal(jsonResponse.status, 201);
+  } finally {
+    await cleanup();
+  }
+});
+
 test('a user cannot revoke another user key through the route', opts, async () => {
   await cleanup();
   try {
@@ -102,7 +124,8 @@ test('an owner can revoke their own key', opts, async () => {
 
     const listed = await listRoute(new Request('http://localhost:3000/api/keys', { headers }));
     const body = await listed.json() as { keys: readonly { revokedAt: string | null }[] };
-    assert.ok(body.keys[0]?.revokedAt !== null);
+    assert.equal(body.keys.length, 1, 'expected exactly one key');
+    assert.ok(body.keys[0]?.revokedAt !== null, 'the key should be marked revoked');
   } finally {
     await cleanup();
   }

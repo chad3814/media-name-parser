@@ -1,15 +1,30 @@
 import { handleLookup } from '../../../../lib/http/lookupHandler';
 import { buildTmdbDeps } from '../../../../lib/http/envelope';
 import { sessionGate } from '../../../../lib/http/gate';
+import { badRequest } from '../../../../lib/http/problem';
+
+export const maxDuration = 60;
 
 /**
  * The lookup the browser calls.
  *
- * Identical to `/api/v1/lookup` in every respect but the gate, and it returns
- * the same envelope, so the page and any API consumer read the same shape.
- * It lives under `/api/ui/` rather than `/api/v1/` because `/api/v1` is the
- * documented key-authenticated surface and this is not part of it.
+ * Identical to `/api/v1/lookup` but for the gate, and it returns the same
+ * envelope. Batched bodies are refused here: `sessionGate` charges no rate
+ * limit -- a person clicking a form does not need throttling -- but the shared
+ * handler accepts up to 100 items, so without this the session route is an
+ * unthrottled bulk endpoint. The page sends one name at a time. A later plan
+ * that adds a bulk page should lift this deliberately, with a limit attached,
+ * rather than by deleting the check.
+ *
+ * The body is read from a clone so `handleLookup` still gets an unconsumed
+ * request.
  */
 export async function POST(request: Request): Promise<Response> {
+  const raw: unknown = await request.clone().json().catch(() => null);
+  // `unknown` is the deserialization exception: `raw` is only tested for the
+  // presence of an `items` key, never read as a typed value.
+  if (typeof raw === 'object' && raw !== null && 'items' in raw) {
+    return badRequest('batched lookups are not available from the browser');
+  }
   return handleLookup(request, buildTmdbDeps, { gate: sessionGate });
 }

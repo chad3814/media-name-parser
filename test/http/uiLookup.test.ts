@@ -90,6 +90,33 @@ test('a signed-in user gets an envelope from the browser route', opts, async () 
     };
     assert.equal(typeof envelope.lookupId, 'string');
     assert.ok(['resolved', 'unresolved', 'pending'].includes(envelope.state));
+    assert.equal(envelope.cached, true, 'the cached name must not hit the provider');
+  } finally {
+    await deleteUser(email);
+  }
+});
+
+test('the browser route refuses a batched body but accepts a single lookup', opts, async () => {
+  // sessionGate charges no rate limit, and the shared handler accepts up to
+  // 100 items -- without a check at the route, the session path would be an
+  // unthrottled bulk endpoint. Both directions matter: refusing a batch, and
+  // not refusing the single-item shape the page actually sends.
+  const email = 'ui-batch@example.test';
+  try {
+    const headers = await signIn(email);
+
+    const batchHeaders = new Headers(headers);
+    batchHeaders.set('content-type', 'application/json');
+    const batched = new Request('http://localhost:3000/api/ui/lookup', {
+      method: 'POST',
+      headers: batchHeaders,
+      body: JSON.stringify({ items: [{ category: 'movies', name: CACHED_NAME }] }),
+    });
+    const batchedResponse = await uiLookup(batched);
+    assert.equal(batchedResponse.status, 400);
+
+    const single = await uiLookup(body(headers, CACHED_NAME));
+    assert.ok([200, 202].includes(single.status), `unexpected ${single.status}`);
   } finally {
     await deleteUser(email);
   }

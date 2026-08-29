@@ -38,7 +38,7 @@ export default async function AdminPage() {
     <main>
       <h1>Admin</h1>
       <p>Signed in as {guard.user.email}.</p>
-      <p>Cache inspection lands here in Plan 5.</p>
+      <p>Cache inspection is coming.</p>
     </main>
   );
 }

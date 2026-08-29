@@ -240,34 +240,23 @@ export async function handleLookup(
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Same shape as `LookupHandlerOptions.gate`, for the poll route. Kept as its
- * own interface rather than reusing `LookupHandlerOptions` because a poll
- * has no `defer` -- it never launches a continuation -- and a shared type
- * would let one grow a field the other cannot honour.
- */
-export interface PollHandlerOptions {
-  /**
-   * Who may run this poll. Defaults to an API key, which is what
-   * `/api/v1/lookup/[id]` serves.
-   */
-  readonly gate?: Gate;
-}
-
-/**
  * The `GET /api/v1/lookup/[id]` poll.
  *
  * No `deps` parameter: a poll only reads stored rows and never touches a
  * provider. It lives alongside `handleLookup` for symmetry, so both handlers
  * behind the two lookup routes are directly testable without going through
  * Next.js.
+ *
+ * Always gated by `apiKeyGate`: nothing supplies an alternative today, since
+ * `/api/v1/lookup/[id]` is the only route that calls this. A session-gated
+ * poll route belongs to whichever later plan adds one, added together with
+ * the option that serves it rather than in advance of it.
  */
 export async function handlePoll(
   request: Request,
   context: { readonly params: Promise<{ readonly id: string }> },
-  options: PollHandlerOptions = {},
 ): Promise<Response> {
-  const gate = options.gate ?? apiKeyGate;
-  const pass = await gate(request);
+  const pass = await apiKeyGate(request);
   if (!pass.ok) return pass.response;
 
   const { id } = await context.params;

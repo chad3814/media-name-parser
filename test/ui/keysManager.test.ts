@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { KeysManager, canCreateKey } from '../../components/keys-manager';
+import { KeysManager, canCreateKey, when } from '../../components/keys-manager';
 
 const source = (name: string): Promise<string> =>
   readFile(new URL(`../../${name}`, import.meta.url), 'utf8');
@@ -51,4 +51,26 @@ test('the create form is unavailable while an undismissed secret is on screen', 
   assert.equal(canCreateKey(true, false), false, 'busy must block');
   assert.equal(canCreateKey(false, true), false, 'an undismissed secret must block');
   assert.equal(canCreateKey(true, true), false);
+});
+
+test('the timestamp formatter is timezone-independent', () => {
+  // toLocaleString() would render in the server's timezone during SSR and
+  // the visitor's on hydration -- a mismatch invisible to tests and the
+  // build. Exercised under two different ambient timezones to prove the
+  // output does not move with TZ.
+  const iso = '2026-03-14T09:30:00.000Z';
+  const previous = process.env.TZ;
+  try {
+    process.env.TZ = 'America/Los_Angeles';
+    const inLA = when(iso);
+    process.env.TZ = 'Asia/Tokyo';
+    const inTokyo = when(iso);
+    assert.equal(inLA, '2026-03-14 09:30 UTC');
+    assert.equal(inTokyo, '2026-03-14 09:30 UTC');
+    assert.equal(inLA, inTokyo);
+  } finally {
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
+  }
+  assert.equal(when(null), '—');
 });

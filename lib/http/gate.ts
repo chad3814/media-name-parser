@@ -31,8 +31,10 @@ export const apiKeyGate: Gate = async (request) => {
  * A signed-in person.
  *
  * No rate limit is charged here, unlike the key path: a human clicking a form
- * does not need throttling. The batch body is the exposure, and the page that
- * sends batches is where that belongs.
+ * does not need throttling. The batch body is refused at the route
+ * (`app/api/ui/lookup/route.ts`) instead, because this gate is shared and a
+ * rate limit here would not be -- a session route that accepted batches would
+ * otherwise be an unthrottled bulk endpoint through the one shared handler.
  */
 export const sessionGate: Gate = async (request) => {
   const guard = await requireUser(request.headers);
