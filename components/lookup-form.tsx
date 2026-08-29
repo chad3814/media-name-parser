@@ -33,7 +33,7 @@ export function LookupForm() {
         body: JSON.stringify({ category, name }),
       });
       if (response.status === 401) {
-        setState({ kind: 'error', message: 'Your session expired. Sign in again.' });
+        setState({ kind: 'error', message: 'You are not signed in. Sign in and try again.' });
         return;
       }
       if (!response.ok && response.status !== 202) {
