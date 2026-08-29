@@ -648,11 +648,38 @@ test('the browser route refuses an anonymous request', opts, async () => {
   assert.equal(response.status, 401);
 });
 
-test('the browser route refuses an api key', opts, async () => {
-  // A key is not a cookie: /api/ui/* is for people.
-  const headers = new Headers({ authorization: 'Bearer mnp_deadbeef_notarealkey' });
-  const response = await uiLookup(body(headers, 'Whatever.2010.1080p.mkv'));
-  assert.equal(response.status, 401);
+test('the browser route refuses a real api key', opts, async () => {
+  // A *minted* key, not a made-up string. An unminted token is refused by
+  // either gate -- no cookie, or unknown key -- so a fake token leaves this
+  // test green even when the route is wired to apiKeyGate, which is precisely
+  // the crossover it is named for. A review caught that by mutation and
+  // measured the difference: with a real key the wrongly wired route returns
+  // 202 where the correct one returns 401.
+  const email = 'ui-realkey@example.test';
+  try {
+    const userId = await withTransaction(async (tx) => (await ensureUser(tx, email)).id);
+    const minted = await mintApiKey();
+    await withTransaction((tx) => tx.execute(sql`
+      INSERT INTO api_keys (user_id, label, token_hash, prefix)
+      VALUES (${userId}, 'uiLookup crossover test', ${minted.tokenHash}, ${minted.prefix})`));
+
+    const bearer = new Headers({ authorization: `Bearer ${minted.token}` });
+
+    // First prove the key is real, by using it where it is supposed to work.
+    // Without this, a 401 below could just mean the token was bogus.
+    const onKeyRoute = await apiLookup(body(bearer, CACHED_NAME));
+    assert.ok(
+      [200, 202].includes(onKeyRoute.status),
+      `the minted key should work on /api/v1/lookup, got ${onKeyRoute.status}`,
+    );
+
+    // Now the assertion that matters: the same working key is refused here.
+    const onUiRoute = await uiLookup(body(bearer, CACHED_NAME));
+    assert.equal(onUiRoute.status, 401, 'a valid api key must not reach the session route');
+  } finally {
+    // api_keys.user_id cascades, so removing the user removes the key.
+    await deleteUser(email);
+  }
 });
 
 test('the public route still refuses a session cookie', opts, async () => {
