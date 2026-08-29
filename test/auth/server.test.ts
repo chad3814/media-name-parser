@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { getAuth, githubConfigured, magicLinkSink } from '../../lib/auth/server';
+import { sql } from 'drizzle-orm';
+import { getDb } from '../../lib/db/client';
+import { getAuth, githubConfigured, magicLinkSink, baseURL } from '../../lib/auth/server';
 
 const run = promisify(execFile);
 
@@ -48,43 +50,77 @@ test('githubConfigured requires both credentials, not either', () => {
   }
 });
 
+test('baseURL throws in production when BETTER_AUTH_URL is unset, but not in development', () => {
+  // Next's own types declare `NODE_ENV` readonly on ProcessEnv. That is a
+  // type-level guarantee only -- the object itself is a plain mutable
+  // process.env -- so this narrows to a writable index type rather than
+  // reaching for `any`.
+  const mutableEnv = process.env as Record<string, string | undefined>;
+  const previousUrl = mutableEnv.BETTER_AUTH_URL;
+  const previousEnv = mutableEnv.NODE_ENV;
+  try {
+    delete mutableEnv.BETTER_AUTH_URL;
+
+    mutableEnv.NODE_ENV = 'production';
+    assert.throws(() => baseURL(), /BETTER_AUTH_URL is not set/);
+
+    mutableEnv.NODE_ENV = 'development';
+    assert.equal(baseURL(), 'http://localhost:3000');
+
+    mutableEnv.BETTER_AUTH_URL = 'https://example.test';
+    mutableEnv.NODE_ENV = 'production';
+    assert.equal(baseURL(), 'https://example.test');
+  } finally {
+    if (previousUrl === undefined) delete mutableEnv.BETTER_AUTH_URL;
+    else mutableEnv.BETTER_AUTH_URL = previousUrl;
+    if (previousEnv === undefined) delete mutableEnv.NODE_ENV;
+    else mutableEnv.NODE_ENV = previousEnv;
+  }
+});
+
 test('a cookie-less request has no session', opts, async () => {
   assert.equal(await getAuth().api.getSession({ headers: new Headers() }), null);
 });
 
 test('the magic-link sink captures a token when enabled, so no mail is needed', opts, async () => {
   const previous = process.env.MAGIC_LINK_SINK;
+  const email = 'sinkprobe@example.test';
   process.env.MAGIC_LINK_SINK = '1';
   magicLinkSink.length = 0;
   try {
     await getAuth().api.signInMagicLink({
-      body: { email: 'sinkprobe@example.test', callbackURL: '/' },
+      body: { email, callbackURL: '/' },
       // Required: without a headers option this throws "Headers is required".
       headers: new Headers({ 'content-type': 'application/json' }),
     });
     assert.equal(magicLinkSink.length, 1, 'the sender should have been called once');
     const entry = magicLinkSink[0];
-    assert.equal(entry?.email, 'sinkprobe@example.test');
+    assert.equal(entry?.email, email);
     assert.ok((entry?.token ?? '').length > 16, 'and it should carry a real token');
   } finally {
     if (previous === undefined) delete process.env.MAGIC_LINK_SINK;
     else process.env.MAGIC_LINK_SINK = previous;
     magicLinkSink.length = 0;
+    // A requested-but-never-verified magic link leaves a row here. The email
+    // is stored inside the `value` JSON, not in `identifier`.
+    await getDb().execute(sql`DELETE FROM verification WHERE value LIKE ${'%' + email + '%'}`);
   }
 });
 
 test('the sink stays empty when it is not enabled', opts, async () => {
   const previous = process.env.MAGIC_LINK_SINK;
+  const email = 'nosink@example.test';
   delete process.env.MAGIC_LINK_SINK;
   magicLinkSink.length = 0;
   try {
     await getAuth().api.signInMagicLink({
-      body: { email: 'nosink@example.test', callbackURL: '/' },
+      body: { email, callbackURL: '/' },
       headers: new Headers({ 'content-type': 'application/json' }),
     });
     assert.equal(magicLinkSink.length, 0, 'production must not accumulate tokens in memory');
   } finally {
     if (previous !== undefined) process.env.MAGIC_LINK_SINK = previous;
+    await getDb().execute(sql`DELETE FROM verification WHERE value LIKE ${'%' + email + '%'}`);
   }
 });
 

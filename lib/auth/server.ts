@@ -41,6 +41,33 @@ function secret(): string {
   return value;
 }
 
+/**
+ * `BETTER_AUTH_URL` in production, or `http://localhost:3000` in development.
+ *
+ * A missing `baseURL` is not an error to Better Auth -- it derives one from
+ * the incoming request and warns that callbacks and redirects may not work
+ * correctly. But an explicit `baseURL`, once set, short-circuits that
+ * resolution chain entirely and also becomes the only trusted origin
+ * (`trustedOrigins` is derived from the same value). A silent
+ * `http://localhost:3000` default in production would therefore pin
+ * `trustedOrigins` to localhost and send every magic link there too -- a
+ * deployment that omits the variable would see broken OAuth callbacks and
+ * failed origin checks that look like a provider problem, not a
+ * configuration one. Development keeps the convenience default because
+ * nothing there is reachable from outside localhost anyway.
+ */
+export function baseURL(): string {
+  const value = env('BETTER_AUTH_URL');
+  if (value.length > 0) return value;
+  if (env('NODE_ENV') === 'production') {
+    throw new Error(
+      'BETTER_AUTH_URL is not set. Set it to this deployment\'s own origin, ' +
+      'e.g. BETTER_AUTH_URL=https://example.com',
+    );
+  }
+  return 'http://localhost:3000';
+}
+
 // A named function, rather than inlining `betterAuth({...})` inside
 // `getAuth()`, so its return type is the concrete type TypeScript infers from
 // this literal config -- not the generic `Auth<BetterAuthOptions>` default
@@ -51,7 +78,7 @@ function secret(): string {
 function buildAuth() {
   return betterAuth({
     secret: secret(),
-    baseURL: env('BETTER_AUTH_URL').length > 0 ? env('BETTER_AUTH_URL') : 'http://localhost:3000',
+    baseURL: baseURL(),
     database: drizzleAdapter(getDb(), { provider: 'pg', schema }),
 
     // No passwords. The service has no password-reset flow, no rotation policy

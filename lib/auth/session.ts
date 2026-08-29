@@ -18,11 +18,35 @@ export type Guard<T> =
 export async function getCurrentUser(headers: Headers): Promise<CurrentUser | null> {
   const session = await getAuth().api.getSession({ headers });
   if (session === null) return null;
-  // `role` is contributed by the admin plugin, so it is absent from Better
-  // Auth's base user type. Reading it through a narrow record type is the
-  // deserialization exception: the value is a database column, not app state.
-  const withRoleColumn = session.user as unknown as { readonly role?: string | null };
-  const role = withRoleColumn.role ?? null;
+  // `role`, `banned` and `banExpires` are contributed by the admin plugin, so
+  // they are absent from Better Auth's base user type. Reading them through a
+  // narrow record type is the deserialization exception: the values are
+  // database columns, not app state.
+  const withAdminColumns = session.user as unknown as {
+    readonly role?: string | null;
+    readonly banned?: boolean | null;
+    readonly banExpires?: Date | string | null;
+  };
+  const role = withAdminColumns.role ?? null;
+
+  // The admin plugin enforces `banned` only when a session is *created*
+  // (its session-create hook), so setting the column on a user who already
+  // holds a live session is otherwise a no-op -- this is the one place that
+  // reads it afterward. A permanent ban has `banExpires` null or absent; an
+  // expired one has a `banExpires` in the past and no longer applies.
+  //
+  // Returning `null` -- "no current user" -- rather than a distinct refusal:
+  // this fails closed, and every existing caller already handles the
+  // no-user case correctly, so a banned user is treated exactly like an
+  // unauthenticated one rather than needing a new branch threaded through
+  // every guard.
+  if (withAdminColumns.banned === true) {
+    const banExpires = withAdminColumns.banExpires;
+    const expired = banExpires !== null && banExpires !== undefined
+      && new Date(banExpires).getTime() <= Date.now();
+    if (!expired) return null;
+  }
+
   return {
     id: session.user.id,
     email: session.user.email,

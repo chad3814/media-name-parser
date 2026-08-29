@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '../../../lib/auth/session';
+import { requireAdmin } from '../../../lib/auth/session';
 
 /**
  * The admin segment's user-experience guard.
@@ -16,11 +16,18 @@ import { getCurrentUser } from '../../../lib/auth/session';
  * `forbidden()` needs the experimental `authInterrupts` flag, and turning that
  * on to render one sentence is a poor trade when a layout can just return its
  * own markup instead of children.
+ *
+ * Goes through `requireAdmin` rather than a bare `getCurrentUser` so a thrown
+ * database error is caught and logged by `requireUser` (via `logFailure`)
+ * instead of reaching Next's generic error boundary unlabeled. `redirect()`
+ * throws control flow and must stay outside the guard's own try/catch, which
+ * is exactly what `requireAdmin` already does -- nothing here wraps it in a
+ * broader catch that could swallow it.
  */
 export default async function AdminLayout({ children }: { readonly children: ReactNode }) {
-  const user = await getCurrentUser(await headers());
-  if (user === null) redirect('/sign-in');
-  if (!user.isAdmin) {
+  const guard = await requireAdmin(await headers());
+  if (!guard.ok) {
+    if (guard.response.status === 401) redirect('/sign-in');
     return (
       <main>
         <h1>Not available</h1>

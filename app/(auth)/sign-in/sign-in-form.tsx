@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { signIn } from '../../../lib/auth/client';
 
 type Status =
@@ -13,7 +13,7 @@ export function SignInForm({ githubEnabled }: { readonly githubEnabled: boolean 
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
 
-  async function send(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+  async function send(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setStatus({ kind: 'sending' });
     const result = await signIn.magicLink({ email, callbackURL: '/' });

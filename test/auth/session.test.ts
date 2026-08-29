@@ -1,9 +1,16 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { closeDb } from '../../lib/db/client';
+import { sql } from 'drizzle-orm';
+import { getDb, closeDb } from '../../lib/db/client';
 import { getCurrentUser, requireUser, requireAdmin } from '../../lib/auth/session';
 import { ADMIN_ROLE } from '../../lib/auth/roles';
 import { signIn, deleteUser as cleanup, setRole } from '../helpers/signIn';
+
+/** Sets `banned`/`banExpires` directly, mirroring the admin plugin's ban-user route. */
+async function ban(email: string, banExpires: Date | null): Promise<void> {
+  await getDb().execute(sql`
+    UPDATE "user" SET banned = true, ban_expires = ${banExpires} WHERE email = ${email}`);
+}
 
 const hasDb = (process.env.DATABASE_URL ?? '').length > 0;
 const opts = hasDb ? {} : { skip: 'DATABASE_URL is not set' };
@@ -87,5 +94,39 @@ test('a role that merely contains the word admin is not admin', opts, async () =
   await setRole(email, 'administrator-readonly');
   const guard = await requireAdmin(headers);
   assert.equal(guard.ok, false);
+  await cleanup(email);
+});
+
+test('a banned user is not returned, even with a live session', opts, async () => {
+  const email = 'sess-banned@example.test';
+  await cleanup(email);
+  const headers = await signIn(email);
+  await ban(email, null);
+  assert.equal(await getCurrentUser(headers), null);
+  await cleanup(email);
+});
+
+test('a banned admin cannot pass requireAdmin', opts, async () => {
+  const email = 'sess-banned-admin@example.test';
+  await cleanup(email);
+  const headers = await signIn(email);
+  await setRole(email, ADMIN_ROLE);
+  await ban(email, null);
+  const guard = await requireAdmin(headers);
+  assert.equal(guard.ok, false);
+  if (guard.ok) throw new Error('unreachable');
+  // No current user at all, so requireUser's 401, not requireAdmin's 403.
+  assert.equal(guard.response.status, 401);
+  await cleanup(email);
+});
+
+test('a ban whose banExpires is in the past does not apply', opts, async () => {
+  const email = 'sess-ban-expired@example.test';
+  await cleanup(email);
+  const headers = await signIn(email);
+  await ban(email, new Date(Date.now() - 60_000));
+  const user = await getCurrentUser(headers);
+  assert.ok(user !== null);
+  assert.equal(user.email, email);
   await cleanup(email);
 });
