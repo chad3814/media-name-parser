@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { KeysManager } from '../../components/keys-manager';
+import { KeysManager, canCreateKey } from '../../components/keys-manager';
 
 const source = (name: string): Promise<string> =>
   readFile(new URL(`../../${name}`, import.meta.url), 'utf8');
@@ -42,4 +42,13 @@ test('the page is a server component that lists keys for the render', async () =
   assert.ok(!text.includes("'use client'"), 'the page must stay a server component');
   assert.ok(text.includes('listKeys'), 'the page should populate the first render');
   assert.ok(text.includes('KeysManager'));
+});
+
+test('the create form is unavailable while an undismissed secret is on screen', () => {
+  // The secret in `fresh` is the only copy that exists; creating another key
+  // would replace it and destroy it silently.
+  assert.equal(canCreateKey(false, false), true);
+  assert.equal(canCreateKey(true, false), false, 'busy must block');
+  assert.equal(canCreateKey(false, true), false, 'an undismissed secret must block');
+  assert.equal(canCreateKey(true, true), false);
 });

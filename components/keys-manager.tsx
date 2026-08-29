@@ -14,6 +14,20 @@ function when(value: string | null): string {
   return value === null ? '—' : new Date(value).toLocaleString();
 }
 
+/**
+ * Whether the create form may be submitted.
+ *
+ * Exported so the rule is testable: it cannot be exercised through the
+ * component, because this project has no React renderer.
+ *
+ * An undismissed secret blocks creation because `fresh` holds the only copy
+ * of that token in existence -- replacing it would destroy it silently, and
+ * dismissing the panel is the user saying they have copied it.
+ */
+export function canCreateKey(busy: boolean, hasUndismissedSecret: boolean): boolean {
+  return !busy && !hasUndismissedSecret;
+}
+
 export function KeysManager({ initialKeys }: { readonly initialKeys: readonly KeyRow[] }) {
   const [keys, setKeys] = useState<readonly KeyRow[]>(initialKeys);
   const [label, setLabel] = useState('');
@@ -25,6 +39,10 @@ export function KeysManager({ initialKeys }: { readonly initialKeys: readonly Ke
 
   async function create(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (!canCreateKey(busy, fresh !== null)) {
+      setError('Copy the key above and dismiss it before creating another.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -72,8 +90,16 @@ export function KeysManager({ initialKeys }: { readonly initialKeys: readonly Ke
             onChange={(event) => setLabel(event.target.value)}
           />
         </div>
-        <Button type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create key'}</Button>
+        <Button type="submit" disabled={!canCreateKey(busy, fresh !== null)}>
+          {busy ? 'Creating…' : 'Create key'}
+        </Button>
       </form>
+
+      {fresh === null ? null : (
+        <p className="text-sm text-muted-foreground">
+          Copy the key below and dismiss it before creating another.
+        </p>
+      )}
 
       {error === null ? null : <p role="alert" className="text-sm text-red-600">{error}</p>}
 
