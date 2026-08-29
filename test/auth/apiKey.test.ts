@@ -44,11 +44,17 @@ test('hashing is stable and sensitive to a single character', async () => {
 });
 
 /** Creates a user and a key inside a transaction the caller will roll back. */
-async function seed(tx: Tx, over: { readonly revoked?: boolean; readonly limit?: number } = {}) {
+async function seed(tx: Tx, over: {
+  readonly revoked?: boolean;
+  readonly limit?: number;
+  readonly banned?: boolean;
+  readonly banExpires?: Date | null;
+} = {}) {
   const minted = await mintApiKey();
   await tx.execute(sql`
-    INSERT INTO "user" (id, name, email, email_verified)
-    VALUES ('u-probe', 'Probe', 'probe@example.test', false)
+    INSERT INTO "user" (id, name, email, email_verified, banned, ban_expires)
+    VALUES ('u-probe', 'Probe', 'probe@example.test', false,
+            ${over.banned === true}, ${over.banExpires ?? null})
     ON CONFLICT (id) DO NOTHING`);
   const row = await tx.execute(sql`
     INSERT INTO api_keys (user_id, label, token_hash, prefix, rate_limit_per_min, revoked_at)
@@ -100,6 +106,27 @@ test('touchApiKey records last_used_at without changing anything else', opts, as
     assert.equal(row.rows[0]?.revoked_at, null);
     assert.equal(row.rows[0]?.rate_limit_per_min, 60);
     // And the key still verifies afterwards.
+    assert.ok(await verifyApiKey(tx, minted.token) !== null);
+  });
+});
+
+test('a key belonging to a banned user does not authenticate', opts, async () => {
+  await inRollback(async (tx) => {
+    const { minted } = await seed(tx, { banned: true, banExpires: null });
+    assert.equal(await verifyApiKey(tx, minted.token), null);
+  });
+});
+
+test('a key whose owner\'s ban has expired still authenticates', opts, async () => {
+  await inRollback(async (tx) => {
+    const { minted } = await seed(tx, { banned: true, banExpires: new Date(Date.now() - 60_000) });
+    assert.ok(await verifyApiKey(tx, minted.token) !== null, 'an expired ban must not apply');
+  });
+});
+
+test('an unbanned owner is unaffected by the join', opts, async () => {
+  await inRollback(async (tx) => {
+    const { minted } = await seed(tx, { banned: false });
     assert.ok(await verifyApiKey(tx, minted.token) !== null);
   });
 });

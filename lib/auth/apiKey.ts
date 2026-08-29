@@ -61,12 +61,25 @@ export interface Caller {
  * the index does the work and no timing signal exists to leak. A revoked key
  * is excluded in SQL rather than checked afterwards, so there is no path where
  * a caller is built from a revoked row.
+ *
+ * Also excludes a key whose owner is currently banned, joined in the same
+ * query rather than a second round trip. `getCurrentUser` already refuses a
+ * banned user on the session path; a ban that stopped a session but not an
+ * API key would be worse than no ban at all, because whoever set it would
+ * believe it covered both. The expiry semantics match `getCurrentUser`
+ * exactly: a ban applies while `banned` is true and `ban_expires` is null or
+ * still in the future, so a ban whose `ban_expires` is exactly now, or in the
+ * past, no longer applies.
  */
 export async function verifyApiKey(tx: Tx, token: string): Promise<Caller | null> {
   const tokenHash = await hashToken(token);
   const result = await tx.execute(sql`
-    SELECT id, user_id, rate_limit_per_min FROM api_keys
-     WHERE token_hash = ${tokenHash} AND revoked_at IS NULL`);
+    SELECT ak.id, ak.user_id, ak.rate_limit_per_min
+      FROM api_keys ak
+      JOIN "user" u ON u.id = ak.user_id
+     WHERE ak.token_hash = ${tokenHash}
+       AND ak.revoked_at IS NULL
+       AND NOT (u.banned AND (u.ban_expires IS NULL OR u.ban_expires > now()))`);
   const row = result.rows[0];
   if (row === undefined) return null;
   return {
