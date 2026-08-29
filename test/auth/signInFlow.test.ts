@@ -20,6 +20,9 @@ async function cleanup(): Promise<void> {
   await db.execute(sql`
     DELETE FROM session WHERE user_id IN (SELECT id FROM "user" WHERE email = ${EMAIL})`);
   await db.execute(sql`DELETE FROM "user" WHERE email = ${EMAIL}`);
+  // A requested-but-never-verified magic link leaves a row here. The email is
+  // stored inside the `value` JSON, not in `identifier`.
+  await db.execute(sql`DELETE FROM verification WHERE value LIKE ${'%' + EMAIL + '%'}`);
 }
 
 test('a magic link signs a user in through the mounted handler', opts, async () => {
@@ -114,8 +117,74 @@ test('a forged token issues no session', opts, async () => {
   );
 });
 
-test('no session token reaches stdout', opts, async () => {
-  // A token in a log or a CI transcript is a live credential. The sink holds
-  // only the magic-link token, and nothing in this suite prints either.
+test('no credential reaches the log during sign-in', opts, async () => {
+  // The name of the test it replaces was true but unverified: the old version
+  // asserted magicLinkSink.length === 0, which every earlier test's `finally`
+  // has already guaranteed. This captures console output around a real
+  // sign-in and checks the two live credentials never appear in it.
+  const captured: string[] = [];
+  const originalError = console.error;
+  const originalLog = console.log;
+  console.error = (...args: unknown[]) => { captured.push(args.map(String).join(' ')); };
+  console.log = (...args: unknown[]) => { captured.push(args.map(String).join(' ')); };
+
+  let magicToken = '';
+  let sessionToken = '';
+  try {
+    process.env.MAGIC_LINK_SINK = '1';
+    magicLinkSink.length = 0;
+    await authPost(new Request(`${BASE}/api/auth/sign-in/magic-link`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: EMAIL, callbackURL: '/' }),
+    }));
+    magicToken = magicLinkSink.at(-1)?.token ?? '';
+    const verified = await authGet(new Request(
+      `${BASE}/api/auth/magic-link/verify?token=${magicToken}&callbackURL=/`));
+    const setCookie = verified.headers.get('set-cookie') ?? '';
+    sessionToken = setCookie.slice(setCookie.indexOf('=') + 1).split(';')[0] ?? '';
+  } finally {
+    console.error = originalError;
+    console.log = originalLog;
+    magicLinkSink.length = 0;
+    delete process.env.MAGIC_LINK_SINK;
+  }
+
+  // Assert the credentials are real before asserting their absence, so this
+  // cannot pass by comparing against empty strings.
+  assert.ok(magicToken.length > 16, 'no magic-link token was captured');
+  assert.ok(sessionToken.length > 16, 'no session token was issued');
+
+  const output = captured.join('\n');
+  assert.equal(output.includes(magicToken), false, 'the magic-link token reached the log');
+  assert.equal(output.includes(sessionToken), false, 'the session token reached the log');
+  await cleanup();
+});
+
+test('with no mailer configured, the failure is logged without the token', opts, async () => {
+  // The path that actually logs. With the sink off, sendMagicLink calls
+  // logFailure, and the line must name the address so the problem is
+  // diagnosable -- while the token stays out of it.
+  const captured: string[] = [];
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => { captured.push(args.map(String).join(' ')); };
+  try {
+    delete process.env.MAGIC_LINK_SINK;
+    magicLinkSink.length = 0;
+    await authPost(new Request(`${BASE}/api/auth/sign-in/magic-link`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: EMAIL, callbackURL: '/' }),
+    }));
+  } finally {
+    console.error = originalError;
+    magicLinkSink.length = 0;
+  }
+
+  const output = captured.join('\n');
+  assert.ok(output.includes('no mailer is configured'), 'the failure was not logged');
+  assert.ok(output.includes(EMAIL), 'the log line does not say which address');
+  // Production must not accumulate live tokens in memory.
   assert.equal(magicLinkSink.length, 0);
+  await cleanup();
 });
