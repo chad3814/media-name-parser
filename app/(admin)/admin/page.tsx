@@ -7,15 +7,30 @@ import { requireAdmin } from '../../../lib/auth/session';
 // Goes through requireAdmin rather than a bare getCurrentUser so a thrown
 // database error is logged via logFailure instead of reaching Next's generic
 // error boundary unlabeled. Unlike the layout, a page cannot redirect and
-// stay a page -- so both the not-signed-in and the wrong-role refusal render
-// the same markup here rather than one of them navigating away.
+// stay a page -- so the not-signed-in (401) and wrong-role (403) refusals
+// render the same "Not available" markup here rather than one of them
+// navigating away. A third, distinct branch covers anything else -- in
+// practice the 503 requireUser returns when reading the session throws --
+// because presenting a database error as a permissions problem would be
+// false, and false is worse than vague: the visitor would go ask for access
+// they already have while the real fault is an outage. See the layout's
+// comment for the same reasoning. This branch names no cause; requireUser
+// already logged it.
 export default async function AdminPage() {
   const guard = await requireAdmin(await headers());
   if (!guard.ok) {
+    if (guard.response.status === 401 || guard.response.status === 403) {
+      return (
+        <main>
+          <h1>Not available</h1>
+          <p>This area requires the admin role.</p>
+        </main>
+      );
+    }
     return (
       <main>
-        <h1>Not available</h1>
-        <p>This area requires the admin role.</p>
+        <h1>Temporarily unavailable</h1>
+        <p>Your access could not be checked just now. Please try again shortly.</p>
       </main>
     );
   }

@@ -28,10 +28,27 @@ export default async function AdminLayout({ children }: { readonly children: Rea
   const guard = await requireAdmin(await headers());
   if (!guard.ok) {
     if (guard.response.status === 401) redirect('/sign-in');
+    if (guard.response.status === 403) {
+      return (
+        <main>
+          <h1>Not available</h1>
+          <p>This area requires the admin role.</p>
+        </main>
+      );
+    }
+    // Anything else -- in practice a 503 from requireUser's own catch, when
+    // reading the session throws. Rendering "requires the admin role" here
+    // would be false: the visitor may well be an admin, and the real fault
+    // is a database error requireUser has already sent to logFailure. A false
+    // permissions message sends them off to ask for access they already
+    // have, which they cannot act on; this message names no cause -- not the
+    // error, not the database -- because there is nothing here for the
+    // visitor to do with it beyond trying again. Falls through to this
+    // return in every remaining case, never to `children`.
     return (
       <main>
-        <h1>Not available</h1>
-        <p>This area requires the admin role.</p>
+        <h1>Temporarily unavailable</h1>
+        <p>Your access could not be checked just now. Please try again shortly.</p>
       </main>
     );
   }
