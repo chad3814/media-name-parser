@@ -786,12 +786,16 @@ test('the form imports the envelope type only as a type', async () => {
   // here would put both in the browser bundle -- and it would still build,
   // which is why this is asserted rather than left to review.
   const source = await readFile(new URL('../../components/lookup-form.tsx', import.meta.url), 'utf8');
+  // Only actual import statements, not prose. Filtering every line that
+  // mentions the path would fail on a comment explaining why the import is
+  // type-only, which would let a test dictate the wording of a comment.
   const envelopeImports = source
     .split('\n')
-    .filter((line) => line.includes("lib/http/envelope"));
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('import') && line.includes('lib/http/envelope'));
   assert.ok(envelopeImports.length > 0, 'expected the form to import the envelope type');
   for (const line of envelopeImports) {
-    assert.ok(line.includes('import type'), `must be a type-only import: ${line}`);
+    assert.ok(line.startsWith('import type'), `must be a type-only import: ${line}`);
   }
 });
 
@@ -1637,9 +1641,17 @@ test('the manager is a client component', async () => {
 
 test('the manager imports KeyRow type-only', async () => {
   // lib/keys/manage.ts imports Drizzle; a value import would ship it.
+  // Only import statements are inspected, not prose: filtering every line that
+  // mentions the path would fail on a comment explaining the rule, and a test
+  // that dictates the wording of a comment is a nuisance rather than a guard.
   const text = await source('components/keys-manager.tsx');
-  for (const line of text.split('\n').filter((l) => l.includes('lib/keys/manage'))) {
-    assert.ok(line.includes('import type'), `must be type-only: ${line}`);
+  const imports = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('import') && line.includes('lib/keys/manage'));
+  assert.ok(imports.length > 0, 'expected the manager to import KeyRow');
+  for (const line of imports) {
+    assert.ok(line.startsWith('import type'), `must be type-only: ${line}`);
   }
 });
 
