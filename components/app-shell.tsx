@@ -24,10 +24,7 @@ export async function AppShell({ children }: { readonly children: ReactNode }) {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/" className="font-semibold">media-name-parser</Link>
-            {/* The Keys link is added in Task 5, not here. `typedRoutes: true`
-                types `Link href` against the routes that exist, so linking to
-                /keys before app/keys/page.tsx exists is a TS2322 error, not a
-                dead link. */}
+            <Link href="/keys" className="text-muted-foreground hover:text-foreground">Keys</Link>
             {user?.isAdmin === true ? (
               <Link href="/admin" className="text-muted-foreground hover:text-foreground">Admin</Link>
             ) : null}
