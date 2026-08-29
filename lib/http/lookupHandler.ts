@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { sql } from 'drizzle-orm';
 import { waitUntil } from '@vercel/functions';
 import { withTransaction } from '../db/client';
-import { authenticate } from './authenticate';
+import { apiKeyGate, type Gate } from './gate';
 import { badRequest, notFound, unavailable } from './problem';
 import { logFailure } from './log';
 import { toEnvelope, type LookupEnvelope } from './envelope';
@@ -91,6 +91,12 @@ export interface LookupHandlerOptions {
    * its job, for instance -- has to be able to await it.
    */
   readonly defer?: (promise: Promise<void>) => void;
+
+  /**
+   * Who may run this lookup. Defaults to an API key, which is what
+   * `/api/v1/lookup` serves. The browser route passes `sessionGate`.
+   */
+  readonly gate?: Gate;
 }
 
 /**
@@ -118,8 +124,9 @@ export async function handleLookup(
   options: LookupHandlerOptions = {},
 ): Promise<Response> {
   const defer = options.defer ?? waitUntil;
-  const auth = await authenticate(request);
-  if (!auth.ok) return auth.response;
+  const gate = options.gate ?? apiKeyGate;
+  const pass = await gate(request);
+  if (!pass.ok) return pass.response;
 
   let raw: unknown;
   try {
@@ -233,6 +240,20 @@ export async function handleLookup(
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * Same shape as `LookupHandlerOptions.gate`, for the poll route. Kept as its
+ * own interface rather than reusing `LookupHandlerOptions` because a poll
+ * has no `defer` -- it never launches a continuation -- and a shared type
+ * would let one grow a field the other cannot honour.
+ */
+export interface PollHandlerOptions {
+  /**
+   * Who may run this poll. Defaults to an API key, which is what
+   * `/api/v1/lookup/[id]` serves.
+   */
+  readonly gate?: Gate;
+}
+
+/**
  * The `GET /api/v1/lookup/[id]` poll.
  *
  * No `deps` parameter: a poll only reads stored rows and never touches a
@@ -243,9 +264,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function handlePoll(
   request: Request,
   context: { readonly params: Promise<{ readonly id: string }> },
+  options: PollHandlerOptions = {},
 ): Promise<Response> {
-  const auth = await authenticate(request);
-  if (!auth.ok) return auth.response;
+  const gate = options.gate ?? apiKeyGate;
+  const pass = await gate(request);
+  if (!pass.ok) return pass.response;
 
   const { id } = await context.params;
   if (!UUID.test(id)) return badRequest('id must be a uuid');
