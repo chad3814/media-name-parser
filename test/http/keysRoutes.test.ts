@@ -83,6 +83,16 @@ test('creating a key requires an application/json content type', opts, async () 
     }));
     assert.equal(textResponse.status, 400);
 
+    // RFC 9110 makes media types case-insensitive, and fetch does not
+    // normalise header values -- a compliant client spelling it
+    // "Application/JSON" must not be refused for that alone.
+    const mixedCaseHeaders = new Headers(cookie);
+    mixedCaseHeaders.set('content-type', 'Application/JSON');
+    const mixedCaseResponse = await createRoute(new Request('http://localhost:3000/api/keys', {
+      method: 'POST', headers: mixedCaseHeaders, body: JSON.stringify({ label: 'mixed-case' }),
+    }));
+    assert.equal(mixedCaseResponse.status, 201);
+
     const jsonResponse = await createRoute(post(cookie, 'json'));
     assert.equal(jsonResponse.status, 201);
   } finally {

@@ -73,4 +73,11 @@ test('the timestamp formatter is timezone-independent', () => {
     else process.env.TZ = previous;
   }
   assert.equal(when(null), '—');
+
+  // toISOString() throws RangeError on an unparseable date -- and a throw in
+  // a client render takes /keys down, since there is no error.tsx. Asserted
+  // explicitly rather than just checking the return value, because the point
+  // is the absence of a throw.
+  assert.doesNotThrow(() => when('not-a-real-timestamp'));
+  assert.equal(when('not-a-real-timestamp'), '—');
 });

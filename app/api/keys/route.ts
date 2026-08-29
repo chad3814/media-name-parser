@@ -29,7 +29,7 @@ export async function POST(request: Request): Promise<Response> {
   const guard = await requireUser(request.headers);
   if (!guard.ok) return guard.response;
 
-  const contentType = request.headers.get('content-type') ?? '';
+  const contentType = (request.headers.get('content-type') ?? '').toLowerCase();
   if (!contentType.includes('application/json')) {
     return badRequest('the body must be application/json');
   }

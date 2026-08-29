@@ -21,7 +21,13 @@ import type { KeyRow } from '../lib/keys/manage';
  */
 export function when(value: string | null): string {
   if (value === null) return '—';
-  return `${new Date(value).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+  const parsed = new Date(value);
+  // Degrade rather than throw: toISOString() raises RangeError on an
+  // unparseable timestamp, and a throw in a client render takes the page down
+  // -- there is no error.tsx. The toLocaleString() this replaced returned
+  // "Invalid Date" instead, and losing that was a regression, not a trade.
+  if (Number.isNaN(parsed.getTime())) return '—';
+  return `${parsed.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 }
 
 /**
