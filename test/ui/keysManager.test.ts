@@ -13,9 +13,17 @@ test('the manager is a client component', async () => {
 
 test('the manager imports KeyRow type-only', async () => {
   // lib/keys/manage.ts imports Drizzle; a value import would ship it.
+  // Only import statements are inspected, not prose: filtering every line that
+  // mentions the path would fail on a comment explaining the rule, and a test
+  // that dictates the wording of a comment is a nuisance rather than a guard.
   const text = await source('components/keys-manager.tsx');
-  for (const line of text.split('\n').filter((l) => l.includes('lib/keys/manage'))) {
-    assert.ok(line.includes('import type'), `must be type-only: ${line}`);
+  const imports = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('import') && line.includes('lib/keys/manage'));
+  assert.ok(imports.length > 0, 'expected the manager to import KeyRow');
+  for (const line of imports) {
+    assert.ok(line.startsWith('import type'), `must be type-only: ${line}`);
   }
 });
 
