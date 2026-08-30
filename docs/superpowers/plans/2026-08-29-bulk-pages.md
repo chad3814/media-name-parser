@@ -57,6 +57,7 @@ Every row was established by reading the shipped code or querying the dev databa
 | The TMDB client's token bucket is **in-process**, default 30/s, with a comment explaining why a distributed limiter is not bought yet | Provider pressure is bounded per instance, which is what makes a chunked corpus run acceptable without a session rate limiter. |
 | `count(*) OVER ()` returns the unfiltered-by-LIMIT total alongside the page rows | One query for both, verified. |
 | `categoryDisagreement` is **not a column** — it lives in `parses.tokens` (JSONB), joined on `(category, normalized_key)` | The filter needs the join. Verified working; the dev database has exactly **1** such row. |
+| **`lookups_parse_fk` exists in the applied migration but not in `lib/db/schema.ts` or drizzle's snapshot** — `FOREIGN KEY (category, normalized_key) REFERENCES parses ON DELETE RESTRICT`, hand-added in Plan 1 beside `media_parent_id_fk` | **Every lookup is guaranteed a parse row; there are 0 orphans.** So LEFT and INNER join are equivalent today, fixtures must insert `parses` before `lookups`, and cleanup must delete in the opposite order or `RESTRICT` refuses. Found by Task 3's implementer, which correctly stopped rather than guessing. |
 | **24 of 106 lookups have NULL confidence**: 23 `unresolved` and 1 `pending`. Only **2** of those are refused parses | A band filter written as `>= x` or `< x` silently hides **a quarter of the cache**. "No score" must be its own band. See the design note below. |
 | Dev data: 67 `resolved` (0.774–1.000), 38 `unresolved` (0.000–0.728 where scored), 1 `pending`; tv 61 / movies 45 | Every filter has real rows to match and real rows to exclude. |
 | `components/ui/select.tsx` and `textarea.tsx` were installed in Plan 5 and are still unimported; `select.tsx` is the only importer of `lucide-react` | This plan uses both, closing a follow-up item. |
@@ -1094,7 +1095,21 @@ const FIXTURE = 'books';
 
 async function seed(): Promise<void> {
   await withTransaction(async (tx) => {
-    // Four rows spanning every band, plus one carrying a parse that disagrees.
+    // parses first: `lookups_parse_fk` requires the referenced row to exist and
+    // is not deferrable. One parse per lookup, and `fixture-medium` carries
+    // tokens with no categoryDisagreement key so the COALESCE path is covered.
+    const parses: readonly [string, Record<string, unknown>][] = [
+      ['fixture-high', { categoryDisagreement: false }],
+      ['fixture-medium', {}],
+      ['fixture-low', { categoryDisagreement: true }],
+      ['fixture-none', { categoryDisagreement: false }],
+    ];
+    for (const [key, tokens] of parses) {
+      await tx.execute(sql`
+        INSERT INTO parses (category, normalized_key, tokens, parser_version)
+        VALUES (${FIXTURE}, ${key}, ${JSON.stringify(tokens)}::jsonb, 1)`);
+    }
+    // Four rows spanning every band.
     const rows: readonly [string, string, number | null][] = [
       ['fixture-high', 'resolved', 0.95],
       ['fixture-medium', 'resolved', 0.80],
@@ -1106,17 +1121,16 @@ async function seed(): Promise<void> {
         INSERT INTO lookups (category, name, normalized_key, state, confidence)
         VALUES (${FIXTURE}, ${name}, ${name}, ${state}::lookup_state, ${confidence})`);
     }
-    await tx.execute(sql`
-      INSERT INTO parses (category, normalized_key, tokens, parser_version)
-      VALUES (${FIXTURE}, 'fixture-low',
-              ${JSON.stringify({ categoryDisagreement: true })}::jsonb, 1)`);
   });
 }
 
 async function unseed(): Promise<void> {
   const db = getDb();
-  await db.execute(sql`DELETE FROM parses WHERE category = ${FIXTURE}`);
+  // lookups first: ON DELETE RESTRICT refuses to remove a parse that a lookup
+  // still references, and this runs inside a `finally` where a failure would
+  // silently leave fixtures behind.
   await db.execute(sql`DELETE FROM lookups WHERE category = ${FIXTURE}`);
+  await db.execute(sql`DELETE FROM parses WHERE category = ${FIXTURE}`);
 }
 
 test('every band together accounts for every row, so nothing is hidden', opts, async () => {
@@ -1197,15 +1211,18 @@ test('the disagreement filter needs the parses join and finds the flagged row', 
   }
 });
 
-test('a row with no parse row is not a disagreement and does not vanish', opts, async () => {
-  // The join must be LEFT for the unfiltered case, or three of the four
-  // fixtures -- which have no parses row -- would disappear from every page.
+test('a parse without the disagreement key reports false, not null', opts, async () => {
+  // `lookups_parse_fk` means every lookup has a parse, so "no parse row" is
+  // unreachable -- but a parse whose tokens lack the key is not, and COALESCE
+  // is what turns that into false rather than null.
   await unseed();
   try {
     await seed();
     const page = await withTransaction((tx) =>
       browseCache(tx, { ...base, category: FIXTURE }));
-    assert.equal(page.total, 4, 'rows without a parse must still be listed');
+    assert.equal(page.total, 4);
+    const medium = page.rows.find((row) => row.name === 'fixture-medium');
+    assert.equal(medium?.disagreement, false, 'a missing key must read as false');
     const high = page.rows.find((row) => row.name === 'fixture-high');
     assert.equal(high?.disagreement, false);
   } finally {
@@ -1473,9 +1490,13 @@ low says IS NOT NULL explicitly even though SQL would treat the
 comparison as not-true anyway: the next person writing NOT (confidence
 >= 0.75) elsewhere would otherwise get a different answer.
 
-The join is LEFT because categoryDisagreement lives in parses.tokens and
-most lookups have no parses row -- an inner join would empty every
-unfiltered page. ORDER BY carries an id tiebreak because created_at
+The join is LEFT even though lookups_parse_fk guarantees a matching
+parses row today, so LEFT and INNER are currently equivalent: the
+constraint is a fact about the schema, not about this query, and an
+INNER join would silently start dropping rows if it were ever relaxed.
+COALESCE earns its place regardless, because a parse may carry tokens
+with no categoryDisagreement key -- there is a test for exactly that.
+ORDER BY carries an id tiebreak because created_at
 alone is not a total order, and without it a row can appear on two pages
 while another appears on none.
 
