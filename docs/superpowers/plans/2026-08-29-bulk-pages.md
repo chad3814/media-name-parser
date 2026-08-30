@@ -35,6 +35,7 @@ Nothing is needed from the user. Every variable this plan touches is already set
 - **Offline tests. No test reaches the network.** No test may call TMDB. The dev cache holds resolved names; use one and assert `cached === true`.
 - **Database-backed tests skip without `DATABASE_URL`**, and **clean up in a `finally`** — not after their assertions.
 - **Never log or render a credential.** **Never read or print `.env.local`, and never interpolate a credential into a command line** — any command that fails echoes its whole argument list, which is how a password leaked during Plan 5.
+- **To run one test file, do not use `npm run test -- <file>`.** The `test` script ends in a glob, and an appended path is *added* to it rather than replacing it — so that command silently runs the whole suite. Measured: `npm run test -- test/corpus/nonexistent.test.ts` ran all 329 tests. Use `node --env-file-if-exists=.env.local --import tsx --test <file>` instead, which runs only that file. This mattered because a RED step's failure was otherwise buried in 300+ passing tests.
 - **Verification gate.** No task is complete until `npm run check` **and** `npm run build` both pass.
 - **Commit at the end of each task. Never push.**
 
@@ -271,7 +272,7 @@ test('a single-item body is refused: this route is the batch surface', opts, asy
 - [ ] **Step 2: Run it and confirm it fails**
 
 ```bash
-npm run test -- test/http/corpusRoute.test.ts
+node --env-file-if-exists=.env.local --import tsx --test test/http/corpusRoute.test.ts
 ```
 
 Expected: FAIL — cannot resolve `../../app/api/ui/corpus/route`.
@@ -356,7 +357,7 @@ Keep the docstring's reasoning and update its last sentence to say the bulk rout
 - [ ] **Step 6: Run the tests**
 
 ```bash
-npm run test -- test/http/corpusRoute.test.ts test/http/uiLookup.test.ts
+node --env-file-if-exists=.env.local --import tsx --test test/http/corpusRoute.test.ts test/http/uiLookup.test.ts
 ```
 
 Expected: 6 passing in the new file, and every existing `uiLookup` test still passing.
@@ -519,7 +520,7 @@ test('the name cap is small enough that a person will wait for the run', () => {
 - [ ] **Step 2: Run it and confirm it fails**
 
 ```bash
-npm run test -- test/corpus/aggregate.test.ts
+node --env-file-if-exists=.env.local --import tsx --test test/corpus/aggregate.test.ts
 ```
 
 Expected: FAIL — cannot resolve `../../lib/corpus/aggregate`.
@@ -620,7 +621,7 @@ export function summarise(rows: readonly CorpusRow[]): CorpusSummary {
 - [ ] **Step 4: Run the aggregate tests**
 
 ```bash
-npm run test -- test/corpus/aggregate.test.ts
+node --env-file-if-exists=.env.local --import tsx --test test/corpus/aggregate.test.ts
 ```
 
 Expected: 9 passing.
@@ -696,7 +697,7 @@ test('the page is a server component that guards itself', async () => {
 - [ ] **Step 6: Run it and confirm it fails**
 
 ```bash
-npm run test -- test/ui/corpusRunner.test.ts
+node --env-file-if-exists=.env.local --import tsx --test test/ui/corpusRunner.test.ts
 ```
 
 Expected: FAIL — cannot resolve `../../components/corpus-runner`.
@@ -1249,7 +1250,7 @@ test('a page past the end is empty rather than an error', opts, async () => {
 - [ ] **Step 2: Run it and confirm it fails**
 
 ```bash
-npm run test -- test/cache/browse.test.ts
+node --env-file-if-exists=.env.local --import tsx --test test/cache/browse.test.ts
 ```
 
 Expected: FAIL — cannot resolve `../../lib/cache/browse`.
@@ -1444,7 +1445,7 @@ async function countOnly(tx: Tx, where: SQL): Promise<number> {
 - [ ] **Step 4: Run the tests**
 
 ```bash
-npm run test -- test/cache/browse.test.ts
+node --env-file-if-exists=.env.local --import tsx --test test/cache/browse.test.ts
 ```
 
 Expected: 13 passing. Diagnostics:
@@ -1566,7 +1567,7 @@ test('the admin index links to the cache browser', async () => {
 - [ ] **Step 2: Run it and confirm it fails**
 
 ```bash
-npm run test -- test/ui/cachePage.test.ts
+node --env-file-if-exists=.env.local --import tsx --test test/ui/cachePage.test.ts
 ```
 
 Expected: FAIL — cannot resolve `../../components/cache-filters`.
