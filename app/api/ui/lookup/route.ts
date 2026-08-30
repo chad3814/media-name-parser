@@ -12,9 +12,9 @@ export const maxDuration = 60;
  * envelope. Batched bodies are refused here: `sessionGate` charges no rate
  * limit -- a person clicking a form does not need throttling -- but the shared
  * handler accepts up to 100 items, so without this the session route is an
- * unthrottled bulk endpoint. The page sends one name at a time. A later plan
- * that adds a bulk page should lift this deliberately, with a limit attached,
- * rather than by deleting the check.
+ * unthrottled bulk endpoint. The page sends one name at a time. `/api/ui/corpus`
+ * is the bulk route: it lifts this check deliberately, with its own cap
+ * attached, rather than by deleting it here.
  *
  * The body is read from a clone so `handleLookup` still gets an unconsumed
  * request.
@@ -24,7 +24,7 @@ export async function POST(request: Request): Promise<Response> {
   // `unknown` is the deserialization exception: `raw` is only tested for the
   // presence of an `items` key, never read as a typed value.
   if (typeof raw === 'object' && raw !== null && 'items' in raw) {
-    return badRequest('batched lookups are not available from the browser');
+    return badRequest('batched lookups go to /api/ui/corpus');
   }
   return handleLookup(request, buildTmdbDeps, { gate: sessionGate });
 }
