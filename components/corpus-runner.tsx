@@ -68,7 +68,7 @@ export function CorpusRunner() {
           body: JSON.stringify({ items: chunk.map((name) => ({ category, name })) }),
         });
         if (response.status === 401) {
-          setError('You are not signed in. Sign in and try again.');
+          setError('You are not signed in. Sign in and try again — the results below are partial.');
           return;
         }
         if (!response.ok) {
@@ -77,7 +77,21 @@ export function CorpusRunner() {
           return;
         }
         const payload = await response.json() as { results: readonly Envelope[] };
+        // The route returns one result per item on any 200 -- but that
+        // guarantee lives in another module, and a page whose whole purpose is
+        // three numbers must not quietly compute them over fewer rows than the
+        // user submitted. Stop loudly instead.
+        if (payload.results.length !== chunk.length) {
+          setError(
+            `The run stopped at name ${start + 1}: asked for ${chunk.length} results and got `
+            + `${payload.results.length}. The results below are partial.`,
+          );
+          return;
+        }
         chunk.forEach((name, index) => {
+          // Not load-bearing now that the length check above guarantees a
+          // result at every index -- `noUncheckedIndexedAccess` still requires
+          // this narrowing, so it stays. Do not remove it as redundant.
           const result = payload.results[index];
           if (result === undefined) return;
           collected.push({
