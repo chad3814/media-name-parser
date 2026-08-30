@@ -36,14 +36,31 @@ interface CachePageProps {
 // `headers()` and `redirect()` both throw control flow, so neither is inside a
 // try. The page guards itself as well as the layout, because a layout does not
 // re-run on client-side navigation and this is the thing that serves data.
+//
+// Three branches, matching the layout and the admin index: 401 redirects to
+// sign-in; 403 is a genuine wrong-role refusal; anything else -- in practice
+// the 503 requireUser returns when reading the session throws -- must not
+// claim the reader lacks the admin role, because that is false and would
+// send an admin with a fine role off to ask for access they already have.
+// requireUser has already logged the real cause via logFailure, so nothing
+// here names it. Every arm of `!guard.ok` returns or redirects; none falls
+// through to the table below.
 export default async function CachePage({ searchParams }: CachePageProps) {
   const guard = await requireAdmin(await headers());
   if (!guard.ok) {
     if (guard.response.status === 401) redirect('/sign-in');
+    if (guard.response.status === 403) {
+      return (
+        <main>
+          <h1>Not available</h1>
+          <p>This area requires the admin role.</p>
+        </main>
+      );
+    }
     return (
       <main>
-        <h1>Not available</h1>
-        <p>This area requires the admin role.</p>
+        <h1>Temporarily unavailable</h1>
+        <p>Your access could not be checked just now. Please try again shortly.</p>
       </main>
     );
   }
