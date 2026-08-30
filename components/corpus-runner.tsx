@@ -187,8 +187,13 @@ export function CorpusRunner() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.name}>
+            {rows.map((row, index) => (
+              // Keyed on position as well as name: the committed fixtures
+              // contain duplicated lines (41 in movies.releases), and a
+              // corpus with repeats is legitimate to measure -- so the name
+              // alone is not unique and React would reconcile two rows
+              // together, showing a result against the wrong name.
+              <TableRow key={`${index}-${row.name}`}>
                 <TableCell className="font-mono text-xs break-all">{row.name}</TableCell>
                 <TableCell>
                   {row.status === 202 ? 'still working' : row.state}
