@@ -917,7 +917,7 @@ export function CorpusRunner() {
 }
 ```
 
-**One thing to watch.** `rows.map` uses `row.name` as its React key. A corpus with a duplicated line would produce duplicate keys and React would warn. If that turns out to matter, key on the index instead and say so in your report — but do not silently deduplicate the input, because a corpus with repeats is a legitimate thing to measure.
+**Key the result rows on position, not name alone.** The committed fixtures contain duplicated lines — 41 in `movies.releases.raw.txt`, 5 in `tv.releases.raw.txt` — so pasting this project's own corpus produces duplicate React keys. That is not merely a warning: React reconciles by key, so two rows sharing one can swap or drop content as the list grows, which on a measurement page means showing a result against the wrong name. Use `` key={`${index}-${row.name}`} ``. **Do not deduplicate the input** — a corpus with repeats is legitimate to measure, and collapsing it would change the denominator of every number on the page.
 
 - [ ] **Step 8: Write the page**
 
@@ -968,7 +968,7 @@ npm run check
 npm run build
 ```
 
-Expected: 14 new tests, the suite green with 0 skipped, and `/corpus` listed as `ƒ` (Dynamic).
+Expected: 15 new tests (9 in the aggregate file, 6 in the runner file), the suite green with 0 skipped, and `/corpus` listed as `ƒ` (Dynamic).
 
 Then drive a real run without a browser: obtain a session cookie the way `test/helpers/signIn.ts` does, and `curl` `POST /api/ui/corpus` with a chunk of **names already in the dev cache** (query `lookups` for `state = 'resolved'`). Confirm you get one result per name with `cached: true` — which is also what proves the run made no provider call. Report the status and the result count. Keep the cookie in a variable or scratch file; **never in a command argument.**
 
