@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { headers } from 'next/headers';
 import { requireAdmin } from '../../../lib/auth/session';
 
@@ -38,7 +39,7 @@ export default async function AdminPage() {
     <main>
       <h1>Admin</h1>
       <p>Signed in as {guard.user.email}.</p>
-      <p>Cache inspection is coming.</p>
+      <p><Link href="/admin/cache" className="underline">Browse the lookup cache</Link>.</p>
     </main>
   );
 }
