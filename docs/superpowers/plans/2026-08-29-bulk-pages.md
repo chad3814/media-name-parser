@@ -1807,7 +1807,7 @@ Start the dev server in the background with output redirected, poll until ready,
 2. Signed in as a **non-admin**: the response contains "This area requires the admin role". **Report the HTTP status**; it will be 200, and the divergence note above explains why.
 3. Promote that user (`npm run admin:promote -- <email>`), then:
    - `/admin/cache` renders the table.
-   - `/admin/cache?band=none` shows unscored rows — the dev database has 24.
+   - `/admin/cache?band=none` shows unscored rows. **Report the count you observe rather than matching a number here** — the dev database grows as the suite runs, and this figure was 24 when the plan was written and 29 by the time Task 4 ran. The invariant in the next step is what matters, not the constant.
    - `/admin/cache?disagreement=1` shows exactly the 1 flagged row.
    - `/admin/cache?band=high&category=tv` narrows further.
 4. Confirm the band counts add up: the row counts from `band=high`, `medium`, `low` and `none` must sum to the count from no band filter. **If they do not, a band is hiding rows** — that is the defect Task 3's invariant test exists for, and seeing it hold through the UI is worth the extra minute.
