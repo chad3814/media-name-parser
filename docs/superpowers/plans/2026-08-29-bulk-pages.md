@@ -110,6 +110,7 @@ Getting this wrong would produce a measurement tool that quietly under-reports t
 
 | Path | Responsibility |
 |---|---|
+| `lib/corpus/chunk.ts` | `CORPUS_CHUNK` — shared by the route and the browser, and dependency-free so the client can import it |
 | `app/api/ui/corpus/route.ts` | session-gated batch lookup, capped at 5 items |
 | `app/api/ui/lookup/route.ts` | **modified** — its refusal message points at the bulk route |
 | `app/corpus/page.tsx` | the corpus runner's server half |
@@ -127,15 +128,17 @@ Getting this wrong would produce a measurement tool that quietly under-reports t
 ### Task 1: The corpus batch route
 
 **Files:**
-- Create: `app/api/ui/corpus/route.ts`
+- Create: `lib/corpus/chunk.ts`, `app/api/ui/corpus/route.ts`
 - Modify: `app/api/ui/lookup/route.ts` (message only)
 - Test: `test/http/corpusRoute.test.ts`
 
 **Interfaces:**
 - Consumes: `handleLookup` (`lib/http/lookupHandler.ts`), `sessionGate` (`lib/http/gate.ts`), `buildTmdbDeps` (`lib/http/envelope.ts`), `badRequest` (`lib/http/problem.ts`).
 - Produces:
-  - `CORPUS_CHUNK = 5` — exported, because the page must chunk to the same number the route enforces
+  - `CORPUS_CHUNK = 5` from **`lib/corpus/chunk.ts`** — a module of its own, not the route. Task 2's browser component needs this number, and it is a *value*, so it cannot be imported as a type. Importing it from the route would pull `handleLookup`, Drizzle and the TMDB client into the client bundle — and would still build. A dependency-free module is the only safe home for it.
   - `POST /api/ui/corpus` — session-gated, batch only, at most `CORPUS_CHUNK` items
+
+**Caught by the pre-flight scan, before any code was written.** An earlier draft of this plan had the route export `CORPUS_CHUNK` and the browser component import it from there. That is the same class of defect as a value import of `LookupEnvelope`, which Plan 5 guards against with a test: it works, it builds, and it silently ships server code to the browser.
 
 **Why a separate route rather than lifting `/api/ui/lookup`'s refusal.** Plan 5 refused batches there and its comment asked that a later bulk page "lift this deliberately, with a limit attached, rather than by deleting the check". A separate route is how that is done without weakening the single-item route: this one has its own cap, its own `maxDuration`, and a name that says what it is. `/api/ui/lookup` stays single-item, and its refusal message is updated to name this route so the error is actionable rather than a dead end.
 
@@ -152,7 +155,8 @@ import { sql } from 'drizzle-orm';
 import { getDb, closeDb, withTransaction } from '../../lib/db/client';
 import { ensureUser } from '../../lib/auth/users';
 import { mintApiKey } from '../../lib/auth/apiKey';
-import { POST as corpus, CORPUS_CHUNK } from '../../app/api/ui/corpus/route';
+import { POST as corpus } from '../../app/api/ui/corpus/route';
+import { CORPUS_CHUNK } from '../../lib/corpus/chunk';
 import { signIn, deleteUser } from '../helpers/signIn';
 
 const hasDb = (process.env.DATABASE_URL ?? '').length > 0;
@@ -272,7 +276,31 @@ npm run test -- test/http/corpusRoute.test.ts
 
 Expected: FAIL — cannot resolve `../../app/api/ui/corpus/route`.
 
-- [ ] **Step 3: Write the route**
+- [ ] **Step 3: Write the shared constant**
+
+`lib/corpus/chunk.ts`. Its own module, with no imports at all, because Task 2's client component needs this value and anything it imports reaches the browser:
+
+```ts
+/**
+ * How many names one corpus request may carry.
+ *
+ * Arithmetic rather than taste. `handleLookup` runs batch items sequentially --
+ * deliberately, so a burst does not exhaust the TMDB budget -- and each item
+ * has up to `LOOKUP_DEADLINE_MS` (8s) before it gives up and returns partial.
+ * With `maxDuration` at 60, five items is 40s of worst case and leaves room for
+ * the round trip. Ten would be 80s: the request would die mid-batch, and the
+ * items it had already written would never be reported to the caller.
+ *
+ * This lives here rather than in the route because the browser must chunk to
+ * the same number the route enforces, and `CORPUS_CHUNK` is a value -- so a
+ * client component importing it from the route would drag `handleLookup`,
+ * Drizzle and the TMDB client into the bundle. This module imports nothing, on
+ * purpose. Keep it that way.
+ */
+export const CORPUS_CHUNK = 5;
+```
+
+- [ ] **Step 4: Write the route**
 
 `app/api/ui/corpus/route.ts`:
 
@@ -281,22 +309,9 @@ import { handleLookup } from '../../../../lib/http/lookupHandler';
 import { buildTmdbDeps } from '../../../../lib/http/envelope';
 import { sessionGate } from '../../../../lib/http/gate';
 import { badRequest } from '../../../../lib/http/problem';
+import { CORPUS_CHUNK } from '../../../../lib/corpus/chunk';
 
 export const maxDuration = 60;
-
-/**
- * How many names one request may carry.
- *
- * Arithmetic rather than taste. `handleLookup` runs batch items sequentially --
- * deliberately, so a burst does not exhaust the TMDB budget -- and each item
- * has up to `LOOKUP_DEADLINE_MS` (8s) before it gives up and returns partial.
- * With `maxDuration` at 60, five items is 40s of worst case and leaves room
- * for the round trip. Ten would be 80s: the request would die mid-batch, and
- * the items it had already written would never be reported to the caller.
- *
- * Exported because the page must chunk to the same number the route enforces.
- */
-export const CORPUS_CHUNK = 5;
 
 /**
  * The bulk lookup the corpus page calls.
@@ -328,7 +343,7 @@ export async function POST(request: Request): Promise<Response> {
 
 **On reading the body twice.** `request.clone()` gives this route the body while leaving the original readable for `handleLookup`. Plan 5 used the same pattern on `/api/ui/lookup` and a review verified it does not hand the handler an empty body — but verify it again here, because the failure mode is silent: a single valid chunk must still return results, not an empty list.
 
-- [ ] **Step 4: Point the single-item route at this one**
+- [ ] **Step 5: Point the single-item route at this one**
 
 In `app/api/ui/lookup/route.ts`, change the refusal message so it names the alternative:
 
@@ -338,7 +353,7 @@ In `app/api/ui/lookup/route.ts`, change the refusal message so it names the alte
 
 Keep the docstring's reasoning and update its last sentence to say the bulk route exists rather than that a later plan should add one. **Change nothing else in that file.** If an existing test asserts the old message, update the test — but check first whether it asserts only the status, in which case leave it alone.
 
-- [ ] **Step 5: Run the tests**
+- [ ] **Step 6: Run the tests**
 
 ```bash
 npm run test -- test/http/corpusRoute.test.ts test/http/uiLookup.test.ts
@@ -346,11 +361,11 @@ npm run test -- test/http/corpusRoute.test.ts test/http/uiLookup.test.ts
 
 Expected: 6 passing in the new file, and every existing `uiLookup` test still passing.
 
-- [ ] **Step 6: Confirm the clone did not break the happy path**
+- [ ] **Step 7: Confirm the clone did not break the happy path**
 
 The silent failure here is a route that validates correctly and then hands `handleLookup` a consumed body, producing an empty result list. The test above asserts `results.length === 2`, which covers it — but run it once more on its own and paste the assertion's outcome into your report, because "it passed as part of a suite" and "I watched this specific thing work" are different claims.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 npm run check && npm run build
@@ -385,7 +400,7 @@ half-use either."
 - Test: `test/corpus/aggregate.test.ts`, `test/ui/corpusRunner.test.ts`
 
 **Interfaces:**
-- Consumes: `CORPUS_CHUNK` and `POST /api/ui/corpus` (Task 1), `getCurrentUser` (`lib/auth/session.ts`), `CATEGORIES`/`Category` (`lib/parse/types.ts`), the `components/ui/*` primitives.
+- Consumes: `CORPUS_CHUNK` from **`lib/corpus/chunk.ts`** (Task 1 — *not* from the route; see below) and `POST /api/ui/corpus` (Task 1), `getCurrentUser` (`lib/auth/session.ts`), `CATEGORIES`/`Category` (`lib/parse/types.ts`), the `components/ui/*` primitives.
 - Produces:
   - `interface CorpusRow { readonly name: string; readonly state: 'resolved' | 'unresolved' | 'pending'; readonly status: number; readonly cached: boolean; readonly confidence: number | null; readonly refusal: string | null }`
   - `interface CorpusSummary { readonly total: number; readonly parsed: number; readonly resolved: number; readonly pending: number; readonly refused: number; readonly cachedCount: number; readonly meanConfidence: number | null; readonly parsedRate: number; readonly resolvedRate: number; readonly complete: boolean }`
@@ -396,6 +411,8 @@ half-use either."
 **Why the arithmetic lives in its own module.** The page's whole purpose is three numbers, and there is no React renderer here to test a component's output. A pure `summarise` is testable exhaustively — including the cases that produce wrong numbers rather than crashes, which is the failure mode that matters for a measurement tool. Divide-by-zero on an empty run, a mean over an empty set, and a pending item counted as a failure all produce a plausible-looking number that is wrong.
 
 **Why `pending` is its own count and never folded into failures.** An item that blew its 8-second deadline returns `partial: true` with its parse intact and a job enqueued for the cron. It is not a failure and not yet a result. Folding it into "unresolved" would make the page under-report the parser's own resolve rate — the single number it exists to show. So `complete` is false while any item is pending, and the page says the resolved rate is a lower bound until a re-run.
+
+**Where `CORPUS_CHUNK` comes from, and why it matters.** Import it from `lib/corpus/chunk.ts`, **never from `app/api/ui/corpus/route.ts`.** It is a value, so it cannot be a type-only import, and a route module imports `handleLookup` — which reaches Drizzle and the TMDB client. A client component importing the route would ship all of that to the browser **and the build would still pass.** The pre-flight scan caught this in an earlier draft of this plan; a test below asserts the import's source and the absence of the route import.
 
 **Why there is a cap on names.** The committed corpus fixtures total 5,951 lines. At 5 per chunk that is 1,190 requests, and a cold run of that is hours. `MAX_NAMES = 500` — 100 chunks — is enough to measure a parser against a real sample and short enough that a person will wait for it. A larger sweep belongs in `scripts/corpus-report.ts`, which already exists and runs offline.
 
@@ -634,11 +651,22 @@ test('the runner chunks to the number the route enforces', async () => {
   // A page that chunked to a different number than the route accepts would
   // 400 on every request, or silently send less than it could.
   const text = await source('components/corpus-runner.tsx');
-  const lines = importLines(text, 'api/ui/corpus/route');
-  assert.ok(lines.length > 0, 'expected CORPUS_CHUNK to be imported from the route');
+  const lines = importLines(text, 'lib/corpus/chunk');
+  assert.ok(lines.length > 0, 'expected CORPUS_CHUNK to come from lib/corpus/chunk');
   assert.ok(text.includes('CORPUS_CHUNK'), 'expected the imported constant to be used');
   // Not re-declared locally, which is how the two drift apart.
   assert.equal(/const\s+CORPUS_CHUNK\s*=/.test(text), false, 'must not redeclare the chunk size');
+});
+
+test('the runner does not import the route module', async () => {
+  // CORPUS_CHUNK is a value, so it cannot be imported as a type. Taking it
+  // from the route would pull handleLookup -- and therefore Drizzle and the
+  // TMDB client -- into the browser bundle, and the build would still pass.
+  // This is the assertion that stops that, since nothing else would notice.
+  const text = await source('components/corpus-runner.tsx');
+  const offending = text.split('\n').map((line) => line.trim())
+    .filter((line) => line.startsWith('import') && line.includes('api/ui/corpus/route'));
+  assert.deepEqual(offending, [], 'a client component must not import a route module');
 });
 
 test('the runner imports the shared category list rather than restating it', async () => {
@@ -688,7 +716,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CATEGORIES, type Category } from '../lib/parse/types';
-import { CORPUS_CHUNK } from '../app/api/ui/corpus/route';
+import { CORPUS_CHUNK } from '../lib/corpus/chunk';
 import { summarise, MAX_NAMES, type CorpusRow } from '../lib/corpus/aggregate';
 
 interface Envelope {
