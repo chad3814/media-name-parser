@@ -1701,11 +1701,25 @@ export default async function CachePage({ searchParams }: {
 }) {
   const guard = await requireAdmin(await headers());
   if (!guard.ok) {
+    // Three branches, matching app/(admin)/admin/layout.tsx. `requireUser`
+    // returns 503 when reading the session throws, and rendering the role
+    // message for that would tell an admin something false about their
+    // permissions when the real fault is an outage. A previous plan shipped
+    // the two-branch shape here, a review caught it, and the split was made
+    // deliberately -- do not collapse it again.
     if (guard.response.status === 401) redirect('/sign-in');
+    if (guard.response.status === 403) {
+      return (
+        <main>
+          <h1>Not available</h1>
+          <p>This area requires the admin role.</p>
+        </main>
+      );
+    }
     return (
       <main>
-        <h1>Not available</h1>
-        <p>This area requires the admin role.</p>
+        <h1>Temporarily unavailable</h1>
+        <p>Your access could not be checked just now. Please try again shortly.</p>
       </main>
     );
   }
