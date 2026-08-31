@@ -15,6 +15,7 @@
     "check": "npm run lint && npm run typecheck && npm run test",
     "db:generate": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs migrate",
+    "db:migrate:deploy": "node node_modules/drizzle-kit/bin.cjs migrate",
     "corpus": "node --import tsx scripts/corpus-report.ts",
     "seed:key": "node --env-file=.env.local --import tsx scripts/seed-api-key.ts",
     "admin:promote": "node --env-file=.env.local --import tsx scripts/promote-admin.ts"
