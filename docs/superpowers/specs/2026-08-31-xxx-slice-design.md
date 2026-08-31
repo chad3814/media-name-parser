@@ -11,22 +11,27 @@ Teach the parser the xxx naming grammar and validate it against 12,815 real
 names, producing a golden file and baseline metrics the way `movies` and `tv`
 already have.
 
-**This slice is parse-only.** theporndb.net resolution -- the provider client,
-`scene_details` population, and performers as `people` rows -- is a later slice.
-Nothing here makes a network call.
+**Scope was widened on 2026-08-31, after the parse-only version of this spec
+was approved,** to cover the whole xxx path: parsing, theporndb.net
+resolution, `scene_details` population, and performers as `people` rows. The
+parse-only reasoning below is kept because it still governs *the parser*; what
+changed is that the resolver now lands in the same body of work rather than a
+later one. The "Performers" section's deferral resolves here, in the resolver,
+exactly as it anticipated.
 
 ## Non-goals
 
-- **The theporndb.net provider.** Deferred entirely.
-- **Splitting performers out of the name.** Deferred to the resolver slice, for
-  reasons recorded under "Performers" below. This is a decision, not an
-  omission.
+- **Splitting performers out of the *name*.** The parser never does this; the
+  resolver takes performers from TPDB's response. Reasons under "Performers".
+- **A UI for scenes.** The existing admin browser and lookup pages are
+  category-agnostic and need no change.
 - **Cross-category fallback.** The caller's category fixes the shape, per the
   parent spec's Non-goals.
-- **New tables or migrations.** `scene_details (site_name, duration_seconds,
+- **A new detail table.** `scene_details (site_name, duration_seconds,
   released_on)` already exists at `lib/db/schema.ts:162`, created ahead of time
-  by the core schema so this slice adds no migration. This slice does not write
-  to it -- the resolver slice does.
+  by the core schema. One *new* table is required -- see "Site identity" -- so
+  this slice does add a migration, which the parse-only version would not
+  have.
 
 ## The corpus
 
@@ -350,3 +355,126 @@ baseline.
 | `scripts/` | A one-shot corpus preparation script: dedupe, drop subjects, split. |
 
 No migration. No new dependency. No network.
+
+
+---
+
+# Part two: resolution against theporndb.net
+
+Everything below was verified against the live API on 2026-08-31 using the
+project's own key. No field name or behaviour here is assumed.
+
+## What the API gives back
+
+`GET /scenes` with `Authorization: Bearer <TPDB_API_KEY>` returns
+`{ data: SceneResource[], links, meta }`. `meta` carries `current_page`,
+`last_page`, `per_page`, `total`.
+
+A `SceneResource` carries, among ~30 fields, the ones this slice uses:
+
+| Field | Type | Use |
+|---|---|---|
+| `id` | uuid string | `media.provider_ref` |
+| `title` | string | `media.title` |
+| `date` | `YYYY-MM-DD` | `scene_details.released_on`, `media.release_date` |
+| `duration` | integer **seconds** | `scene_details.duration_seconds` |
+| `description` | string | `media.overview` |
+| `site_id` | integer | the site cache |
+| `site` | object | `{ id, uuid, name, short_name, url, ... }` |
+| `performers[]` | array | `people` rows, role `performer` |
+
+`duration` is seconds, established from a 25-scene sample: min 1920, median
+2340, max 3060. A single scene reporting `60` looked like minutes until the
+distribution settled it -- 32 to 51 minutes is a scene, 1 minute is bad data
+in one row.
+
+Each performer carries `id`, `name`, `slug`, and a `parent` object holding the
+canonical performer identity. `performers[].name` is the name as credited on
+that scene; `performers[].parent.name` is the canonical one. The credited name
+is what a filename contains, so `name` is stored and `parent.id` is the
+`provider_ref` when present.
+
+## Site identity
+
+`site.short_name` is exactly the parsed site head, lowercased:
+`SpankMonster` in a filename is `short_name: "spankmonster"` in the API. That
+is the join key, and it is why site matching needs no fuzzy comparison.
+
+A new table, because the numeric `site_id` has nowhere to live today:
+
+```
+provider_sites   provider, provider_ref (the numeric id as text), short_name,
+                 name, created_at
+                 PRIMARY KEY (provider, provider_ref)
+                 UNIQUE (provider, short_name)
+```
+
+Populated opportunistically: whenever a scene resolves, its `site` is upserted
+here. So the first lookup for a site searches by `q`, and every later lookup
+for that site can narrow by `site_id`. This is the "site already saved in the
+db" rule -- the cache warms itself and no separate sync job is needed.
+
+## The matching strategy
+
+Ordered, stopping at the first hit. Every step is one API call.
+
+1. **Site known and date parsed** -- `GET /scenes?site_id=<id>&date=<date>`.
+   Verified to return exactly 1 result for the worked example.
+2. **Same, date minus one day.**
+3. **Same, date plus one day.**
+   Filenames are sometimes a day out either way, so a miss on the exact date
+   is not a miss on the scene. `dateOperation` was tested with `>=`, `<=`,
+   `gte`, `greater`, and `after` and returned 0 rows for all of them, so a
+   range query is not available and three exact queries are the mechanism.
+4. **Fallback** -- `GET /scenes?q=<site> <title run>`. Verified to find the
+   worked example without a site id. Used when the site is unknown, when no
+   date parsed, or when steps 1-3 all miss.
+
+At most four calls, and the common case after warm-up is one. A step is
+skipped, not failed, when its inputs are absent.
+
+## Confidence
+
+The floor is the existing `CONFIDENCE_FLOOR` of 0.75; below it a lookup is
+`unresolved` rather than wrong. Scoring, highest evidence first:
+
+| Evidence | Score |
+|---|---|
+| Site id matched and the date matched exactly | 0.98 |
+| Site id matched and the date was one day out | 0.90 |
+| Site short_name matched the parsed site, via `q` | 0.85 |
+| `q` search, single result, no site corroboration | 0.70 |
+| `q` search, multiple results | 0.60 for the best title overlap |
+
+The two `q`-only bands sit below the floor deliberately: a text search with
+nothing to corroborate it is a suggestion, and the admin browser's `low` band
+is where those belong until a human pins one. The date bands sit above it
+because `site_id` plus a date is very nearly a primary key on this API.
+
+## Mapping to ResolvedMedia
+
+`kind: 'scene'`, `category: 'xxx'`, `provider: 'tpdb'`, `parent: null` -- a
+scene has no ancestors, unlike an episode. `ResolvedDetails` gains a `scene`
+member, and `persistResolved` gains the matching `scene_details` insert
+alongside the four it already writes.
+
+```ts
+readonly scene: {
+  readonly siteName: string | null;
+  readonly durationSeconds: number | null;
+  readonly releasedOn: string | null;
+} | null;
+```
+
+## Provider selection
+
+`PipelineDeps.provider` becomes `providers: readonly Provider[]`, and the
+pipeline picks the first whose `supports(category)` is true. Today the sets do
+not overlap -- tmdb takes `tv` and `movies`, tpdb takes `xxx` -- so the choice
+is deterministic.
+
+A single provider field cannot work here: `handleLookup` builds one
+`PipelineDeps` per request and a batch may mix categories, so the provider has
+to be chosen per item rather than per request. Routing inside a composite
+provider was rejected because `Provider.name` is a `ProviderName` and a
+composite has no honest value for it.
