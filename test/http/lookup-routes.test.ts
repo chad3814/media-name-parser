@@ -159,6 +159,27 @@ test('an empty name is 400', opts, async () => {
   assert.equal((await post({ category: 'movies', name: '' })).status, 400);
 });
 
+test('a name that is only whitespace is 400, not an empty stored name', opts, async () => {
+  // The schema trims before it checks the length. Reversed, `min(1)` would see
+  // the untrimmed string, accept it, and store a name of nothing.
+  assert.equal((await post({ category: 'movies', name: '   ' })).status, 400);
+});
+
+test('a padded name is stored without its padding', opts, async () => {
+  await clean('rtestw');
+  const bare = 'rtestw/Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb';
+  const response = await post({ category: 'movies', name: `${bare} ` });
+  assert.equal(response.status, 200, 'a trailing space is not a bad request');
+  // The parse already tolerates the padding; this is about what got written.
+  // An untrimmed name here means two rows for one release, since the two
+  // spellings share a normalized key but conflict on (category, name).
+  const rows = await getDb().execute(sql`
+    SELECT name FROM lookups WHERE name LIKE 'rtestw%'`);
+  assert.equal(rows.rows.length, 1);
+  assert.equal(String(rows.rows[0]?.name), bare);
+  await clean('rtestw');
+});
+
 test('a batch over the cap is 400 rather than silently truncated', opts, async () => {
   const items = Array.from({ length: 101 }, (_, i) => ({ category: 'movies', name: `x${i}.mkv` }));
   const response = await post({ items });

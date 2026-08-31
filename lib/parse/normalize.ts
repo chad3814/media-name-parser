@@ -22,7 +22,11 @@ export interface SplitInput {
 }
 
 export function splitInput(input: string): SplitInput {
-  const segments = input.split('/').filter((segment) => segment.length > 0);
+  // Trimmed because a name pasted from a shell or a spreadsheet arrives with a
+  // trailing space, and that space lands in the extension rather than the
+  // stem: `mkv ` is not in MEDIA_EXTENSIONS, so a real release gets refused as
+  // "not a media file". The stem is unaffected, so no stored key changes.
+  const segments = input.trim().split('/').filter((segment) => segment.length > 0);
   const basename = segments.at(-1) ?? '';
   const ancestors = segments.slice(0, -1).reverse();
   const dot = basename.lastIndexOf('.');

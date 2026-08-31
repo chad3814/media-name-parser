@@ -37,6 +37,32 @@ test('iso, m2ts and nzb all count as media', () => {
   }
 });
 
+test('surrounding whitespace does not make a media file unrecognisable', () => {
+  // A name pasted from a shell or a spreadsheet arrives with a trailing space,
+  // which landed in the extension: `mkv ` is not in MEDIA_EXTENSIONS, so a
+  // real release was refused as "not a media file".
+  const name = 'The.Guardians.of.the.Galaxy.Holiday.Special.2022.2160p.WEB-DL.DDP5.1.H.265-NTb.mkv';
+  for (const [label, padded] of [
+    ['trailing space', `${name} `],
+    ['leading space', ` ${name}`],
+    ['trailing newline', `${name}\n`],
+    ['trailing tab', `${name}\t`],
+    ['non-breaking space', `${name}\u00A0`],
+  ] as const) {
+    const got = splitInput(padded);
+    assert.equal(got.extension, 'mkv', label);
+    assert.equal(got.isMedia, true, label);
+  }
+});
+
+test('trimming leaves the key of an already-clean name untouched', () => {
+  // The stem never saw the trailing space -- it landed in the extension -- so
+  // no stored key changes and nothing needs re-resolving.
+  const name = 'Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb';
+  assert.equal(normalizeKey(`${name} `), normalizeKey(name));
+  assert.equal(normalizeKey(name), 'outbreak 1995 1080p bluray remux avc dts hd ma 5 1 unkn0wn');
+});
+
 test('the two real spellings of Outbreak 1995 share one normalized key', () => {
   const dotted = normalizeKey('Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb');
   const spaced = normalizeKey('Outbreak 1995 1080p BluRay REMUX AVC DTS-HD-MA 5 1-UnKn0wn.nzb');

@@ -15,7 +15,12 @@ const BATCH_CAP = 100;
 
 const one = z.object({
   category: z.enum(['tv', 'movies', 'books', 'xxx']),
-  name: z.string().min(1, 'name must not be empty'),
+  // `.trim()` before `.min(1)`: zod applies these in order, so reversing them
+  // would validate the untrimmed string and accept a name of pure whitespace.
+  // Trimming here rather than only in the parser keeps the stored name clean,
+  // which matters because two spellings that differ by padding share one
+  // normalized key but conflict on (category, name) -- two rows, one release.
+  name: z.string().trim().min(1, 'name must not be empty'),
 });
 
 const batch = z.object({ items: z.array(one).min(1).max(BATCH_CAP) });
