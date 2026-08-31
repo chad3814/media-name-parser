@@ -39,6 +39,8 @@ export const CORPUS: readonly CorpusFile[] = [
   { file: 'fixtures/corpus/tv.releases.raw.txt', category: 'tv' },
   { file: 'fixtures/corpus/tv.library.raw.txt', category: 'tv' },
   { file: 'fixtures/corpus/tv.sport.raw.txt', category: 'tv' },
+  { file: 'fixtures/corpus/xxx.releases.raw.txt', category: 'xxx' },
+  { file: 'fixtures/corpus/xxx.library.raw.txt', category: 'xxx' },
 ];
 
 export function readLines(file: string): readonly string[] {
@@ -59,6 +61,18 @@ export function measure(file: string, category: Category): CorpusRate {
         if (result.parsed.title.length > 0) {
           parsed += 1;
           if (tokenize(result.parsed.title).some(isJunk)) titleLeaks += 1;
+        } else if (
+          category === 'xxx' &&
+          result.parsed.kind === 'scene' &&
+          result.parsed.site !== null &&
+          result.parsed.releasedOn !== null
+        ) {
+          // A scene's identity is its site + release date, not its title --
+          // theporndb matches on `site_id` + `date` and that is enough to
+          // find exactly one scene (verified live: site_id=4347&date=
+          // 2022-07-07). An empty title here is not a parser failure the way
+          // it is for movies/tv, which cannot be looked up without a name.
+          parsed += 1;
         } else {
           failed += 1;
         }

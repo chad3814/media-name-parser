@@ -18,6 +18,7 @@ const entrySchema = z.object({
 const FILES = [
   'fixtures/corpus/movies.golden.jsonl',
   'fixtures/corpus/tv.golden.jsonl',
+  'fixtures/corpus/xxx.golden.jsonl',
 ];
 
 for (const file of FILES) {
