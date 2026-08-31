@@ -8,7 +8,8 @@ export type TokenClass =
   | 'edition'
   | 'streaming'
   | 'threeD'
-  | 'ancillary';
+  | 'ancillary'
+  | 'container';
 
 const SOURCE = new Set([
   'WEB-DL', 'WEBDL', 'WEB', 'WEBRIP', 'WEB-RIP', 'SITERIP', 'BLURAY', 'BLU-RAY',
@@ -65,6 +66,13 @@ const STREAMING = new Set([
   // Deliberately absent: 'IP' and 'RED'. Both are common title words -- IP Man,
   // Red River, Red Dawn -- and a streaming-service tag is not worth losing them.
 ]);
+
+// Only `mp4` -- not `mkv`/`avi`/etc -- because mid-name `.mp4.` is the one
+// container tag measured to occur 0 times in the movies and tv corpora
+// (`...2160p.MP4-WRB` is a real xxx release shape). Adding the rest of the
+// container family was not measured against those corpora, so it stays out
+// until it is.
+const CONTAINER = new Set(['MP4']);
 
 const THREE_D = new Set([
   '3D', 'SBS', 'HALF-SBS', 'HALF-OU', 'OU', 'RBG', 'MVC', 'ANAGLYPH',
@@ -125,6 +133,7 @@ export function classifyToken(token: string): TokenClass | null {
   if (STREAMING.has(upper)) return 'streaming';
   if (THREE_D.has(upper)) return 'threeD';
   if (ANCILLARY.has(upper)) return 'ancillary';
+  if (CONTAINER.has(upper)) return 'container';
   // `5.1`, `7.1`, `2.0` standing alone.
   if (CHANNELS.test(token)) return 'audioCodec';
   // `TrueHD7.1`, `AAC2.0`, `DDP2`: a vocabulary word wearing a channel layout

@@ -1,7 +1,9 @@
 import { splitInput, SIDECAR_EXTENSIONS } from './normalize';
-import { tokenize, classifyToken, expandCompound } from './tokens';
+import { tokenize } from './tokens';
 import { findMarker, type Marker } from './markers';
 import { findBoundary, findTitleRegion } from './boundary';
+import { extractQuality, collect, titleFrom } from './extract';
+import { parseScene } from './scene';
 import type { Category, ParseHints, ParseResult, Quality } from './types';
 
 const EMPTY_QUALITY: Quality = {
@@ -14,40 +16,6 @@ const SPECIALS_DIR = /^specials?$/i;
 // Trailing separators are allowed because a library basename reads
 // `Ghosts (US) - S05E12 - ...`, so the head handed here ends `Ghosts (US) - `.
 const DISAMBIGUATOR = /\(([^)]+)\)[\s._\-–—]*$/;
-
-function extractQuality(tokens: readonly string[]): Quality {
-  let resolution: string | null = null;
-  let source: string | null = null;
-  let videoCodec: string | null = null;
-  let audioCodec: string | null = null;
-  const hdr: string[] = [];
-  const threeD: string[] = [];
-  // `Bluray-2160p` must contribute both halves, so compounds are expanded.
-  for (const token of tokens.flatMap((t) => [...expandCompound(t)])) {
-    switch (classifyToken(token)) {
-      case 'resolution': resolution ??= token; break;
-      // `UHD` classifies as a source; an explicit `1080p` elsewhere still wins
-      // because `resolution` is set only from the resolution class.
-      case 'source': source ??= token; break;
-      case 'videoCodec': videoCodec ??= token; break;
-      case 'audioCodec': audioCodec ??= token; break;
-      case 'hdr': hdr.push(token); break;
-      case 'threeD': threeD.push(token); break;
-      default: break;
-    }
-  }
-  return { resolution, source, videoCodec, audioCodec, hdr, threeD };
-}
-
-function collect(tokens: readonly string[], want: 'edition' | 'language'): readonly string[] {
-  return tokens
-    .flatMap((token) => [...expandCompound(token)])
-    .filter((token) => classifyToken(token) === want);
-}
-
-function titleFrom(tokens: readonly string[]): string {
-  return tokens.join(' ').replace(/\s+/g, ' ').trim();
-}
 
 interface DirectoryHints {
   readonly title: string | null;
@@ -115,6 +83,11 @@ export function parseVideo(category: Category, input: string): ParseResult {
         : `unknown extension ".${split.extension}"`;
     return { ok: false, refusal: `not a media file (${which})` };
   }
+
+  // The gate above stays shared so `parseScene` never re-implements refusal
+  // logic; everything below it is movies/tv-specific structure that a scene
+  // name does not have (no marker grammar, no year-shaped release group).
+  if (category === 'xxx') return parseScene(split);
 
   const marker = findMarker(split.stem);
   const head = marker === null ? split.stem : split.stem.slice(0, marker.start);

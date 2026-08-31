@@ -65,6 +65,11 @@ test('every quality class is recognised', () => {
   }
 });
 
+test('mp4 is a container, so it cannot leak into a title', () => {
+  assert.equal(classifyToken('MP4'), 'container');
+  assert.equal(isJunk('MP4'), true);
+});
+
 test('a title word is not junk', () => {
   for (const token of ['Outbreak', 'Interstellar', 'Wick', 'Prodigy', 'Ghosts', '3', 'Jedi']) {
     assert.equal(isJunk(token), false, `${token} was treated as junk`);
