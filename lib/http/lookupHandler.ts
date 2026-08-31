@@ -11,9 +11,9 @@ import { resolveLookup, type PipelineDeps } from '../resolve/pipeline';
 import type { Category } from '../parse/types';
 import { enqueue, settle } from '../jobs/queue';
 
-const BATCH_CAP = 100;
+export const BATCH_CAP = 100;
 
-const one = z.object({
+export const lookupRequestSchema = z.object({
   category: z.enum(['tv', 'movies', 'books', 'xxx']),
   // `.trim()` before `.min(1)`: zod applies these in order, so reversing them
   // would validate the untrimmed string and accept a name of pure whitespace.
@@ -23,15 +23,17 @@ const one = z.object({
   name: z.string().trim().min(1, 'name must not be empty'),
 });
 
-const batch = z.object({ items: z.array(one).min(1).max(BATCH_CAP) });
+export const lookupBatchSchema = z.object({
+  items: z.array(lookupRequestSchema).min(1).max(BATCH_CAP),
+});
 
 /**
  * Which schema applies, decided before either is validated.
  *
- * Validating a `z.union([one, batch])` in one shot reports whichever branch's
+ * Validating a `z.union([single, batch])` in one shot reports whichever branch's
  * error zod happens to surface first. For a body like
  * `{ category: 'music', name: 'x.mkv' }` both branches fail, and the reported
- * issue can come from the `batch` branch -- "items is required" -- which is
+ * issue can come from the batch branch -- "items is required" -- which is
  * true but useless to a caller who sent a single item and typo'd the
  * category. Checking the shape first means the error that comes back always
  * belongs to the schema the caller was actually attempting.
@@ -141,7 +143,9 @@ export async function handleLookup(
     return badRequest('the body must be JSON');
   }
 
-  const parsed = isBatchShaped(raw) ? batch.safeParse(raw) : one.safeParse(raw);
+  const parsed = isBatchShaped(raw)
+    ? lookupBatchSchema.safeParse(raw)
+    : lookupRequestSchema.safeParse(raw);
   if (!parsed.success) {
     const first = parsed.error.issues[0];
     const path = first?.path.join('.') ?? '';
