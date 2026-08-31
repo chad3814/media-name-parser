@@ -34,7 +34,7 @@ Neither is code, and the tasks below say where each is needed.
 
    The path is `/callback/:providerId`, **not** `/:providerId/callback` — a natural guess that fails with a redirect-URI mismatch. This was verified by having Better Auth 1.7.1 build a real authorize URL, not read from memory: `sign-in.mjs` composes `redirectURI` as `${context.baseURL}${getOAuthCallbackPath(provider)}`, and `getOAuthCallbackPath` returns `/callback/${provider.id}` while `context.baseURL` already carries the `/api/auth` base path. Task 1's catch-all route serves it; no extra file is needed.
 
-   Two practical notes. The default scope Better Auth requests is `read:user user:email`, so a verified email comes back without configuration. And GitHub permits only **one** callback URL per OAuth app, so localhost and production need two separate apps.
+   One practical note: the default scope Better Auth requests is `read:user user:email`, so a verified email comes back without configuration. (An earlier version of this plan claimed GitHub permits only one callback URL per OAuth app, so localhost and production needed separate apps. That is no longer true — GitHub supports multiple redirect URIs per app, so one app can carry both.)
 
 ## Global Constraints
 
