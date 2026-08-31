@@ -45,6 +45,13 @@ export type ParsedVideo =
       readonly yearSeason: boolean;
       readonly airDate: string | null;
       readonly episodeTitle: string | null;
+    })
+  | (ParsedCommon & {
+      readonly kind: 'scene';
+      /** The producing site. From the name's head, else the nearest ancestor. */
+      readonly site: string | null;
+      /** ISO `YYYY-MM-DD`. Null when the name carries no date. */
+      readonly releasedOn: string | null;
     });
 
 export type ParseResult =

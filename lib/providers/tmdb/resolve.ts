@@ -84,6 +84,11 @@ function seasonFromAirDate(details: TmdbTvDetails, airDate: string | null): numb
 async function resolveTv(
   client: TmdbClient, parsed: ParsedVideo, ctx: ResolveContext,
 ): Promise<ResolveOutcome | null> {
+  // TMDB has no xxx scene catalog; `supports()` already excludes the xxx
+  // category, so `resolve()` below should never route a scene here. Handled
+  // anyway, as a typed no-op, because the union now includes it. A TPDB
+  // provider for scenes is a later task.
+  if (parsed.kind === 'scene') return null;
   const search = await client.get('/search/tv', {
     query: parsed.title,
     first_air_date_year: searchYear(parsed),
