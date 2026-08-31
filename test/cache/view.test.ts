@@ -37,6 +37,26 @@ test('a signed-in non-admin is refused for role and gets no data', opts, async (
   }
 });
 
+test('a failed session read is refused as unavailable, not as a role problem', opts, async (t) => {
+  // The arm F1's refactor left uncovered. Collapsing 403 and 503 into
+  // reason:'role' leaves tsc, oxlint and every other test in this file green
+  // -- and it would tell an admin their permissions are wrong during an
+  // outage, which is the exact regression this directory has already
+  // shipped once (see app/(admin)/admin/cache/page.tsx's git history).
+  // Reachable now only because the decision moved out of the async Server
+  // Component: node:test cannot render that, but loadCacheView is a plain
+  // function, and requireUser's own try/catch is what turns this stubbed
+  // throw into the 503 that requireAdmin passes through.
+  const { getAuth } = await import('../../lib/auth/server');
+  t.mock.method(getAuth().api, 'getSession', async () => {
+    throw new Error('simulated session-read failure');
+  });
+  const view = await loadCacheView(new Headers(), new URLSearchParams());
+  assert.equal(view.kind, 'refused');
+  if (view.kind !== 'refused') throw new Error('unreachable');
+  assert.equal(view.reason, 'unavailable', 'an outage is not a permissions problem');
+});
+
 test('an admin gets the page and its filters', opts, async () => {
   const email = 'view-admin@example.test';
   try {

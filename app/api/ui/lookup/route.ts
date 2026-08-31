@@ -25,6 +25,10 @@ export async function POST(request: Request): Promise<Response> {
   // handleLookup gates again below -- one extra session read on a route that
   // is about to do a provider lookup, which is a price worth paying for not
   // having an always-passing gate in the codebase.
+  //
+  // Note for whoever adds a session rate limit: this gates twice, so a limit
+  // charged inside sessionGate would bill this route double. Charge it once
+  // here, or make handleLookup's gate a pass-through for these routes.
   const pass = await sessionGate(request);
   if (!pass.ok) return pass.response;
 
