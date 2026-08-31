@@ -1,9 +1,7 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { requireAdmin } from '../../../../lib/auth/session';
-import { withTransaction } from '../../../../lib/db/client';
-import { browseCache, parseFilters, type CacheFilters as Filters } from '../../../../lib/cache/browse';
+import { loadCacheView, type CacheFilters as Filters } from '../../../../lib/cache/view';
 import { CacheFilters } from '../../../../components/cache-filters';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -26,6 +24,22 @@ function toQuery(filters: Filters, page: number): { readonly pathname: '/admin/c
   return { pathname: '/admin/cache', query };
 }
 
+/**
+ * Formats `createdAt` for display.
+ *
+ * Matches `components/keys-manager.tsx`'s `when()`: deterministic in UTC
+ * regardless of the server's or the visitor's timezone, so the table cannot
+ * render one time during SSR and a different one after hydration --
+ * `toLocaleString()` guarantees exactly that mismatch. Reimplemented locally
+ * rather than imported, because `when()` lives in a `'use client'` module and
+ * this page must stay a server component.
+ */
+function firstSeen(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '—';
+  return `${parsed.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+}
+
 interface CachePageProps {
   // A Promise in Next 16, like `params`. Both annotations typecheck, so a
   // missing await is not a compile error -- it would silently make every
@@ -34,30 +48,31 @@ interface CachePageProps {
 }
 
 // `headers()` and `redirect()` both throw control flow, so neither is inside a
-// try. The page guards itself as well as the layout, because a layout does not
-// re-run on client-side navigation and this is the thing that serves data.
-//
-// Three branches, matching the layout and the admin index: 401 redirects to
-// sign-in; 403 is a genuine wrong-role refusal; anything else -- in practice
-// the 503 requireUser returns when reading the session throws -- must not
-// claim the reader lacks the admin role, because that is false and would
-// send an admin with a fine role off to ask for access they already have.
-// requireUser has already logged the real cause via logFailure, so nothing
-// here names it. Every arm of `!guard.ok` returns or redirects; none falls
-// through to the table below.
+// try. The guard itself lives in lib/cache/view.ts's loadCacheView -- an async
+// Server Component cannot be rendered from node:test, so a guard kept here
+// would be untestable, which is exactly what let a reviewer replace it with
+// `void guard;` and watch every test stay green while the page kept serving
+// cache data to a non-admin. This page only interprets the CacheView that
+// comes back; it does not import the query functions behind loadCacheView,
+// so there is no way for it to query around the guard.
 export default async function CachePage({ searchParams }: CachePageProps) {
-  const guard = await requireAdmin(await headers());
-  if (!guard.ok) {
-    if (guard.response.status === 401) redirect('/sign-in');
-    if (guard.response.status === 403) {
-      return (
-        <main>
-          <h1>Not available</h1>
-          <p>This area requires the admin role.</p>
-        </main>
-      );
-    }
-    return (
+  const raw = await searchParams;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(raw)) {
+    // First value where a key repeats, matching the filter parser's contract.
+    const first = Array.isArray(value) ? value[0] : value;
+    if (first !== undefined) params.set(key, first);
+  }
+
+  const view = await loadCacheView(await headers(), params);
+  if (view.kind === 'signin') redirect('/sign-in');
+  if (view.kind === 'refused') {
+    return view.reason === 'role' ? (
+      <main>
+        <h1>Not available</h1>
+        <p>This area requires the admin role.</p>
+      </main>
+    ) : (
       <main>
         <h1>Temporarily unavailable</h1>
         <p>Your access could not be checked just now. Please try again shortly.</p>
@@ -65,15 +80,9 @@ export default async function CachePage({ searchParams }: CachePageProps) {
     );
   }
 
-  const raw = await searchParams;
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(raw)) {
-    // First value where a key repeats, matching parseFilters' contract.
-    const first = Array.isArray(value) ? value[0] : value;
-    if (first !== undefined) params.set(key, first);
-  }
-  const filters = parseFilters(params);
-  const page = await withTransaction((tx) => browseCache(tx, filters));
+  // view.kind === 'ready' -- filters and page come from here, not from a
+  // second call, so the page cannot query around the guard.
+  const { filters, page } = view;
 
   return (
     <div className="space-y-6">
@@ -96,12 +105,13 @@ export default async function CachePage({ searchParams }: CachePageProps) {
             <TableHead>State</TableHead>
             <TableHead>Confidence</TableHead>
             <TableHead>Hits</TableHead>
+            <TableHead>First seen</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {page.rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-muted-foreground">
+              <TableCell colSpan={6} className="text-muted-foreground">
                 Nothing matches these filters.
               </TableCell>
             </TableRow>
@@ -116,6 +126,7 @@ export default async function CachePage({ searchParams }: CachePageProps) {
               <TableCell>{row.state}</TableCell>
               <TableCell>{row.confidence === null ? '—' : row.confidence.toFixed(3)}</TableCell>
               <TableCell>{row.hitCount}</TableCell>
+              <TableCell>{firstSeen(row.createdAt)}</TableCell>
             </TableRow>
           ))}
         </TableBody>

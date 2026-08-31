@@ -30,7 +30,6 @@ export interface CacheRow {
   readonly pinned: boolean;
   readonly disagreement: boolean;
   readonly createdAt: string;
-  readonly lastAttemptAt: string | null;
 }
 
 export interface CachePage {
@@ -130,7 +129,7 @@ export async function browseCache(tx: Tx, filters: CacheFilters): Promise<CacheP
   // the tiebreak.
   const result = await tx.execute(sql`
     SELECT l.id, l.category, l.name, l.state, l.confidence, l.hit_count, l.pinned,
-           l.created_at, l.last_attempt_at,
+           l.created_at,
            COALESCE((p.tokens->>'categoryDisagreement')::boolean, false) AS disagreement,
            count(*) OVER () AS total
       FROM lookups l
@@ -153,9 +152,6 @@ export async function browseCache(tx: Tx, filters: CacheFilters): Promise<CacheP
     pinned: row.pinned === true,
     disagreement: row.disagreement === true,
     createdAt: String(row.created_at),
-    lastAttemptAt: row.last_attempt_at === null || row.last_attempt_at === undefined
-      ? null
-      : String(row.last_attempt_at),
   }));
 
   // A page past the end returns no rows and therefore no window total, but the

@@ -45,6 +45,24 @@ test('an anonymous request is refused', opts, async () => {
   assert.equal(response.status, 401);
 });
 
+test('an anonymous request over the cap is refused for lack of a session, not for its shape', opts, async () => {
+  // Gating happens before the body is even parsed: an anonymous caller's
+  // status must not depend on what it sent, and a 400 here would disclose
+  // the chunk cap to someone with no session.
+  const names = Array.from({ length: CORPUS_CHUNK + 1 }, (_, i) => `Over.Cap.${i}.2010.mkv`);
+  const response = await corpus(body(new Headers(), names));
+  assert.equal(response.status, 401);
+});
+
+test('an anonymous single-item body is refused for lack of a session, not for its shape', opts, async () => {
+  const response = await corpus(new Request('http://localhost:3000/api/ui/corpus', {
+    method: 'POST',
+    headers: new Headers({ 'content-type': 'application/json' }),
+    body: JSON.stringify({ category: 'movies', name: 'Whatever.2010.mkv' }),
+  }));
+  assert.equal(response.status, 401);
+});
+
 test('an api key is refused: this route is for people', opts, async () => {
   // A real minted key, not a made-up string -- an unminted token is refused by
   // either gate, so a fake one could not tell a wrongly wired route from a

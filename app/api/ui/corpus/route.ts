@@ -19,6 +19,14 @@ export const maxDuration = 60;
  * accepted either would let a caller half-use both.
  */
 export async function POST(request: Request): Promise<Response> {
+  // Gate before touching the body: an unauthenticated caller should not have
+  // its payload parsed, and its status must not depend on the body's shape.
+  // handleLookup gates again below -- one extra session read on a route that
+  // is about to do up to five provider lookups, which is a price worth paying
+  // for not having an always-passing gate in the codebase.
+  const pass = await sessionGate(request);
+  if (!pass.ok) return pass.response;
+
   const raw: unknown = await request.clone().json().catch(() => null);
   // `unknown` is the deserialization exception: `raw` is inspected for the
   // shape of its `items` key and never read as a typed value. The full

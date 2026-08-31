@@ -34,6 +34,18 @@ test('the browser route refuses an anonymous request', opts, async () => {
   assert.equal(response.status, 401);
 });
 
+test('an anonymous batched body is refused for lack of a session, not for its shape', opts, async () => {
+  // Gating happens before the body is parsed: an anonymous caller's status
+  // must not depend on what shape it sent.
+  const batched = new Request('http://localhost:3000/api/ui/lookup', {
+    method: 'POST',
+    headers: new Headers({ 'content-type': 'application/json' }),
+    body: JSON.stringify({ items: [{ category: 'movies', name: CACHED_NAME }] }),
+  });
+  const response = await uiLookup(batched);
+  assert.equal(response.status, 401);
+});
+
 test('the browser route refuses a real api key', opts, async () => {
   // A *minted* key, not a made-up string. An unminted token is refused by
   // either gate -- no cookie, or unknown key -- so a fake token leaves this

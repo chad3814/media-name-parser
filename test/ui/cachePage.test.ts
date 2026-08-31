@@ -28,21 +28,30 @@ test('the page awaits searchParams', async () => {
   assert.ok(/await\s+searchParams/.test(text), 'searchParams must be awaited');
 });
 
-test('the page guards itself as well as the layout', async () => {
-  // A layout does not re-run on client-side navigation, so the thing that
-  // serves data checks for itself.
-  const text = await source('app/(admin)/admin/cache/page.tsx');
-  const lines = importLines(text, 'lib/auth/session');
-  assert.ok(lines.length > 0, 'expected the session module to be imported');
-  assert.ok(text.includes('requireAdmin('), 'the page must call requireAdmin');
+test('the page delegates its guard to loadCacheView, which itself calls requireAdmin', async () => {
+  // The guard used to live inside this async Server Component, where
+  // node:test cannot reach it -- a review proved that by replacing it with
+  // `void guard;` and watching every test here stay green while the page
+  // served cache data to a non-admin. The decision now lives in
+  // lib/cache/view.ts, exercised directly by test/cache/view.test.ts.
+  const pageText = await source('app/(admin)/admin/cache/page.tsx');
+  const pageImports = importLines(pageText, 'lib/cache/view');
+  assert.ok(pageImports.length > 0, 'expected the page to import lib/cache/view');
+  assert.ok(pageText.includes('loadCacheView('), 'the page must call loadCacheView');
+
+  const viewText = await source('lib/cache/view.ts');
+  const viewImports = importLines(viewText, 'auth/session');
+  assert.ok(viewImports.length > 0, 'expected loadCacheView to import the session module');
+  assert.ok(viewText.includes('requireAdmin('), 'loadCacheView must call requireAdmin');
 });
 
-test('the page uses the tested query module rather than inlining SQL', async () => {
+test('the page cannot query around the guard', async () => {
   const text = await source('app/(admin)/admin/cache/page.tsx');
-  const lines = importLines(text, 'lib/cache/browse');
-  assert.ok(lines.length > 0, 'expected browseCache to be imported');
-  assert.ok(text.includes('browseCache('), 'expected browseCache to be called');
-  assert.ok(text.includes('parseFilters('), 'expected parseFilters to be called');
+  // browseCache and parseFilters live behind loadCacheView's guard. If the
+  // page could reach either directly, it could serve data to a caller
+  // loadCacheView already refused.
+  assert.equal(text.includes('browseCache'), false, 'the page must not import browseCache');
+  assert.equal(text.includes('parseFilters'), false, 'the page must not import parseFilters');
   // Inline SQL here would be untested and would duplicate the band logic.
   assert.equal(text.includes('sql`'), false, 'the page must not build its own query');
 });

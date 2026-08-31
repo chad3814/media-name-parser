@@ -56,6 +56,9 @@ test('the runner uses the tested aggregate rather than inlining arithmetic', asy
 test('the page is a server component that guards itself', async () => {
   const text = await source('app/corpus/page.tsx');
   assert.equal(text.includes("'use client'"), false, 'the page must stay a server component');
-  assert.ok(text.includes('getCurrentUser'), 'the page must read the session');
+  // requireUser rather than a bare getCurrentUser, so a thrown session read
+  // is caught and logged instead of reaching Next's generic error boundary
+  // unlabeled -- the same fix made to the admin cache page's guard.
+  assert.ok(text.includes('requireUser('), 'the page must read the session through requireUser');
   assert.ok(text.includes("redirect('/sign-in')"), 'and redirect when there is none');
 });
