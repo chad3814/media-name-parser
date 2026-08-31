@@ -89,6 +89,13 @@ be checked against that future when it arrives.
   `node --env-file-if-exists=.env.local --import tsx --test <file>`. Worth a `test:one` script.
 - **A transient Neon WebSocket failure** was seen once on a plain `SELECT 1`, succeeding on retry.
   Worth knowing before treating a single connection failure as a defect.
+- **`inRollback` in `test/auth/rateLimit.test.ts` reports infrastructure errors as assertion
+  failures.** It wraps work in a transaction that deliberately throws a `__rollback__` sentinel and
+  asserts `assert.rejects(…, /__rollback__/)`. Any *other* rejection — notably the transient Neon
+  WebSocket drop above — therefore surfaces as `expected: /__rollback__/` rather than as a
+  connection error. Observed once while verifying Node 24: the run failed, and the message pointed
+  at the assertion instead of the cause. Rethrowing a non-sentinel error so it reports as itself
+  would turn a confusing failure into an obvious one. Pre-existing, in Plan 3's files.
 
 ## What Plan 6 got wrong about itself, and the two lessons that generalise
 
