@@ -152,24 +152,51 @@ function withoutSceneJunk(tokens: readonly string[]): readonly string[] {
 const SITE_HEAD_TOKEN_CAP = 4;
 
 /**
+ * Loose equality for a token against a known site name: case-insensitive
+ * and ignoring anything that isn't a letter or digit. The filename spells a
+ * site as one glued token (`18Lust`, `2ChicksSameTime`), but the library
+ * path's directory name is a second, independently-written copy of the same
+ * name and may punctuate it differently, so an exact or merely-lowercased
+ * comparison is not safe to assume.
+ */
+function normalizeForSiteMatch(token: string): string {
+  return token.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function tokenMatchesSite(token: string, site: string): boolean {
+  return normalizeForSiteMatch(token) === normalizeForSiteMatch(site);
+}
+
+/**
+ * Drops the leading token from `tokens` when it duplicates `site` -- used by
+ * every branch that can end up with a site-repeating leading token, so the
+ * comparison lives in exactly one place. Kept whole otherwise: a title that
+ * merely starts with the same word the site happens to start with is not
+ * evidence of duplication, and this only fires on a match of the *whole*
+ * first token against the *whole* site name.
+ */
+function stripLeadingSiteToken(tokens: readonly string[], site: string): readonly string[] {
+  const first = tokens[0];
+  return first !== undefined && tokenMatchesSite(first, site) ? tokens.slice(1) : tokens;
+}
+
+/**
  * Recovers `<site>.<title>` from a head that was too long to be a site on
  * its own (see `SITE_HEAD_TOKEN_CAP`). The site is the nearest ancestor
  * directory when the path supplies one -- the library form's own
  * `Scenes/<Site>/` -- else the head's first token, matching the
  * `<site>.<title>...` shape the corpus actually uses. The leading token is
- * then dropped from the head to recover the title only when it textually
- * matches the chosen site; if it does not (a filename that never repeats
- * its own site name), the whole head is kept rather than guessing which
- * word to discard.
+ * then dropped from the head to recover the title only when it duplicates
+ * the chosen site (`stripLeadingSiteToken`); if it does not (a filename
+ * that never repeats its own site name), the whole head is kept rather than
+ * guessing which word to discard.
  */
 function splitLateSiteHead(
   headTokens: readonly string[],
   ancestorSite: string | null,
 ): { readonly site: string | null; readonly titleTokens: readonly string[] } {
-  const first = headTokens[0] ?? null;
-  const site = ancestorSite ?? first;
-  const matchesHead = first !== null && site !== null && first.toLowerCase() === site.toLowerCase();
-  return { site, titleTokens: matchesHead ? headTokens.slice(1) : headTokens };
+  const site = ancestorSite ?? headTokens[0] ?? null;
+  return { site, titleTokens: site === null ? headTokens : stripLeadingSiteToken(headTokens, site) };
 }
 
 /**
@@ -256,7 +283,25 @@ export function parseScene(split: SplitInput): ParseResult {
   // so `findBoundary` -- the same call the movies path makes -- is the right
   // tool, including its own group detection as a fallback for the rare case
   // the trailing-token check above did not catch.
-  const boundary = findBoundary(tokens);
+  //
+  // A library-form name with no date still repeats its own site as the
+  // filename's leading token (`Scenes/18Lust/18Lust_Lola.Haze...`), the same
+  // shape `splitLateSiteHead` handles for the late-date branch above.
+  // Measured at 71.7% of library-form names with no date -- fixed here
+  // using the exact same `stripLeadingSiteToken` comparison so the two
+  // branches cannot drift apart. This must happen *before* `findBoundary`
+  // runs, not after: `findBoundary` treats a single remaining bare word as
+  // a possible release group (`Scenes/DorcelClub/DorcelClub - Mariska.mp4`
+  // has real content `Mariska` after `DorcelClub`), and stripping the
+  // duplicate site token afterward left that word stranded in `group`
+  // instead of `title`, in some names turning a wrong-but-nonempty title
+  // into an empty one -- the exact regression a later review caught.
+  // Stripping first removes the duplicate before that heuristic ever runs,
+  // so `findBoundary` sees the same one-token input either way `Mariska`
+  // would have arrived as if the filename never repeated the site at all.
+  const noDateSite = split.ancestors[0] ?? null;
+  const noDateTokens = noDateSite === null ? tokens : stripLeadingSiteToken(tokens, noDateSite);
+  const boundary = findBoundary(noDateTokens);
   const title = titleFrom(withoutSceneJunk(boundary.titleTokens));
   return {
     ok: true,
@@ -270,7 +315,7 @@ export function parseScene(split: SplitInput): ParseResult {
       group: trailingGroup ?? boundary.group,
       hints,
       categoryDisagreement,
-      site: split.ancestors[0] ?? null,
+      site: noDateSite,
       releasedOn: null,
     },
   };

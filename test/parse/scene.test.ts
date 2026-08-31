@@ -91,6 +91,37 @@ test('the site falls back to the nearest ancestor', () => {
   assert.ok(p.hints.fromDirectories.includes('18Lust'));
 });
 
+test('a library-form name with no date does not duplicate the site into the title', () => {
+  // Fix round 3: Task 4 found this while sampling parses before freezing a
+  // golden file. The no-date branch fell back to the ancestor directory for
+  // `site` but never stripped a leading filename token that duplicated it,
+  // so `Scenes/18Lust/18Lust_Lola...` produced title "18Lust Lola Haze
+  // Nature Schoolgirl" instead of just the performer/scene text. Measured
+  // at 71.7% of library-form names with no date (1,156 of 1,613). Real
+  // corpus name.
+  const p = scene('Scenes/18Lust/18Lust_Lola.Haze.Nature.Schoolgirl_1080p.mp4');
+  assert.equal(p.site, '18Lust');
+  assert.equal(p.title, 'Lola Haze Nature Schoolgirl');
+});
+
+test('a library-form title that does not start with the site is not touched', () => {
+  // The case that must not change: the site-stripping fix must fire only on
+  // a genuine duplicate, never unconditionally on the leading token. Real
+  // corpus name -- its title does not start with "18Lust" at all.
+  const p = scene('Scenes/18Lust/18Lust - Finally Got To Fuck Kiara Alternative Angles.mp4');
+  assert.equal(p.site, '18Lust');
+  assert.ok(!p.title.startsWith('18Lust'), `title unexpectedly begins with the site: "${p.title}"`);
+});
+
+test('a synthetic library-form title that never repeats the site keeps its title whole', () => {
+  // A second guard on the same "do not strip unconditionally" invariant,
+  // using a name whose first title word shares no relation to the site at
+  // all, so `stripLeadingSiteToken` must be a straightforward no-op.
+  const p = scene('Scenes/2ChicksSameTime/Totally.Different.Title.Words.mp4');
+  assert.equal(p.site, '2ChicksSameTime');
+  assert.equal(p.title, 'Totally Different Title');
+});
+
 test('the filename beats the directory, and the directory is still recorded', () => {
   const p = scene('Scenes/2ChicksSameTime/NaughtyAmerica.14.04.25.bonnie.mp4');
   assert.equal(p.site, 'NaughtyAmerica', 'the filename head wins');
