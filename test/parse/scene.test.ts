@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSceneDate, parseScene } from '../../lib/parse/scene';
+import { readFileSync } from 'node:fs';
+import { parseSceneDate } from '../../lib/parse/scene';
 import { parseVideo } from '../../lib/parse/video';
 
 test('a two-digit year expands to 20YY', () => {
@@ -71,12 +72,16 @@ test('the XXX tag and the container never reach the title', () => {
   assert.equal(p.title, 'Katie Morgan');
 });
 
-test('performers are left in the title, unsplit', () => {
+test('two performers and a distinct title all stay together, unsplit', () => {
   // A decision, not an omission: see the spec's Performers section. TPDB
   // returns canonical performers, and a corpus-mined dictionary caps at 58%
-  // recall and cannot represent mononyms.
-  const p = scene('SpankMonster.22.07.07.Ruby.Redbottom.And.Octavia.Red.XXX.2160p.MP4-WRB.nzb');
-  assert.equal(p.title, 'Ruby Redbottom And Octavia Red');
+  // recall and cannot represent mononyms. Two performer names *and* separate
+  // title words after them, both surviving into one `title` string, is the
+  // case a future performer-splitting change would actually break -- unlike
+  // a single-performer title, which would look the same whether or not
+  // splitting existed.
+  const p = scene('SomeSite.22.07.07.Aubrey.Sinclair.And.Khloe.Kapri.Anal.Adventure.mp4');
+  assert.equal(p.title, 'Aubrey Sinclair And Khloe Kapri Anal Adventure');
 });
 
 test('the site falls back to the nearest ancestor', () => {
@@ -154,6 +159,36 @@ test('an ordinary two-word title tail is not mistaken for a dot-separated group'
   assert.equal(p.title, 'Ruby Redbottom Alternative Angles');
 });
 
+test('a language word before the last token is not mistaken for a group marker', () => {
+  // Fix round 2, finding 1: the dot-separated-group heuristic used to fire
+  // whenever the second-to-last token was `isJunk()` of *any* class, and
+  // `language` is stocked with ordinary English words that are also real
+  // vocabulary (`DUTCH`). This is the `Moon Knight` -> group `Knight`
+  // failure `findBoundary`'s docstring warns about, reintroduced one
+  // category over: `Dutch` looked like `MP4` (a technical tag) to the old
+  // check, so `Delight` got read as a group and `Dutch Delight` fell out of
+  // the title.
+  const p = scene('SomeSite.22.07.07.Britney.Dutch.Delight.mp4');
+  assert.equal(p.group, null);
+  assert.equal(p.title, 'Britney Dutch Delight');
+});
+
+test('an edition word before the last token is not mistaken for a group marker', () => {
+  // Same failure, the `edition`/other-ambiguous-class side: `French` is a
+  // language tag, and swapping it in reproduces the same misread.
+  const p = scene('SomeSite.22.07.07.Anna.French.Kiss.mp4');
+  assert.equal(p.group, null);
+  assert.equal(p.title, 'Anna French Kiss');
+});
+
+test('the dot-separated group is still recognised for an unambiguous technical tag', () => {
+  // The fix must not overcorrect: a real container tag (`MP4`) before the
+  // trailing group token must still trigger the heuristic.
+  const p = scene('SomeSite.22.07.07.Ruby.Redbottom.XXX.2160p.MP4.WRB.mp4');
+  assert.equal(p.group, 'WRB');
+  assert.equal(p.title, 'Ruby Redbottom');
+});
+
 test('a release group literally named XXX is still a group, not junk', () => {
   // The corpus has `...480p.MP4-XXX.nzb`: a real release group that happens
   // to be spelled the same as the category tag. `XXX` is not in the shared
@@ -201,17 +236,24 @@ test('the site is never longer than the measured site-length cap', () => {
   }
 });
 
-test('parseScene uses no clock, no randomness, and no environment reads', () => {
-  // This is a textual check on parseScene's own source, not a proof of
-  // determinism: it catches an obvious clock/randomness/env read added
-  // directly in this function, but it cannot see one hiding inside a helper
-  // it calls (`findBoundary`, `findTitleRegion`, `tokenize`, ...), and it
-  // cannot catch a non-literal read spelled to dodge these exact substrings.
-  // Word-boundaries guard against false positives from identifiers that
-  // merely contain these words, such as `locateSceneDate` or `dateSplit`.
-  const source = parseScene.toString();
+test('the scene module uses no clock, no randomness, and no environment reads', () => {
+  // Fix round 2, finding 2: `parseScene.toString()` alone only sees
+  // `parseScene`'s own body. The date and site logic actually live in
+  // sibling functions in this module -- `locateSceneDate`,
+  // `splitLateSiteHead`, `extractTrailingGroup`, `parseSceneDate` -- which
+  // that scan never reached. Reading the module's source file once and
+  // scanning the whole text covers all of them without needing each helper
+  // exported just so a test can call `.toString()` on it.
+  //
+  // This still is not a proof of determinism: it cannot see inside a helper
+  // *imported* from another module (`findBoundary`, `findTitleRegion`,
+  // `tokenize`, `classifyToken`, ...), and it cannot catch a non-literal
+  // read spelled to dodge these exact patterns. Word-boundaries guard
+  // against false positives from identifiers that merely contain these
+  // words, such as `locateSceneDate` or `dateSplit`.
+  const source = readFileSync('lib/parse/scene.ts', 'utf8');
   const forbidden = [/\bDate\b/, /\bperformance\b/, /\bMath\.random\b/, /\bprocess\.env\b/];
   for (const pattern of forbidden) {
-    assert.ok(!pattern.test(source), `parseScene's source matches forbidden pattern ${pattern}`);
+    assert.ok(!pattern.test(source), `lib/parse/scene.ts matches forbidden pattern ${pattern}`);
   }
 });

@@ -1,4 +1,4 @@
-import { tokenize, isJunk, splitGroupSuffix } from './tokens';
+import { tokenize, isJunk, classifyToken, splitGroupSuffix, type TokenClass } from './tokens';
 import { findBoundary, findTitleRegion } from './boundary';
 import { extractQuality, collect, titleFrom } from './extract';
 import type { ParseHints, ParseResult } from './types';
@@ -45,6 +45,22 @@ const SCENE_JUNK: ReadonlySet<string> = new Set(['xxx', 'pmv']);
 const SEASON_EPISODE_MARKER = /(?:^|[^A-Za-z0-9])S\d{1,3}E\d{1,3}(?![0-9])/i;
 
 /**
+ * Token classes that are machine tags and never appear as an ordinary title
+ * word -- a resolution, codec, HDR flag, 3D flag or container tag has no
+ * other reading. This is deliberately a *smaller* set than `isJunk`: junk
+ * also includes `language` and `edition`, and those classes are stocked
+ * with ordinary English words that are also real vocabulary (`DUTCH`,
+ * `FRENCH`, `GERMAN`, `AD`, `HD`, `CUT`, ...). A performer or title
+ * containing one of those, e.g. `Britney Dutch`, is common; a performer
+ * named `2160p` is not. Case 2 below trusts a bare trailing token as a
+ * group only when the token before it is one of *these* classes, precisely
+ * to keep that ambiguity out of the decision.
+ */
+const UNAMBIGUOUS_TAG_CLASSES: ReadonlySet<TokenClass> = new Set([
+  'resolution', 'source', 'videoCodec', 'audioCodec', 'hdr', 'threeD', 'container',
+]);
+
+/**
  * The release group at the stem's tail, in either of the two shapes the
  * corpus actually uses. Runs before date detection because the group always
  * sits at the tail, regardless of where the date is.
@@ -56,10 +72,14 @@ const SEASON_EPISODE_MARKER = /(?:^|[^A-Za-z0-9])S\d{1,3}E\d{1,3}(?![0-9])/i;
  * 2. A separate trailing token after the junk run, as in `...2160p.MP4.WRB`
  *    -- measured as the dominant title-leak shape in the corpus. `WRB` here
  *    is not vocabulary, so it is only trusted as a group, not a title word,
- *    when the token immediately before it *is* vocabulary (`MP4`); an
- *    ordinary title's last two words, e.g. `Alternative Angles`, are neither.
- *    Only one such token is peeled off. A second-order tag chained after it
- *    (`...MP4.WRB.XC`) is not caught and is a known, accepted gap.
+ *    when the token immediately before it classifies as one of
+ *    `UNAMBIGUOUS_TAG_CLASSES` (`MP4` is a container). This used to accept
+ *    *any* junk class, which meant `Britney.Dutch.Delight` read as title
+ *    `Britney` + group `Delight`, because `Dutch` is also a `language` tag
+ *    -- the `Moon Knight` -> group `Knight` failure `findBoundary`'s own
+ *    docstring warns about, one category over. Only one such token is
+ *    peeled off; a second-order tag chained after it (`...MP4.WRB.XC`) is
+ *    not caught and is a known, accepted gap.
  */
 function extractTrailingGroup(
   tokens: readonly string[],
@@ -71,7 +91,8 @@ function extractTrailingGroup(
   if (suffix !== null) return { tokens: [...tokens.slice(0, -1), suffix.head], group: suffix.group };
 
   const secondLast = tokens[tokens.length - 2];
-  if (!isJunk(last) && secondLast !== undefined && isJunk(secondLast)) {
+  const secondLastClass = secondLast === undefined ? null : classifyToken(secondLast);
+  if (!isJunk(last) && secondLastClass !== null && UNAMBIGUOUS_TAG_CLASSES.has(secondLastClass)) {
     return { tokens: tokens.slice(0, -1), group: last };
   }
 
