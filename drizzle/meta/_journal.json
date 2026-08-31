@@ -8,6 +8,13 @@
       "when": 1787696095148,
       "tag": "0000_lethal_whizzer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788210127145,
+      "tag": "0001_cooing_loners",
+      "breakpoints": true
     }
   ]
 }

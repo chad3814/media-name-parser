@@ -239,6 +239,17 @@ export const lookupJobs = pgTable('lookup_jobs', {
   index('lookup_jobs_due_idx').on(t.state, t.nextAttemptAt),
 ]);
 
+export const providerSites = pgTable('provider_sites', {
+  provider: providerEnum('provider').notNull(),
+  providerRef: text('provider_ref').notNull(),
+  shortName: text('short_name').notNull(),
+  name: text('name').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.provider, t.providerRef] }),
+  unique('provider_sites_short_name_key').on(t.provider, t.shortName),
+]);
+
 export const providerCalls = pgTable('provider_calls', {
   id: uuid('id').primaryKey().defaultRandom(),
   provider: providerEnum('provider').notNull(),
