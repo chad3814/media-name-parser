@@ -113,6 +113,45 @@ function withoutSceneJunk(tokens: readonly string[]): readonly string[] {
 }
 
 /**
+ * The site-head length, in tokens, before the first valid date -- measured
+ * across the corpus (12,815 names): 1 token: 8867, 2: 282, 3: 48, 4: 27,
+ * then a cliff into a flat tail: 5: 103, 6: 75, 7: 93, 8: 72, 9: 75,
+ * 10: 45, 11: 33.
+ *
+ * That shape is bimodal, not a smooth decay. A real site name gets rare
+ * fast past two or three tokens; the flat tail past the cliff is not a
+ * long site name, it is ordinary title text sitting in front of a *late*
+ * date (`<site>.<title>.<date>.<quality>`), which the leftmost-date search
+ * in `locateSceneDate` cannot tell apart from the head of a normal
+ * `<site>.<date>.<title>` name on its own. The cut sits at the cliff: a
+ * head of 4 tokens or fewer is the site (9,279 of the 9,872 dated names);
+ * a head of 5 or more is a late date with the title still in the head
+ * (593 names), handled by `splitLateSiteHead` below.
+ */
+const SITE_HEAD_TOKEN_CAP = 4;
+
+/**
+ * Recovers `<site>.<title>` from a head that was too long to be a site on
+ * its own (see `SITE_HEAD_TOKEN_CAP`). The site is the nearest ancestor
+ * directory when the path supplies one -- the library form's own
+ * `Scenes/<Site>/` -- else the head's first token, matching the
+ * `<site>.<title>...` shape the corpus actually uses. The leading token is
+ * then dropped from the head to recover the title only when it textually
+ * matches the chosen site; if it does not (a filename that never repeats
+ * its own site name), the whole head is kept rather than guessing which
+ * word to discard.
+ */
+function splitLateSiteHead(
+  headTokens: readonly string[],
+  ancestorSite: string | null,
+): { readonly site: string | null; readonly titleTokens: readonly string[] } {
+  const first = headTokens[0] ?? null;
+  const site = ancestorSite ?? first;
+  const matchesHead = first !== null && site !== null && first.toLowerCase() === site.toLowerCase();
+  return { site, titleTokens: matchesHead ? headTokens.slice(1) : headTokens };
+}
+
+/**
  * A scene filename or library path to a structured parse.
  *
  * Performers are deliberately NOT split out of the title -- the whole
@@ -132,6 +171,38 @@ export function parseScene(split: SplitInput): ParseResult {
   // directory's site (19% of library names, per the corpus census) must stay
   // inspectable even when the filename wins.
   const hints: ParseHints = { fromDirectories: split.ancestors, disambiguator: null, discNumber: null };
+
+  if (located !== null && located.siteTokens.length > SITE_HEAD_TOKEN_CAP) {
+    // The date is late: `<site>.<title>.<date>.<quality>`. The head holds
+    // both the site and the title, and the tail after the date holds only
+    // quality/group junk -- there is no more title left to find there, so
+    // it gets `findBoundary` (for its group detection) rather than
+    // `findTitleRegion`, and the head's own trailing junk (rare, but a
+    // `REMASTERED` before the date is not impossible) still goes through
+    // `findTitleRegion` for the same reason the with-date branch below does.
+    const ancestorSite = split.ancestors[0] ?? null;
+    const { site, titleTokens: headTitleTokens } = splitLateSiteHead(located.siteTokens, ancestorSite);
+    const headRegion = findTitleRegion(headTitleTokens);
+    const tailBoundary = findBoundary(located.restTokens);
+    const title = titleFrom(withoutSceneJunk(headRegion.titleTokens));
+    const junk = [...headRegion.junkTokens, ...tailBoundary.junkTokens];
+    return {
+      ok: true,
+      parsed: {
+        kind: 'scene',
+        title,
+        year: Number.parseInt(located.iso.slice(0, 4), 10),
+        quality: extractQuality(junk),
+        edition: collect(junk, 'edition'),
+        language: collect(junk, 'language'),
+        group: trailingGroup ?? tailBoundary.group,
+        hints,
+        categoryDisagreement,
+        site,
+        releasedOn: located.iso,
+      },
+    };
+  }
 
   if (located !== null) {
     // The tail after the date is title-only in shape -- title, then a

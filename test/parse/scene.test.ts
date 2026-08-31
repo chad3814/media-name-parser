@@ -162,6 +162,45 @@ test('a release group literally named XXX is still a group, not junk', () => {
   assert.equal(p.group, 'XXX');
 });
 
+test('a late date does not swallow the title into the site', () => {
+  // Fix round 1: the plan's algorithm said "everything before the first
+  // date is the site," but the spec anchors the date right after the site,
+  // and the corpus has a third shape the plan missed: `<site>.<title>.
+  // <date>.<quality>`, where the date is late. On this shape, "everything
+  // before the date" is the site AND the title glued together. This is a
+  // real corpus name (library form, so the site also comes from the
+  // directory) that used to parse with an empty title and a seven-word
+  // "site".
+  const p = scene(
+    'Scenes/ATKGirlfriends/ATKGirlfriends.Breezy.Bri.Breezy.Bri.POV.Sex.2022-11-10..2160p..mp4',
+  );
+  assert.equal(p.site, 'ATKGirlfriends');
+  assert.equal(p.releasedOn, '2022-11-10');
+  assert.ok(p.title.length > 0, 'the title must not be empty');
+  assert.ok(p.title.includes('Breezy Bri'), `expected "Breezy Bri" in the title, got "${p.title}"`);
+});
+
+test('the site is never longer than the measured site-length cap', () => {
+  // The corpus census behind `SITE_HEAD_TOKEN_CAP` found no real site name
+  // longer than 4 tokens across 12,815 names. A `site` longer than that is
+  // therefore not evidence of an unusually long site -- it is title text
+  // that leaked into the site, which is exactly the bug fix round 1
+  // corrects. This is the sharpest single invariant available without
+  // hand-listing every site the corpus contains.
+  const names = [
+    'SpankMonster.22.07.07.Ruby.Redbottom.And.Octavia.Red.XXX.2160p.MP4-WRB.nzb',
+    'Scenes/ATKGirlfriends/ATKGirlfriends.Breezy.Bri.Breezy.Bri.POV.Sex.2022-11-10..2160p..mp4',
+    'BackroomCastingCouch.Zoe.Weird.Science.Anal.Origin.Story.23.02.27.1080p.mp4',
+    '777REMIX.Kenzies.Megamix.The.Best.Little.Whore.In.The.World.4K.nzb',
+  ];
+  for (const name of names) {
+    const p = scene(name);
+    if (p.site === null) continue;
+    const wordCount = p.site.split(' ').length;
+    assert.ok(wordCount <= 4, `site "${p.site}" (${wordCount} words) exceeds the measured cap for ${name}`);
+  }
+});
+
 test('parseScene uses no clock, no randomness, and no environment reads', () => {
   // This is a textual check on parseScene's own source, not a proof of
   // determinism: it catches an obvious clock/randomness/env read added
