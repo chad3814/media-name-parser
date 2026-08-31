@@ -4,6 +4,7 @@ import { closeDb } from '../../lib/db/client';
 import { loadCacheView } from '../../lib/cache/view';
 import { ADMIN_ROLE } from '../../lib/auth/roles';
 import { signIn, deleteUser, setRole } from '../helpers/signIn';
+import { seedLookup } from '../helpers/seedLookup';
 
 const hasDb = (process.env.DATABASE_URL ?? '').length > 0;
 const opts = hasDb ? {} : { skip: 'DATABASE_URL is not set' };
@@ -59,6 +60,15 @@ test('a failed session read is refused as unavailable, not as a role problem', o
 
 test('an admin gets the page and its filters', opts, async () => {
   const email = 'view-admin@example.test';
+  // The `none` band means confidence IS NULL, so the fixture has to be
+  // unscored. Asking the dev cache for such a row is what this test used to
+  // do, and a full run leaves behind only a scored one -- so on any freshly
+  // migrated database it could not pass.
+  // Not `books`: browse.test.ts asserts exact row counts scoped to that
+  // category, and these files run in parallel.
+  const unscored = await seedLookup({
+    category: 'xxx', name: 'View.Fixture.Unscored', state: 'pending', confidence: null,
+  });
   try {
     const headers = await signIn(email);
     await setRole(email, ADMIN_ROLE);
@@ -66,10 +76,14 @@ test('an admin gets the page and its filters', opts, async () => {
     assert.equal(view.kind, 'ready');
     if (view.kind !== 'ready') throw new Error('unreachable');
     assert.equal(view.filters.band, 'none');
-    assert.ok(view.page.total > 0, 'the dev cache should not be empty');
+    assert.ok(view.page.rows.some((row) => row.name === unscored.name),
+      'the none band should return the unscored row just seeded');
+    // `every` on an empty page is vacuously true, so the `some` above is what
+    // gives this assertion something to be wrong about.
     assert.ok(view.page.rows.every((row) => row.confidence === null),
       'the none band must return only unscored rows');
   } finally {
     await deleteUser(email);
+    await unscored.release();
   }
 });

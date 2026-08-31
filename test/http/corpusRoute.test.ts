@@ -1,25 +1,31 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { sql } from 'drizzle-orm';
-import { getDb, closeDb, withTransaction } from '../../lib/db/client';
+import { closeDb, withTransaction } from '../../lib/db/client';
 import { ensureUser } from '../../lib/auth/users';
 import { mintApiKey } from '../../lib/auth/apiKey';
 import { POST as corpus } from '../../app/api/ui/corpus/route';
 import { CORPUS_CHUNK } from '../../lib/corpus/chunk';
 import { signIn, deleteUser } from '../helpers/signIn';
+import { seedLookup, type Seeded } from '../helpers/seedLookup';
 
 const hasDb = (process.env.DATABASE_URL ?? '').length > 0;
 const opts = hasDb ? {} : { skip: 'DATABASE_URL is not set' };
 
 after(async () => { if (hasDb) await closeDb(); });
 
-/** A name already resolved in the dev cache, so no test here calls TMDB. */
-async function cachedName(): Promise<string> {
-  const result = await getDb().execute(sql`
-    SELECT name FROM lookups WHERE state = 'resolved' AND category = 'movies' LIMIT 1`);
-  const row = result.rows[0];
-  assert.ok(row !== undefined, 'the dev cache has no resolved movies row to reuse');
-  return String(row.name);
+/**
+ * A resolved name this test owns, so no test here calls TMDB.
+ *
+ * This used to SELECT any resolved row out of the dev cache, which made the
+ * test pass or fail on what earlier runs happened to leave behind. The caller
+ * must `release()` it.
+ */
+async function cachedName(): Promise<Seeded> {
+  return seedLookup({
+    category: 'movies', name: 'Corpus.Fixture.Cached.2010.1080p.mkv',
+    state: 'resolved', confidence: 0.95,
+  });
 }
 
 function body(headers: Headers, names: readonly string[]): Request {
@@ -83,8 +89,9 @@ test('an api key is refused: this route is for people', opts, async () => {
 
 test('a signed-in user gets one result per item', opts, async () => {
   const email = 'corpus-ok@example.test';
+  const cached = await cachedName();
   try {
-    const name = await cachedName();
+    const name = cached.name;
     const response = await corpus(body(await signIn(email), [name, name]));
     assert.equal(response.status, 200, 'a batch response is always 200');
     const payload = await response.json() as {
@@ -96,6 +103,7 @@ test('a signed-in user gets one result per item', opts, async () => {
     assert.equal(payload.results[0]?.status, 200);
   } finally {
     await deleteUser(email);
+    await cached.release();
   }
 });
 

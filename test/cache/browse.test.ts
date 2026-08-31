@@ -91,26 +91,42 @@ async function seed(): Promise<void> {
 
 async function unseed(): Promise<void> {
   const db = getDb();
+  // Scoped to the `fixture-` names this file creates, not to the whole
+  // category. Test files run in parallel, so deleting every row of a category
+  // destroys rows another file is mid-assertion about -- and the tests below
+  // assert exact counts within this category, so a foreign row breaks them in
+  // the other direction too.
+  //
   // lookups first: ON DELETE RESTRICT refuses to remove a parse that a lookup
   // still references.
-  await db.execute(sql`DELETE FROM lookups WHERE category = ${FIXTURE}`);
-  await db.execute(sql`DELETE FROM parses WHERE category = ${FIXTURE}`);
+  await db.execute(sql`
+    DELETE FROM lookups WHERE category = ${FIXTURE} AND name LIKE 'fixture-%'`);
+  await db.execute(sql`
+    DELETE FROM parses WHERE category = ${FIXTURE} AND normalized_key LIKE 'fixture-%'`);
 }
 
 test('every band together accounts for every row, so nothing is hidden', opts, async () => {
-  // The invariant that matters, asserted against the whole table rather than a
-  // fixture: a band filter that silently drops NULL-confidence rows would make
-  // these sums disagree. 24 of the dev rows are unscored.
-  const counts = new Map<string, number>();
-  for (const band of CONFIDENCE_BANDS) {
-    const page = await withTransaction((tx) => browseCache(tx, { ...base, band }));
-    counts.set(band, page.total);
+  // The invariant is asserted against the whole table rather than only the
+  // fixture -- a band filter that silently drops NULL-confidence rows would
+  // make these sums disagree, and that must hold over real rows too. But the
+  // fixture is seeded first, because `any > 0` against an empty table is a
+  // failure about the database rather than about banding.
+  await unseed();
+  await seed();
+  try {
+    const counts = new Map<string, number>();
+    for (const band of CONFIDENCE_BANDS) {
+      const page = await withTransaction((tx) => browseCache(tx, { ...base, band }));
+      counts.set(band, page.total);
+    }
+    const any = counts.get('any') ?? -1;
+    const parts = (counts.get('high') ?? 0) + (counts.get('medium') ?? 0)
+      + (counts.get('low') ?? 0) + (counts.get('none') ?? 0);
+    assert.ok(any >= 4, `the four seeded rows should be counted, saw ${any}`);
+    assert.equal(parts, any, `bands sum to ${parts} but any is ${any}`);
+  } finally {
+    await unseed();
   }
-  const any = counts.get('any') ?? -1;
-  const parts = (counts.get('high') ?? 0) + (counts.get('medium') ?? 0)
-    + (counts.get('low') ?? 0) + (counts.get('none') ?? 0);
-  assert.ok(any > 0, 'the dev cache should not be empty');
-  assert.equal(parts, any, `bands sum to ${parts} but any is ${any}`);
 });
 
 test('the none band finds unscored rows, which are the interesting ones', opts, async () => {
