@@ -103,11 +103,16 @@ function markerSuggestsSeries(marker: Marker | null): boolean {
 export function parseVideo(category: Category, input: string): ParseResult {
   const split = splitInput(input);
   if (!split.isMedia) {
+    // The extension is quoted because it is untrusted text that may contain a
+    // character with no width. A zero-width space is category Cf rather than
+    // whitespace, so trimming does not remove it, and interpolated bare it
+    // produced `unknown extension .mkv` -- a refusal that reads as a bug in
+    // MEDIA_EXTENSIONS instead of a bad byte in the input.
     const which = split.extension === null
       ? 'no extension'
       : SIDECAR_EXTENSIONS.has(split.extension)
-        ? `sidecar .${split.extension}`
-        : `unknown extension .${split.extension}`;
+        ? `sidecar ".${split.extension}"`
+        : `unknown extension ".${split.extension}"`;
     return { ok: false, refusal: `not a media file (${which})` };
   }
 

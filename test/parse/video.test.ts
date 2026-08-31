@@ -117,6 +117,19 @@ test('a Plex sidecar is refused, not parsed', () => {
   assert.match(result.refusal, /not a media file/);
 });
 
+test('a refusal quotes the extension, so an invisible character is visible', () => {
+  // A zero-width space is category Cf, not whitespace, so trimming does not
+  // remove it. Interpolated bare, its refusal read `unknown extension .mkv` --
+  // indistinguishable from a clean name, and it sent a real debugging session
+  // looking for a bug in MEDIA_EXTENSIONS.
+  const result = parseVideo('movies', 'Something.2020.mkv\u200B');
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error('unreachable');
+  assert.match(result.refusal, /unknown extension/);
+  assert.ok(result.refusal.includes('".mkv\u200B"'),
+    `the extension must be quoted so the stray character shows: ${result.refusal}`);
+});
+
 test('a subtitle is refused', () => {
   const result = parseVideo('tv', 'TV Shows/Moon Knight/Season 1/Moon Knight - S01E01.srt');
   assert.equal(result.ok, false);
