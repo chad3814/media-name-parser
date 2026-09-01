@@ -66,10 +66,19 @@ shipped code paths all go through the limiter. Recorded because the account may
 have been flagged, and because it is the argument for never hand-rolling a
 fetch wrapper around a client that already has one.
 
-## 7. Pre-existing: `test/cache/browse.test.ts` DB-concurrency flake
+## 7. ~~Pre-existing: `test/cache/browse.test.ts` DB-concurrency flake~~ — FIXED
 
-Surfaced intermittently throughout the slice and was confirmed unrelated by
-stashing the work. Untouched here.
+It was not a flake. The band-sum test took its five counts in five separate
+transactions while node runs test files in parallel and other files mutate
+`lookups` throughout, so a row arriving mid-sequence made the sums disagree for
+reasons unrelated to banding. Every agent in this slice, and I, dismissed it as
+a database problem; the failure message ("bands sum to 9 but any is 8") said
+plainly that it was arithmetic.
+
+Fixed in `278ae49` by taking all five counts in one repeatable-read
+transaction. Recorded rather than deleted, because "intermittent, therefore
+environmental" was the wrong inference several times in a row and is worth
+remembering.
 
 ## Deliberately not done
 
