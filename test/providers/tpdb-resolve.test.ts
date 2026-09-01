@@ -55,6 +55,13 @@ const WARM = { spankmonster: '4347' };
 
 const SPANKMONSTER = { id: 4347, name: 'Spank Monster', short_name: 'spankmonster' };
 
+/** A leaf site under a brand, as RK Prime sits under Reality Kings. */
+const REALITY_KINGS = { id: 20, name: 'Reality Kings', short_name: 'realitykings' };
+const RKPRIME = {
+  id: 26, name: 'RK Prime', short_name: 'rkprime',
+  parent: REALITY_KINGS, network: REALITY_KINGS,
+};
+
 function scene(over: Partial<SceneInput> = {}): SceneInput {
   return {
     id: 'adf4b545-8b59-4bad-a935-4f5ec83a16db',
@@ -359,4 +366,39 @@ test('a failed cache write is logged, not fatal to the resolution it caches', as
 
   assert.equal(out?.confidence, 0.98, 'the resolution survives its own cache write');
   assert.equal(out?.media.providerRef, 'adf4b545-8b59-4bad-a935-4f5ec83a16db');
+});
+
+test('a filename naming the brand above the site still resolves, one band lower', async () => {
+  // `site_id` does not traverse the hierarchy -- querying Reality Kings (20)
+  // returns zero scenes, while RK Prime (26) returns thousands -- so a
+  // brand-named filename can only ever arrive here, through the text search.
+  // Before this band the correct scene was found and then discarded at 0.70
+  // for failing to match a leaf name it was never going to match.
+  const calls: Call[] = [];
+  const client = stubClient(calls, [[scene({ site: RKPRIME, title: 'Hooking Up' })]]);
+  const out = await createTpdbProvider(client, siteCache().cache)
+    .resolve(parsed('RealityKings.26.07.13.Hooking.Up.XXX.1080p.nzb'), ctx);
+
+  assert.equal(out?.confidence, 0.80, 'a brand match clears the floor but is not a leaf match');
+  assert.ok((out?.confidence ?? 0) >= 0.75, 'and it must clear the floor, or the scene is lost');
+  assert.equal(out?.media.title, 'Hooking Up');
+});
+
+test('the network corroborates even when the parent is absent', async () => {
+  // A site can carry a network with no parent -- `manyvidspuretaboopov` does.
+  // Reading only `parent` would drop those.
+  const site = { id: 26, name: 'RK Prime', short_name: 'rkprime', network: REALITY_KINGS };
+  const out = await createTpdbProvider(
+    stubClient([], [[scene({ site, title: 'Hooking Up' })]]), siteCache().cache,
+  ).resolve(parsed('RealityKings.26.07.13.Hooking.Up.XXX.1080p.nzb'), ctx);
+  assert.equal(out?.confidence, 0.80);
+});
+
+test('naming the exact site keeps the stronger band, brand or no brand', async () => {
+  // The brand check runs only after the leaf check fails. If it ran first, or
+  // instead, every RK Prime filename would quietly drop from 0.85 to 0.80.
+  const out = await createTpdbProvider(
+    stubClient([], [[scene({ site: RKPRIME, title: 'Hooking Up' })]]), siteCache().cache,
+  ).resolve(parsed('RKPrime.26.07.13.Hooking.Up.XXX.1080p.nzb'), ctx);
+  assert.equal(out?.confidence, 0.85, 'a leaf match must not be demoted by the brand fallback');
 });

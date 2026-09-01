@@ -13,10 +13,23 @@ const performerSchema = z.object({
   parent: z.object({ id: z.string(), name: z.string() }).nullish(),
 });
 
+/** A site's parent or network. Only the name is used, so nothing else is read. */
+const relatedSiteSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  short_name: z.string(),
+});
+
 const siteSchema = z.object({
   id: z.number(),
   name: z.string(),
   short_name: z.string(),
+  // A scene attaches to a leaf site; `parent` and `network` name the brand
+  // above it. Usually the same row -- RK Prime reports Reality Kings as both --
+  // but not always: a site can carry a network with no parent. Both are read
+  // because a filename may name either.
+  parent: relatedSiteSchema.nullish(),
+  network: relatedSiteSchema.nullish(),
 });
 
 export const sceneSchema = z.object({

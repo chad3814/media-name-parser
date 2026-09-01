@@ -23,6 +23,15 @@ import { findSiteId, rememberSite, type RememberedSite } from './sites';
 const EXACT_DATE = 0.98;
 const DATE_ONE_DAY_OUT = 0.90;
 const TEXT_WITH_SITE = 0.85;
+/**
+ * The parsed site named the brand above the scene's site rather than the site
+ * itself -- `RealityKings...` for a scene on RK Prime. Still corroboration by
+ * a field outside the search, so it clears the floor, but weaker than a leaf
+ * match: Reality Kings spans 56 sites, so the title carries more of the
+ * weight. Without this band the correct scene is found and then discarded at
+ * 0.70 for failing to match a name it was never going to match.
+ */
+const TEXT_WITH_PARENT = 0.80;
 const TEXT_SINGLE = 0.70;
 const TEXT_BEST_OF_MANY = 0.60;
 
@@ -217,9 +226,17 @@ async function byText(
 
   if (site !== null && title.length > 0) {
     const wanted = foldSite(site);
-    const corroborated = scenes.filter((s) => foldSite(s.site?.short_name ?? '') === wanted);
-    const best = bestByTitle(corroborated, title);
-    if (best !== null) return { scene: best, confidence: TEXT_WITH_SITE };
+    const onSite = scenes.filter((s) => foldSite(s.site?.short_name ?? '') === wanted);
+    const exact = bestByTitle(onSite, title);
+    if (exact !== null) return { scene: exact, confidence: TEXT_WITH_SITE };
+
+    // Fall back to the brand above the site. Checked only after the leaf, so a
+    // filename naming the exact site never loses its stronger band.
+    const underBrand = scenes.filter((s) =>
+      foldSite(s.site?.parent?.short_name ?? '') === wanted
+      || foldSite(s.site?.network?.short_name ?? '') === wanted);
+    const brand = bestByTitle(underBrand, title);
+    if (brand !== null) return { scene: brand, confidence: TEXT_WITH_PARENT };
   }
 
   const only = scenes.length === 1 ? scenes[0] : undefined;
