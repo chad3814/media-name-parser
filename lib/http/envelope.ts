@@ -2,6 +2,7 @@ import { createTmdbClient, tmdbTokenFromEnv } from '../providers/tmdb/client';
 import { createTmdbProvider } from '../providers/tmdb/resolve';
 import { createTpdbClient, tpdbTokenFromEnv } from '../providers/tpdb/client';
 import { createTpdbProvider } from '../providers/tpdb/resolve';
+import { providerFor } from '../providers/routing';
 import type { Provider, ProviderCallRecord } from '../providers/types';
 import type { PipelineDeps, PipelineResult } from '../resolve/pipeline';
 import type { Category } from '../parse/types';
@@ -73,9 +74,16 @@ export function buildDeps(category: Category): PipelineDeps {
   let pending: ProviderCallRecord[] = [];
   const recordCall = (row: ProviderCallRecord): void => { pending.push(row); };
 
-  const providers: readonly Provider[] = category === 'xxx'
-    ? [createTpdbProvider(createTpdbClient({ token: tpdbTokenFromEnv(), recordCall }))]
-    : [createTmdbProvider(createTmdbClient({ token: tmdbTokenFromEnv(), recordCall }))];
+  // Null means no provider exists for this category at all, which is not the
+  // same as a provider whose credential is missing. The first answers
+  // `unresolved`; the second must raise so the caller sees a 503 rather than a
+  // silent non-answer cached for the next twelve hours.
+  const name = providerFor(category);
+  const providers: readonly Provider[] = name === null
+    ? []
+    : name === 'tpdb'
+      ? [createTpdbProvider(createTpdbClient({ token: tpdbTokenFromEnv(), recordCall }))]
+      : [createTmdbProvider(createTmdbClient({ token: tmdbTokenFromEnv(), recordCall }))];
 
   return {
     providers,

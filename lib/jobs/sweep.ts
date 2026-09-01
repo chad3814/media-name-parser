@@ -8,6 +8,7 @@ import { createTpdbClient, tpdbTokenFromEnv } from '../providers/tpdb/client';
 import { createTpdbProvider } from '../providers/tpdb/resolve';
 import type { Provider, ProviderCallRecord, ProviderName } from '../providers/types';
 import type { Category } from '../parse/types';
+import { providerFor } from '../providers/routing';
 import { resolveLookup } from '../resolve/pipeline';
 import { pruneProviderCalls } from '../resolve/persist';
 import { CONFIDENCE_FLOOR } from '../resolve/confidence';
@@ -206,7 +207,13 @@ export async function sweep(
 
       built = {
         providersFor: (category: Category): readonly Provider[] =>
-          category === 'xxx' ? [build('tpdb')] : [build('tmdb')],
+          ((): readonly Provider[] => {
+            // Null means nothing serves this category; an empty list makes the
+            // pipeline answer `unresolved` instead of building a client whose
+            // missing credential would raise for a category it never served.
+            const name = providerFor(category);
+            return name === null ? [] : [build(name)];
+          })(),
         drain: (): readonly ProviderCallRecord[] => {
           const out = pending;
           pending = [];
