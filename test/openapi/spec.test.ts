@@ -91,7 +91,7 @@ test('the documented envelope names every field the type carries', () => {
   // documented. That chain is what stops the response schema drifting.
   const sample: LookupEnvelope = {
     lookupId: 'id', state: 'resolved', partial: false, cached: false,
-    confidence: null, refusal: null, parsed: null, media: null,
+    confidence: null, refusal: null, parsed: null, media: null, suggestions: null,
   };
   const documented = obj(obj(obj(spec.components).schemas).LookupEnvelope);
   assert.deepEqual(

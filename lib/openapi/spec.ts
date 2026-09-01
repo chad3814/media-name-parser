@@ -90,6 +90,11 @@ const mediaSchema: JsonSchema = {
   required: [...nodeRequired, 'overview', 'details', 'parents', 'people'],
 };
 
+const nameProperties: JsonSchema = {
+  name: { type: 'string', examples: ['Maddie Wren'] },
+  providerRef: { type: 'string', description: "The provider's own identifier." },
+};
+
 const envelopeSchema: JsonSchema = {
   type: 'object',
   properties: {
@@ -114,8 +119,32 @@ const envelopeSchema: JsonSchema = {
         + 'For a refused lookup this is the stored refusal record rather than a parse.',
     },
     media: { ...mediaSchema, type: ['object', 'null'] },
+    suggestions: {
+      type: ['object', 'null'],
+      description: 'Present only when `state` is `unresolved`, and only when this '
+        + 'deployment recognises something in the name. A lookup for content the '
+        + 'provider has not indexed yet fails the same way as one we misread; these '
+        + 'are the names we have seen before, so you can tell the two apart.',
+      properties: {
+        site: {
+          type: ['object', 'null'],
+          description: 'The producing site, if we have resolved against it before.',
+          properties: nameProperties,
+          required: ['name', 'providerRef'],
+        },
+        performers: {
+          type: 'array',
+          description: 'Performers recognised in the title, in the order they appear.',
+          items: { type: 'object', properties: nameProperties, required: ['name', 'providerRef'] },
+        },
+      },
+      required: ['site', 'performers'],
+    },
   },
-  required: ['lookupId', 'state', 'partial', 'cached', 'confidence', 'refusal', 'parsed', 'media'],
+  required: [
+    'lookupId', 'state', 'partial', 'cached', 'confidence', 'refusal', 'parsed', 'media',
+    'suggestions',
+  ],
 };
 
 /** Every response this document declares, so the operations stay readable. */

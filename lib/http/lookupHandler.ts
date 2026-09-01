@@ -6,6 +6,8 @@ import { apiKeyGate, type Gate } from './gate';
 import { badRequest, notFound, unavailable } from './problem';
 import { logFailure } from './log';
 import { toEnvelope, type LookupEnvelope } from './envelope';
+import { suggestForScene } from '../cache/suggest';
+import { parseVideo } from '../parse/video';
 import { readMediaTree } from '../media/read';
 import { resolveLookup, type PipelineDeps } from '../resolve/pipeline';
 import type { Category } from '../parse/types';
@@ -56,7 +58,23 @@ async function runOne(
   const media = mediaId === null
     ? null
     : await withTransaction(async (tx) => readMediaTree(tx, mediaId));
-  return toEnvelope(result, media);
+
+  // Only when nothing resolved. A cache hit must not pay for this read, and a
+  // refusal has no site or performers to offer. `result.parsed` is set only
+  // when this request did the parsing, so a cooling row re-parses -- the
+  // parser is pure and deterministic, so that costs microseconds and cannot
+  // disagree with what was stored under the same parser version.
+  const suggestions = result.state !== 'unresolved'
+    ? null
+    : await withTransaction(async (tx) => {
+      const parse = result.parsed ?? (() => {
+        const again = parseVideo(category, name);
+        return again.ok ? again.parsed : null;
+      })();
+      return suggestForScene(tx, parse);
+    });
+
+  return toEnvelope(result, media, suggestions);
 }
 
 /**
@@ -293,7 +311,7 @@ export async function handlePoll(
   try {
     const envelope = await withTransaction(async (tx): Promise<LookupEnvelope | null> => {
       const row = await tx.execute(sql`
-        SELECT l.id, l.state, l.confidence, l.media_id, p.tokens
+        SELECT l.id, l.state, l.confidence, l.media_id, l.category, l.name, p.tokens
           FROM lookups l
           LEFT JOIN parses p
             ON p.category = l.category AND p.normalized_key = l.normalized_key
@@ -303,7 +321,17 @@ export async function handlePoll(
       const mediaId = found.media_id === null ? null : String(found.media_id);
       const media = mediaId === null ? null : await readMediaTree(tx, mediaId);
       const state = String(found.state) as LookupEnvelope['state'];
+      // The spec says a poll returns the same envelope a POST does, so an
+      // unresolved poll offers the same suggestions rather than silently
+      // dropping them. Re-parsed from the stored name because the row holds
+      // the parse as opaque jsonb, not as a typed ParsedVideo.
+      let suggestions = null;
+      if (state === 'unresolved') {
+        const again = parseVideo(String(found.category) as Category, String(found.name));
+        suggestions = await suggestForScene(tx, again.ok ? again.parsed : null);
+      }
       return {
+        suggestions,
         lookupId: String(found.id),
         state,
         // A poll reads a stored row, so nothing is in flight from its point of

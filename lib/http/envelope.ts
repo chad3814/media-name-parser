@@ -6,6 +6,7 @@ import { providerFor } from '../providers/routing';
 import type { Provider, ProviderCallRecord } from '../providers/types';
 import type { PipelineDeps, PipelineResult } from '../resolve/pipeline';
 import type { Category } from '../parse/types';
+import type { SceneSuggestions } from '../cache/suggest';
 import type { MediaView } from '../media/read';
 
 export interface LookupEnvelope {
@@ -27,9 +28,23 @@ export interface LookupEnvelope {
    */
   readonly parsed: Readonly<Record<string, unknown>> | null;
   readonly media: MediaView | null;
+  /**
+   * What this deployment already recognises in a name it could not resolve.
+   *
+   * Null on every other outcome, including refusals. A lookup for content the
+   * provider has not indexed yet is not the same failure as a name we could
+   * not read, and `state: 'unresolved'` alone cannot tell a caller which one
+   * they got. Naming the site and the performers we have seen before is the
+   * evidence that separates them.
+   */
+  readonly suggestions: SceneSuggestions | null;
 }
 
-export function toEnvelope(result: PipelineResult, media: MediaView | null): LookupEnvelope {
+export function toEnvelope(
+  result: PipelineResult,
+  media: MediaView | null,
+  suggestions: SceneSuggestions | null = null,
+): LookupEnvelope {
   return {
     lookupId: result.lookupId,
     state: result.state,
@@ -46,6 +61,7 @@ export function toEnvelope(result: PipelineResult, media: MediaView | null): Loo
       ? result.cachedParse
       : (result.parsed as unknown as Readonly<Record<string, unknown>>),
     media,
+    suggestions,
   };
 }
 
