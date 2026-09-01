@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import { getDb, closeDb, withTransaction } from '../../lib/db/client';
 import { handleLookup } from '../../lib/http/lookupHandler';
 import { createTpdbClient } from '../../lib/providers/tpdb/client';
-import { createTpdbProvider } from '../../lib/providers/tpdb/resolve';
+import { createTpdbProvider, type TpdbSiteCache } from '../../lib/providers/tpdb/resolve';
 import { mintApiKey } from '../../lib/auth/apiKey';
 import type { PipelineDeps } from '../../lib/resolve/pipeline';
 import type { ProviderCallRecord } from '../../lib/providers/types';
@@ -35,14 +35,35 @@ const FIXTURE_SCENE = {
 };
 
 /**
+ * An in-memory site cache, kept out of `provider_sites` on purpose.
+ *
+ * `dbSiteCache()` -- the default -- commits a real row through this test's
+ * own transaction and out the other side, since `Provider.resolve` runs
+ * outside the pipeline's transactions by design. That would leave a
+ * `spankmonster` row in the shared table for every other test and the live
+ * smoke test to trip over, with nothing here to clean it up. This test is
+ * about the pipeline wiring, not the site cache (that already has its own
+ * suite in `tpdb-sites.test.ts`), so a `Map` is the right double.
+ */
+function memorySiteCache(): TpdbSiteCache {
+  const known = new Map<string, string>();
+  return {
+    find: (shortName) => Promise.resolve(known.get(shortName.toLowerCase()) ?? null),
+    remember: (site) => {
+      known.set(site.shortName.toLowerCase(), site.providerRef);
+      return Promise.resolve();
+    },
+  };
+}
+
+/**
  * A stub `fetch` standing in for theporndb.net's `/scenes` endpoint.
  *
- * Answers every call with the one fixture scene regardless of query shape --
- * `site_id`+`date` if the site cache happens to already be warm from a prior
- * run of this suite (or the live smoke test), `q` if it is cold -- so the
- * test is not coupled to which branch the provider takes. Anything other
- * than `/scenes` throws, the same "fail loud on a miss" contract
- * `fixtureFetch()` uses for TMDB.
+ * Answers every call with the one fixture scene regardless of query shape:
+ * the site cache above starts cold every run, so the provider always takes
+ * the `q` text-search branch, but the stub does not hardcode that assumption.
+ * Anything other than `/scenes` throws, the same "fail loud on a miss"
+ * contract `fixtureFetch()` uses for TMDB.
  */
 function tpdbFixtureFetch(): typeof fetch {
   const impl = async (input: string | URL | Request): Promise<Response> => {
@@ -68,7 +89,7 @@ function testDeps(): PipelineDeps {
     ratePerSecond: 1000,
   });
   return {
-    providers: [createTpdbProvider(client)],
+    providers: [createTpdbProvider(client, memorySiteCache())],
     now: () => new Date(),
     drainCalls: () => {
       const out = pending;
