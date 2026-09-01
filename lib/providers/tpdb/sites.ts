@@ -38,16 +38,39 @@ export async function findSiteId(tx: Tx, shortName: string): Promise<string | nu
 /**
  * Remembers a site's numeric id for future lookups.
  *
- * Conflicts on `(provider, provider_ref)` update the name and short name
- * rather than doing nothing: if a site is renamed upstream, the next
- * resolution for that same numeric id should overwrite the stale name here
- * rather than leave this table quietly wrong forever. `short_name` is stored
- * lowercased so lookups never need to case-fold at read time.
+ * This row can collide two different ways, because the table carries two
+ * unique constraints: `PRIMARY KEY (provider, provider_ref)` and
+ * `UNIQUE (provider, short_name)`. An `ON CONFLICT` clause can name only one
+ * of them, so naming the primary key alone left the other free to raise --
+ * and it did, the first time a short name already cached under one numeric id
+ * arrived carrying another. Because this runs on every successful resolution,
+ * that error would have surfaced as the whole lookup failing rather than as a
+ * cache write quietly declining.
+ *
+ * Both directions are now handled:
+ *
+ *   same id, new short name  -- the site was renamed upstream. The primary-key
+ *                               conflict updates the row in place.
+ *   same short name, new id  -- the short name moved to a different site id.
+ *                               The delete clears the stale row first, so the
+ *                               insert has nothing left to collide with.
+ *
+ * The short name wins, because it is what `findSiteId` reads by: one current
+ * id per short name is the invariant this cache exists to hold. Both
+ * statements run in the caller's transaction, so a reader never observes the
+ * gap between them.
+ *
+ * `short_name` is stored lowercased so lookups never case-fold at read time.
  */
 export async function rememberSite(tx: Tx, site: RememberedSite): Promise<void> {
+  const shortName = site.shortName.toLowerCase();
+  await tx.execute(sql`
+    DELETE FROM provider_sites
+     WHERE provider = 'tpdb' AND short_name = ${shortName}
+       AND provider_ref <> ${site.providerRef}`);
   await tx.execute(sql`
     INSERT INTO provider_sites (provider, provider_ref, short_name, name)
-    VALUES ('tpdb', ${site.providerRef}, ${site.shortName.toLowerCase()}, ${site.name})
+    VALUES ('tpdb', ${site.providerRef}, ${shortName}, ${site.name})
     ON CONFLICT (provider, provider_ref) DO UPDATE SET
       short_name = excluded.short_name, name = excluded.name`);
 }
