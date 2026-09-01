@@ -119,7 +119,11 @@ test('a synthetic library-form title that never repeats the site keeps its title
   // all, so `stripLeadingSiteToken` must be a straightforward no-op.
   const p = scene('Scenes/2ChicksSameTime/Totally.Different.Title.Words.mp4');
   assert.equal(p.site, '2ChicksSameTime');
-  assert.equal(p.title, 'Totally Different Title');
+  // `Words` belongs to the title. This expectation used to read `Totally
+  // Different Title`, which quietly encoded the very truncation the test's
+  // name promises to guard against -- `findBoundary` took the last bare token
+  // as a release group on any name, title or not.
+  assert.equal(p.title, 'Totally Different Title Words');
 });
 
 test('the filename beats the directory, and the directory is still recorded', () => {

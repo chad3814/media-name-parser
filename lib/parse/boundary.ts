@@ -63,9 +63,44 @@ export function findBoundary(tokens: readonly string[]): Boundary {
   const candidates: Candidate[] = [];
   let cut = tokens.length;
 
-  // One bare trailing non-vocabulary token may be a group name on its own.
+  // One bare trailing non-vocabulary token may be a group name on its own --
+  // but only where a group can actually appear, which is after the run of
+  // closed-vocabulary tokens that every release name carries.
+  //
+  // Without that condition the rule fires on any multi-word title, because a
+  // title's last word is also a bare non-vocabulary token: `The Dark Knight
+  // Rises` parsed as `The Dark Knight` plus a group `Rises`, `Moon Knight` as
+  // `Moon` plus `Knight`, `Blade Runner 2049` as `Blade Runner` plus `2049`,
+  // losing the year with it. Each then resolved to the wrong film -- and
+  // usually to a real one, its own predecessor, which is the worst way to be
+  // wrong. `boundary.ts` warns about exactly this shape for `findTitleRegion`;
+  // the same trap was open here.
+  //
+  // The corpus did not catch it. Its unqualified entries are almost all
+  // `00136.m2ts` -- single tokens, with no last word to steal.
+  // The test is whether this is a release name at all, not whether the group
+  // sits directly after the vocabulary. Adjacency is too strict: real groups
+  // trail other bare words -- `...2160p iris2 by cdrw69`, `...H-SBS
+  // RealGoneKid BennuRG` -- and requiring it fed 1,148 corpus groups into
+  // their titles. One closed-vocabulary token anywhere ahead of the last is
+  // enough to say a release name is what we are reading; a bare title has
+  // none by definition.
   const last = tokens[tokens.length - 1];
-  if (last !== undefined && !isJunk(last) && splitGroupSuffix(last) === null && tokens.length > 1) {
+  const isVocabulary = (t: string): boolean =>
+    isJunk(t) || splitGroupSuffix(t) !== null || asYear(t) !== null;
+  // A compound last token can carry the evidence itself:
+  // `2003-REPACK-COMPLETE-UHD-BLURAY-COASTER` and `solo-2160p-19` are release
+  // tails wearing one token. A bare `2049` is not -- it has no separator, and
+  // `Blade Runner 2049` must not be read as a release just because its title
+  // ends in a number.
+  const compoundCarriesVocabulary = (t: string): boolean => {
+    const parts = t.split(/[-_]/).filter((part) => part.length > 0);
+    return parts.length > 1 && parts.some(isVocabulary);
+  };
+  const looksLikeRelease = tokens.slice(0, -1).some(isVocabulary)
+    || (last !== undefined && compoundCarriesVocabulary(last));
+  if (last !== undefined && !isJunk(last) && splitGroupSuffix(last) === null
+      && tokens.length > 1 && looksLikeRelease) {
     candidates.push({ index: tokens.length - 1, group: last });
     cut = tokens.length - 1;
   }
