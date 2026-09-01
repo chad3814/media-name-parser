@@ -15,6 +15,23 @@ export class TpdbAuthFailed extends ProviderAuthFailed {
   }
 }
 
+/**
+ * A 429, with the wait the API asked for when it named one.
+ *
+ * Mirrors `TmdbRateLimited`. TPDB publishes no rate limit, but "we should not
+ * hit it" is not "we cannot", and folding a 429 into the generic error threw
+ * away the `retry-after` header along with any chance of a caller telling a
+ * throttle apart from a broken request.
+ */
+export class TpdbRateLimited extends Error {
+  readonly retryAfterSeconds: number | null;
+  constructor(retryAfterSeconds: number | null) {
+    super('TPDB rate limit reached');
+    this.name = 'TpdbRateLimited';
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
 export interface TpdbOptions {
   readonly token: string;
   readonly fetchImpl?: typeof fetch;
@@ -111,6 +128,11 @@ export function createTpdbClient(options: TpdbOptions): TpdbClient {
       if (response.status === 404) return null;
       if (response.status === 401 || response.status === 403) {
         throw new TpdbAuthFailed(response.status);
+      }
+      if (response.status === 429) {
+        const header = response.headers.get('retry-after');
+        const seconds = header === null ? null : Number.parseInt(header, 10);
+        throw new TpdbRateLimited(seconds !== null && Number.isNaN(seconds) ? null : seconds);
       }
       if (!response.ok) {
         throw new Error(`TPDB ${path} failed with ${response.status}`);

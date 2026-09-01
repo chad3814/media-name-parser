@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { z } from 'zod';
 import {
-  createTpdbClient, TpdbAuthFailed, tpdbTokenFromEnv,
+  createTpdbClient, TpdbAuthFailed, TpdbRateLimited, tpdbTokenFromEnv,
 } from '../../lib/providers/tpdb/client';
 import { sceneListSchema } from '../../lib/providers/tpdb/schema';
 import type { ProviderCallRecord } from '../../lib/providers/types';
@@ -141,4 +141,23 @@ test('tpdbTokenFromEnv returns the value when set', () => {
     if (saved === undefined) delete process.env.TPDB_API_KEY;
     else process.env.TPDB_API_KEY = saved;
   }
+});
+
+test('a 429 throws TpdbRateLimited and carries Retry-After when present', async () => {
+  // The same arm the TMDB client has. Folded into the generic error, a
+  // throttle was indistinguishable from a broken request and the wait the API
+  // asked for was discarded.
+  const { fetchImpl } = stub(() => new Response('', { status: 429, headers: { 'retry-after': '7' } }));
+  await assert.rejects(
+    client(fetchImpl).get('/scenes', {}, schema, ctx),
+    (e: unknown) => e instanceof TpdbRateLimited && e.retryAfterSeconds === 7,
+  );
+});
+
+test('a 429 with no Retry-After still throws the typed error', async () => {
+  const { fetchImpl } = stub(() => new Response('', { status: 429 }));
+  await assert.rejects(
+    client(fetchImpl).get('/scenes', {}, schema, ctx),
+    (e: unknown) => e instanceof TpdbRateLimited && e.retryAfterSeconds === null,
+  );
 });

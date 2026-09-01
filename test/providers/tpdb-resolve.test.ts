@@ -344,3 +344,19 @@ test('a multi-token site finds its cached row: the API spells it without punctua
   assert.equal(calls[0]?.query.q, undefined);
   assert.equal(out?.confidence, 0.98, 'site id plus an exact date is the top band');
 });
+
+test('a failed cache write is logged, not fatal to the resolution it caches', async () => {
+  // `remember` is awaited before the outcome is returned, so a throw used to
+  // propagate into the pipeline, which threw away the scene it had already
+  // fetched, wrote `pending`, and left the sweeper to repeat all four provider
+  // calls and meet the same failing write again. A cache must not be able to
+  // fail the thing it caches.
+  const provider = createTpdbProvider(stubClient([], [[scene()]]), {
+    find: () => Promise.resolve('4347'),
+    remember: () => Promise.reject(new Error('duplicate key value violates unique constraint')),
+  });
+  const out = await provider.resolve(parsed(ANCHORED), ctx);
+
+  assert.equal(out?.confidence, 0.98, 'the resolution survives its own cache write');
+  assert.equal(out?.media.providerRef, 'adf4b545-8b59-4bad-a935-4f5ec83a16db');
+});

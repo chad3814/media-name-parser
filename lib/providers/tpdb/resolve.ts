@@ -4,6 +4,7 @@ import type {
 } from '../types';
 import { titleSimilarity } from '../../resolve/confidence';
 import { normalizeSiteName } from '../../parse/normalize';
+import { logFailure } from '../../http/log';
 import { withTransaction } from '../../db/client';
 import { sortTitleOf } from '../tmdb/normalize';
 import type { TpdbClient } from './client';
@@ -235,18 +236,39 @@ async function byText(
  * a text search, and every later one narrows by an indexed `site_id`. The
  * cache warms itself here and nowhere else -- there is no sync job -- so
  * skipping this leaves every site permanently cold.
+ *
+ * A failure is logged and swallowed, and that is deliberate: a cache must not
+ * be able to fail the thing it caches. This is awaited before the outcome is
+ * returned, so a throw used to propagate out of `provider.resolve` into the
+ * pipeline, which discarded the scene it had already fetched, wrote `pending`,
+ * and returned non-terminal -- so the sweeper repeated all four provider calls
+ * and met the same write again.
+ *
+ * The trigger is still reachable however carefully the SQL is written. The
+ * `ON CONFLICT` in `rememberSite` can name only one constraint and names
+ * `(provider, provider_ref)`, while the table also carries
+ * `UNIQUE (provider, short_name)`; the `DELETE` that guards it locks nothing
+ * when there is no row to lock, so two concurrent resolves of different scenes
+ * on the same new short name with different site ids can still raise. Making
+ * the write non-fatal closes it for every constraint at once, and for an
+ * unreachable database too.
  */
 async function remember(sites: TpdbSiteCache, scene: TpdbScene): Promise<void> {
   const site = scene.site;
   if (site === null || site === undefined) return;
-  await sites.remember({
-    // Folded here as well as in `rememberSite`'s SQL. The lookup side folds
-    // too, so the two must meet in the same case, and stating it at the seam
-    // means a cache implementation that is not the database still agrees.
-    providerRef: String(site.id),
-    shortName: foldSite(site.short_name),
-    name: site.name,
-  });
+  try {
+    await sites.remember({
+      // Folded here as well as in `rememberSite`'s SQL. The lookup side folds
+      // too, so the two must meet in the same spelling, and stating it at the
+      // seam means a cache implementation that is not the database agrees.
+      providerRef: String(site.id),
+      shortName: foldSite(site.short_name),
+      name: site.name,
+    });
+  } catch (error) {
+    // Named by short name, never by anything carrying a credential.
+    logFailure(`tpdb site cache write for ${foldSite(site.short_name)}`, error);
+  }
 }
 
 export function createTpdbProvider(

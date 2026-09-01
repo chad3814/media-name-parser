@@ -139,3 +139,54 @@ test('a movie writes movie_details and no parent', opts, async () => {
     assert.equal(md.rows[0]?.imdb_id, 'tt1');
   });
 });
+
+test('a scene writes scene_details, its performers, and no parent', opts, async () => {
+  // The fifth detail table, and the only one reached through the xxx slice.
+  // It was covered end to end through the route but never directly here, so
+  // the mapping from `details.scene` to the columns was only ever asserted
+  // once, at the far end of a pipeline.
+  await inRollback(async (tx) => {
+    const id = await persistResolved(tx, {
+      category: 'xxx', kind: 'scene', provider: 'tpdb', providerRef: 'tpdb:scene:t7',
+      title: 'Two Girl Knockout', sortTitle: 'two girl knockout', originalTitle: null,
+      releaseDate: '2022-07-07', year: 2022, overview: 'A scene.', raw: { probe: true },
+      parent: null,
+      details: {
+        movie: null, series: null, season: null, episode: null,
+        scene: { siteName: 'Spank Monster', durationSeconds: 2340, releasedOn: '2022-07-07' },
+      },
+      people: [
+        { providerRef: 'tpdb:person:t7a', name: 'Ruby Redbottom', role: 'performer', characterName: null, billingOrder: 0, raw: {} },
+        { providerRef: 'tpdb:person:t7b', name: 'Octavia Red', role: 'performer', characterName: null, billingOrder: 1, raw: {} },
+      ],
+    });
+
+    const media = await tx.execute(sql`
+      SELECT kind, category, parent_id FROM media WHERE id = ${id}::uuid`);
+    assert.equal(media.rows[0]?.kind, 'scene');
+    assert.equal(media.rows[0]?.category, 'xxx');
+    assert.equal(media.rows[0]?.parent_id, null, 'a scene has no ancestors');
+
+    const details = await tx.execute(sql`
+      SELECT site_name, duration_seconds, released_on FROM scene_details WHERE media_id = ${id}::uuid`);
+    assert.equal(details.rows[0]?.site_name, 'Spank Monster');
+    assert.equal(Number(details.rows[0]?.duration_seconds), 2340, 'seconds, not minutes');
+    assert.match(String(details.rows[0]?.released_on), /^2022-07-07/);
+
+    const links = await tx.execute(sql`
+      SELECT p.name, mp.role, mp.billing_order FROM media_people mp
+        JOIN people p ON p.id = mp.person_id
+       WHERE mp.media_id = ${id}::uuid ORDER BY mp.billing_order`);
+    assert.equal(links.rows.length, 2);
+    assert.deepEqual(links.rows.map((r) => r.role), ['performer', 'performer']);
+    assert.deepEqual(links.rows.map((r) => r.name), ['Ruby Redbottom', 'Octavia Red']);
+
+    // No other detail table may have been written for this row.
+    const strays = await tx.execute(sql`
+      SELECT (SELECT count(*)::int FROM movie_details WHERE media_id = ${id}::uuid)
+           + (SELECT count(*)::int FROM series_details WHERE media_id = ${id}::uuid)
+           + (SELECT count(*)::int FROM season_details WHERE media_id = ${id}::uuid)
+           + (SELECT count(*)::int FROM episode_details WHERE media_id = ${id}::uuid) AS n`);
+    assert.equal(strays.rows[0]?.n, 0, 'the detail row lands only in the table matching the kind');
+  });
+});

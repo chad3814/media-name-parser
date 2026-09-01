@@ -84,7 +84,7 @@ test('a short name reused by a different id replaces, rather than raising', opts
   });
 });
 
-test('a short name that moves to a different site id replaces the old row', async () => {
+test('a short name that moves to a different site id replaces the old row', opts, async () => {
   // The second unique constraint. `ON CONFLICT` can name only one, and naming
   // the primary key alone meant this case raised instead of upserting --
   // which, since rememberSite runs on every successful resolution, would have
