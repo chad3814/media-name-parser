@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { Tx } from '../../db/client';
+import { normalizeSiteName } from '../../parse/normalize';
 
 /**
  * A site remembered from a resolved scene, keyed by provider + short name.
@@ -22,14 +23,16 @@ export interface RememberedSite {
 /**
  * The numeric site id for a short name, or null on a cache miss.
  *
- * `shortName` is lowercased before the lookup because the filename gives the
- * display spelling (`SpankMonster`) while the API and this table store the
- * lowercase form (`spankmonster`) — they must meet in the same case.
+ * `shortName` is normalized before the lookup because the caller gives the
+ * parsed spelling (`SpankMonster`, `Passion HD`) while the API and this table
+ * store the bare alphanumeric form (`spankmonster`, `passionhd`) -- they must
+ * meet in the same spelling. Lowercasing alone was not enough: a multi-token
+ * site arrives from `parseScene` with spaces in it and could never match.
  */
 export async function findSiteId(tx: Tx, shortName: string): Promise<string | null> {
   const result = await tx.execute(sql`
     SELECT provider_ref FROM provider_sites
-     WHERE provider = 'tpdb' AND short_name = ${shortName.toLowerCase()}`);
+     WHERE provider = 'tpdb' AND short_name = ${normalizeSiteName(shortName)}`);
   const row = result.rows[0];
   if (row === undefined) return null;
   return String(row.provider_ref);
@@ -60,10 +63,14 @@ export async function findSiteId(tx: Tx, shortName: string): Promise<string | nu
  * statements run in the caller's transaction, so a reader never observes the
  * gap between them.
  *
- * `short_name` is stored lowercased so lookups never case-fold at read time.
+ * `short_name` is stored through the same `normalizeSiteName` the read side
+ * applies, so the column holds one spelling and a lookup never folds at read
+ * time. The API's own short names are already bare alphanumerics, so this is
+ * a no-op for them -- it exists so a write that arrives from anywhere else
+ * cannot seed a row the read side can never find.
  */
 export async function rememberSite(tx: Tx, site: RememberedSite): Promise<void> {
-  const shortName = site.shortName.toLowerCase();
+  const shortName = normalizeSiteName(site.shortName);
   await tx.execute(sql`
     DELETE FROM provider_sites
      WHERE provider = 'tpdb' AND short_name = ${shortName}

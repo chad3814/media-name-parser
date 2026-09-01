@@ -2,7 +2,7 @@ import { tokenize, isJunk, classifyToken, splitGroupSuffix, type TokenClass } fr
 import { findBoundary, findTitleRegion } from './boundary';
 import { extractQuality, collect, titleFrom } from './extract';
 import type { ParseHints, ParseResult } from './types';
-import type { SplitInput } from './normalize';
+import { normalizeSiteName, type SplitInput } from './normalize';
 
 const DATE = /^(\d{4}|\d{2})[.\-_](\d{2})[.\-_](\d{2})(?![\d])[.\-_ ]?/;
 
@@ -158,13 +158,13 @@ const SITE_HEAD_TOKEN_CAP = 4;
  * path's directory name is a second, independently-written copy of the same
  * name and may punctuate it differently, so an exact or merely-lowercased
  * comparison is not safe to assume.
+ *
+ * `normalizeSiteName` lives in `./normalize` because the TPDB provider joins
+ * the parsed site against the same spelling and must not import the parser's
+ * internals to do it.
  */
-function normalizeForSiteMatch(token: string): string {
-  return token.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
 function tokenMatchesSite(token: string, site: string): boolean {
-  return normalizeForSiteMatch(token) === normalizeForSiteMatch(site);
+  return normalizeSiteName(token) === normalizeSiteName(site);
 }
 
 /**

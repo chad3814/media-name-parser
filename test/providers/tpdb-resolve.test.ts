@@ -273,3 +273,74 @@ test('nothing matched returns null rather than a low-confidence guess', async ()
   assert.equal(out, null, 'the pipeline records null as unresolved, which is the honest answer');
   assert.equal(calls.length, 4, 'three dates and then the text fallback, and no more');
 });
+
+test('among same-site results the closest title wins, not the first returned', async () => {
+  // The site narrows the candidates; it does not choose among them. Scoring
+  // the first same-site row 0.85 puts it above the floor, so the pipeline
+  // writes it as `resolved` -- with the title never consulted. This path runs
+  // on the first lookup for every distinct site, which is exactly where a
+  // wrong answer gets cached.
+  const provider = createTpdbProvider(
+    stubClient([], [[
+      scene({ id: 'same-site-first', title: 'An Entirely Different Scene' }),
+      scene({ id: 'same-site-better', title: 'Ruby Redbottom And Octavia Red' }),
+    ]]),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed(ANCHORED), ctx);
+
+  assert.equal(out?.confidence, 0.85);
+  assert.equal(out?.media.providerRef, 'same-site-better',
+    'the best title among the corroborated rows, not the first one the API listed');
+});
+
+test('a site match with no title to compare does not clear the floor', async () => {
+  // A real corpus name: 29 of them parse to a site and a date with an empty
+  // title, so `q` degenerates to the site name alone and every scene that
+  // site ever published corroborates equally. That is a site match, not a
+  // scene match, and 0.85 would persist an arbitrary row as `resolved`.
+  const EMPTY_TITLE = 'Luna.Angel.26.08.16.XXX.2160p.nzb';
+  const lunaAngel = { id: 51, name: 'Luna Angel', short_name: 'lunaangel' };
+  const calls: Call[] = [];
+  const provider = createTpdbProvider(
+    stubClient(calls, [[scene({ id: 'any-luna-scene', title: 'Some Other Day', site: lunaAngel })]]),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed(EMPTY_TITLE), ctx);
+
+  assert.equal(parsed(EMPTY_TITLE).kind === 'scene' ? parsed(EMPTY_TITLE).title : 'x', '',
+    'the fixture is only meaningful while this name still parses to an empty title');
+  assert.equal(calls[0]?.query.q, 'Luna Angel', 'nothing but the site is left to search on');
+  assert.ok((out?.confidence ?? 1) < 0.75,
+    `a site match alone must stay under the floor, got ${String(out?.confidence)}`);
+  assert.equal(out?.confidence, 0.70, 'a single uncorroborated result is the band it lands in');
+});
+
+test('a multi-token site finds its cached row: the API spells it without punctuation', async () => {
+  // A real corpus name. `parseScene` gives the site as the filename spells it
+  // (`Passion-HD`, and with a space for the many heads that span tokens);
+  // theporndb.net stores `short_name: "passionhd"`. Lowercasing alone never
+  // met, so the cache never hit, the three date queries were skipped, and all
+  // 271 corpus names with a spaced site -- every one of them dated -- stayed
+  // unresolved forever, since `rememberSite` wrote the API's spelling back.
+  const PASSION_HD =
+    'Passion-HD.25.10.15.Daisy.Pheonix.Mutual.Massage.XXX.2160p.MP4-WRB.nzb';
+  const calls: Call[] = [];
+  const provider = createTpdbProvider(
+    stubClient(calls, [[scene({
+      id: 'passionhd-scene',
+      title: 'Daisy Pheonix Mutual Massage',
+      date: '2025-10-15',
+      site: { id: 4348, name: 'Passion HD', short_name: 'passionhd' },
+    })]]),
+    // Keyed exactly as the API spells it, which is what the table holds.
+    siteCache({ passionhd: '4348' }).cache,
+  );
+  const out = await provider.resolve(parsed(PASSION_HD), ctx);
+
+  assert.equal(calls.length, 1, 'a warm site is one indexed query, not a text search');
+  assert.equal(calls[0]?.query.site_id, '4348');
+  assert.equal(calls[0]?.query.date, '2025-10-15');
+  assert.equal(calls[0]?.query.q, undefined);
+  assert.equal(out?.confidence, 0.98, 'site id plus an exact date is the top band');
+});

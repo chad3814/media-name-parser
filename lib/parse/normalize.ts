@@ -88,3 +88,30 @@ export function foldForMatch(text: string): string {
     .replace(NON_ALNUM, ' ')
     .trim();
 }
+
+const NON_ALNUM_ASCII = /[^a-z0-9]/g;
+
+/**
+ * A site name reduced to the one spelling both sides of the site cache
+ * compare on: lowercased, with everything that is not a letter or a digit
+ * removed.
+ *
+ * Three independent copies of a site's name have to meet here, and they are
+ * punctuated differently. The filename glues it into one token
+ * (`Passion-HD`, `18Lust`), the library path's directory writes it again by
+ * hand, and `parseScene` joins a multi-token head with spaces (`Passion HD`)
+ * -- while theporndb.net's `site.short_name` is always bare alphanumerics
+ * (`passionhd`). Merely lowercasing left all 271 corpus names with a spaced
+ * site permanently unable to match a cached row, so every one of them skipped
+ * the three indexed date queries and stayed unresolved.
+ *
+ * It lives here rather than in `lib/parse/scene.ts` because both the parser
+ * and the TPDB provider need it, and the provider must not reach into the
+ * parser's internals to get it -- `foldForMatch` above is shared the same way.
+ *
+ * Lossy on purpose, like `foldForMatch`: never store the result as a display
+ * name.
+ */
+export function normalizeSiteName(name: string): string {
+  return name.toLowerCase().replace(NON_ALNUM_ASCII, '');
+}

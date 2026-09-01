@@ -99,3 +99,19 @@ test('a short name that moves to a different site id replaces the old row', asyn
     assert.equal(rows.rows[0]?.n, 1, 'exactly one row survives per short name');
   });
 });
+
+test('a site whose parsed spelling carries punctuation still meets the API spelling', opts, async () => {
+  // A real corpus name parses to the site `Passion-HD`, and the many heads
+  // that span several tokens parse with spaces in them (`Naughty America`).
+  // The API stores bare alphanumerics. Reads and writes both normalize, so
+  // the column holds one spelling and every parsed variant finds it.
+  await inRollback(async (tx) => {
+    await rememberSite(tx, { providerRef: '4348', shortName: 'Passion HD', name: 'Passion HD' });
+    const stored = await tx.execute(sql`
+      SELECT short_name FROM provider_sites WHERE provider = 'tpdb' AND provider_ref = '4348'`);
+    assert.equal(stored.rows[0]?.short_name, 'passionhd', 'the column holds the API spelling');
+    assert.equal(await findSiteId(tx, 'Passion-HD'), '4348', 'the filename spelling finds it');
+    assert.equal(await findSiteId(tx, 'Passion HD'), '4348', 'so does the parsed spelling');
+    assert.equal(await findSiteId(tx, 'passionhd'), '4348', 'so does the API spelling itself');
+  });
+});

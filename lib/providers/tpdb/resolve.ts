@@ -3,6 +3,7 @@ import type {
   JsonValue, Provider, ResolveContext, ResolveOutcome, ResolvedMedia, ResolvedPerson,
 } from '../types';
 import { titleSimilarity } from '../../resolve/confidence';
+import { normalizeSiteName } from '../../parse/normalize';
 import { withTransaction } from '../../db/client';
 import { sortTitleOf } from '../tmdb/normalize';
 import type { TpdbClient } from './client';
@@ -71,9 +72,20 @@ function yearOf(date: string | null): number | null {
   return Number.isNaN(year) ? null : year;
 }
 
-/** The API's `short_name` is the filename's site head lowercased. */
+/**
+ * The one spelling both sides of the site join compare on.
+ *
+ * `short_name` on the API is bare alphanumerics (`passionhd`), while
+ * `parseScene` hands back the filename's head with its tokens joined by
+ * spaces (`Passion HD`, `Naughty America`, `2 Chicks Same Time`). Lowercasing
+ * alone therefore never matched for a multi-token site -- 271 corpus names,
+ * every one of them dated, so every one of them skipped the three indexed
+ * date queries that should have scored them 0.98 and settled for an
+ * uncorroborated text search below the floor. `findSiteId` and `rememberSite`
+ * apply the same function, so reads and writes agree.
+ */
 function foldSite(name: string): string {
-  return name.trim().toLowerCase();
+  return normalizeSiteName(name);
 }
 
 /**
@@ -179,6 +191,21 @@ async function byDate(
  * A result whose `site.short_name` equals the parsed site is corroborated by
  * something outside the search itself, and clears the floor. Nothing else here
  * is, which is the point.
+ *
+ * Two constraints on that band, both learned the hard way:
+ *
+ * The site narrows the candidates; it does not choose among them. Taking the
+ * first same-site row and scoring it 0.85 -- above the floor, so the pipeline
+ * writes it as `resolved` -- ignored the title entirely on the first lookup
+ * for every one of ~1,350 distinct sites, which is the one lookup per site
+ * that runs this path. The corroborated rows are filtered first and
+ * `bestByTitle` picks among them.
+ *
+ * And a site match with no title to compare is not corroboration of a scene.
+ * For the 29 corpus names whose parsed title is empty, `q` degenerates to the
+ * site name alone, so *any* scene that site ever published would clear the
+ * floor. With no title the band is not earned, and the weaker `q`-only bands
+ * below -- both under the floor -- are the honest answer.
  */
 async function byText(
   client: TpdbClient, site: string | null, title: string, ctx: ResolveContext,
@@ -187,10 +214,11 @@ async function byText(
   if (q.length === 0) return null;
   const scenes = await searchScenes(client, { q }, ctx);
 
-  if (site !== null) {
+  if (site !== null && title.length > 0) {
     const wanted = foldSite(site);
-    const corroborated = scenes.find((s) => foldSite(s.site?.short_name ?? '') === wanted);
-    if (corroborated !== undefined) return { scene: corroborated, confidence: TEXT_WITH_SITE };
+    const corroborated = scenes.filter((s) => foldSite(s.site?.short_name ?? '') === wanted);
+    const best = bestByTitle(corroborated, title);
+    if (best !== null) return { scene: best, confidence: TEXT_WITH_SITE };
   }
 
   const only = scenes.length === 1 ? scenes[0] : undefined;
@@ -239,7 +267,10 @@ export function createTpdbProvider(
       if (parsed.kind !== 'scene') return null;
 
       const { site, releasedOn, title } = parsed;
-      const siteId = site === null ? null : await sites.find(site);
+      // Folded at the seam, as `remember` folds on the way out: `findSiteId`
+      // normalizes again in its SQL, but a cache implementation that is not
+      // the database has to be handed the same spelling the write side stored.
+      const siteId = site === null ? null : await sites.find(foldSite(site));
 
       // Ordered, first hit wins, one call each. A step whose inputs are absent
       // is skipped rather than failed, so an unknown site or an undated name
