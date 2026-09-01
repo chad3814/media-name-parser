@@ -114,11 +114,22 @@ test('every band together accounts for every row, so nothing is hidden', opts, a
   await unseed();
   await seed();
   try {
-    const counts = new Map<string, number>();
-    for (const band of CONFIDENCE_BANDS) {
-      const page = await withTransaction((tx) => browseCache(tx, { ...base, band }));
-      counts.set(band, page.total);
-    }
+    // All five counts in ONE repeatable-read transaction, so they share a
+    // single snapshot. Five separate transactions cannot test this invariant:
+    // node runs test files in parallel, other files insert and delete
+    // `lookups` rows throughout, and a row arriving between the `any` read and
+    // a band read makes the sums disagree for reasons that have nothing to do
+    // with banding. That is what produced the intermittent "bands sum to 9 but
+    // any is 8" this suite has been living with -- a real defect in the test,
+    // not a flake in the database.
+    const counts = await withTransaction(async (tx) => {
+      await tx.execute(sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ`);
+      const seen = new Map<string, number>();
+      for (const band of CONFIDENCE_BANDS) {
+        seen.set(band, (await browseCache(tx, { ...base, band })).total);
+      }
+      return seen;
+    });
     const any = counts.get('any') ?? -1;
     const parts = (counts.get('high') ?? 0) + (counts.get('medium') ?? 0)
       + (counts.get('low') ?? 0) + (counts.get('none') ?? 0);
