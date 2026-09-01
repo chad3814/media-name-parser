@@ -118,3 +118,52 @@ test('pickBest returns the highest scorer and null for an empty list', () => {
   assert.ok((best?.confidence ?? 0) > 0.8);
   assert.equal(pickBest(p, [], (i: (typeof items)[number]) => i.c), null);
 });
+
+test('a lone exact title clears the floor without a year to help it', () => {
+  // A clean library filename carries a title and nothing else. Similarity
+  // contributes at most 0.7 and the year bonus is unavailable, so a perfect
+  // match capped near 0.73 and fell under the floor: the right film found and
+  // reported unresolved.
+  const p = parsed('movies', 'The Dark Knight Rises.mkv');
+  const best = pickBest(p, [{ ...base, title: 'The Dark Knight Rises', year: 2012 }], (c) => c);
+  assert.ok(best !== null);
+  assert.ok(best.confidence >= CONFIDENCE_FLOOR,
+    `an exact title with nothing against it should resolve: ${String(best?.confidence)}`);
+});
+
+test('a near miss still needs a year, so the bonus lifts nothing it should not', () => {
+  const p = parsed('movies', 'The Dark Knight Rises.mkv');
+  const best = pickBest(p, [{ ...base, title: 'The Dark Knight Rise', year: 2012 }], (c) => c);
+  assert.ok(best !== null);
+  assert.ok(best.confidence < CONFIDENCE_FLOOR,
+    `one letter out is not an exact match: ${String(best?.confidence)}`);
+});
+
+test('two candidates sharing a title get no bonus at all', () => {
+  // `Ghosts` (2019, GB) and `Ghosts` (2021, US) both exist and both match
+  // exactly. An exact match cannot disambiguate them -- it is the case it
+  // cannot settle -- so lifting both would turn a safe refusal into a
+  // confident guess decided by popularity.
+  const p = parsed('movies', 'Ghosts.mkv');
+  const twin = pickBest(p, [
+    { ...base, title: 'Ghosts', year: 2019, popularity: 5 },
+    { ...base, title: 'Ghosts', year: 2021, popularity: 90 },
+  ], (c) => c);
+  assert.ok(twin !== null);
+  assert.ok(twin.confidence < CONFIDENCE_FLOOR,
+    `an ambiguous exact match must stay refused: ${String(twin?.confidence)}`);
+
+  const alone = pickBest(p, [{ ...base, title: 'Ghosts', year: 2021, popularity: 90 }], (c) => c);
+  assert.ok(alone !== null);
+  assert.ok(alone.confidence >= CONFIDENCE_FLOOR, 'the same title alone does resolve');
+});
+
+test('an exact title cannot rescue a contradicting year', () => {
+  // The bonus is 0.1 and a year gap over one costs 0.35, so the wrong film
+  // with the right name stays refused.
+  const p = parsed('movies', 'Outbreak.1995.1080p.BluRay-GRP.nzb');
+  const best = pickBest(p, [{ ...base, title: 'Outbreak', year: 2015 }], (c) => c);
+  assert.ok(best !== null);
+  assert.ok(best.confidence < CONFIDENCE_FLOOR,
+    `a 20-year gap is not fixed by the title: ${String(best?.confidence)}`);
+});

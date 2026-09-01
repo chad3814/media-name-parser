@@ -109,14 +109,53 @@ export function scoreCandidate(parsed: ParsedVideo, candidate: Candidate): numbe
   return Math.min(1, Math.max(0, score));
 }
 
+/**
+ * What an exact title match is worth, beyond the similarity it already scores.
+ *
+ * Title similarity contributes at most 0.7, and the +0.25 for a matching year
+ * is unavailable to a name that carries no year. So `The Dark Knight
+ * Rises.mp4` -- a clean library filename matching one film perfectly -- capped
+ * around 0.73 and fell under the 0.75 floor. It found the right film and
+ * reported `unresolved`.
+ *
+ * An exact match is categorically better evidence than a near one, and nothing
+ * in the score said so: a 0.95-similar title and an identical one differed by
+ * 0.035. This closes that gap without lifting near misses, which still need a
+ * year to clear the floor.
+ */
+const EXACT_TITLE_BONUS = 0.1;
+
+/** Fold-equal against either title the provider gives. */
+function matchesExactly(parsed: ParsedVideo, candidate: Candidate): boolean {
+  const wanted = foldForMatch(parsed.title);
+  if (wanted.length === 0) return false;
+  return wanted === foldForMatch(candidate.title)
+    || (candidate.originalTitle !== null && wanted === foldForMatch(candidate.originalTitle));
+}
+
 export function pickBest<T>(
   parsed: ParsedVideo,
   items: readonly T[],
   toCandidate: (item: T) => Candidate,
 ): { readonly item: T; readonly confidence: number } | null {
+  const scored = items.map((item) => {
+    const candidate = toCandidate(item);
+    return { item, exact: matchesExactly(parsed, candidate), confidence: scoreCandidate(parsed, candidate) };
+  });
+
+  // The bonus is awarded only when one candidate matches exactly. Two films
+  // sharing a title -- `Ghosts` (2019, GB) and `Ghosts` (2021, US) both exist
+  // -- are not disambiguated by an exact match; they are the case an exact
+  // match cannot settle. Lifting both would turn a safe refusal into a
+  // confident coin flip decided by popularity.
+  const exact = scored.filter((s) => s.exact);
+  if (exact.length === 1) {
+    const only = exact[0];
+    if (only !== undefined) only.confidence = Math.min(1, only.confidence + EXACT_TITLE_BONUS);
+  }
+
   let best: { item: T; confidence: number } | null = null;
-  for (const item of items) {
-    const confidence = scoreCandidate(parsed, toCandidate(item));
+  for (const { item, confidence } of scored) {
     if (best === null || confidence > best.confidence) best = { item, confidence };
   }
   return best;
