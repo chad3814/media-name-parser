@@ -16,7 +16,7 @@ import { envInt } from '../env';
 export const LOOKUP_DEADLINE_MS = envInt('LOOKUP_DEADLINE_MS', 8000);
 
 export interface PipelineDeps {
-  readonly provider: Provider;
+  readonly providers: readonly Provider[];
   readonly now: () => Date;
   /**
    * Hands back the calls the provider made since the last drain, so they can
@@ -227,7 +227,8 @@ export async function resolveLookup(
     };
   }
 
-  if (!deps.provider.supports(category)) {
+  const provider = deps.providers.find((p) => p.supports(category)) ?? null;
+  if (provider === null) {
     const lookupId = await withTransaction(async (tx) => writeLookupOutcome(tx, {
       category, name, normalizedKey, mediaId: null, confidence: null, state: 'unresolved',
     }));
@@ -250,7 +251,7 @@ export async function resolveLookup(
   }
 
   try {
-    const outcome = await deps.provider.resolve(parsed, {
+    const outcome = await provider.resolve(parsed, {
       signal: controller.signal,
       lookupId: existing?.id ?? null,
     });

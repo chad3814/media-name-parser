@@ -1,6 +1,8 @@
 import { sql } from 'drizzle-orm';
 import type { Tx } from '../db/client';
-import type { ProviderCallRecord, ResolvedMedia, ResolvedPerson } from '../providers/types';
+import type {
+  ProviderCallRecord, ProviderName, ResolvedMedia, ResolvedPerson,
+} from '../providers/types';
 
 /**
  * Writes a resolved tree and returns the leaf's `media.id`.
@@ -47,12 +49,12 @@ export async function persistResolved(tx: Tx, resolved: ResolvedMedia): Promise<
   }
 
   await persistDetails(tx, mediaId, resolved);
-  await persistPeople(tx, mediaId, resolved.people);
+  await persistPeople(tx, mediaId, resolved.provider, resolved.people);
   return mediaId;
 }
 
 async function persistDetails(tx: Tx, mediaId: string, resolved: ResolvedMedia): Promise<void> {
-  const { movie, series, season, episode } = resolved.details;
+  const { movie, series, season, episode, scene } = resolved.details;
   if (movie !== null) {
     await tx.execute(sql`
       INSERT INTO movie_details (media_id, runtime_minutes, imdb_id, tagline, collection_name)
@@ -83,15 +85,23 @@ async function persistDetails(tx: Tx, mediaId: string, resolved: ResolvedMedia):
         season_number = excluded.season_number, episode_number = excluded.episode_number,
         air_date = excluded.air_date`);
   }
+  if (scene !== null) {
+    await tx.execute(sql`
+      INSERT INTO scene_details (media_id, site_name, duration_seconds, released_on)
+      VALUES (${mediaId}::uuid, ${scene.siteName}, ${scene.durationSeconds}, ${scene.releasedOn}::date)
+      ON CONFLICT (media_id) DO UPDATE SET
+        site_name = excluded.site_name, duration_seconds = excluded.duration_seconds,
+        released_on = excluded.released_on`);
+  }
 }
 
 async function persistPeople(
-  tx: Tx, mediaId: string, people: readonly ResolvedPerson[],
+  tx: Tx, mediaId: string, provider: ProviderName, people: readonly ResolvedPerson[],
 ): Promise<void> {
   for (const person of people) {
     const row = await tx.execute(sql`
       INSERT INTO people (provider, provider_ref, name, sort_name, raw, raw_fetched_at)
-      VALUES ('tmdb'::provider, ${person.providerRef}, ${person.name}, ${person.name.toLowerCase()},
+      VALUES (${provider}::provider, ${person.providerRef}, ${person.name}, ${person.name.toLowerCase()},
               ${JSON.stringify(person.raw)}::jsonb, now())
       ON CONFLICT (provider, provider_ref) DO UPDATE SET
         name = excluded.name, sort_name = excluded.sort_name,

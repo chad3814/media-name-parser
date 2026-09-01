@@ -113,9 +113,9 @@ export interface LookupHandlerOptions {
  * `makeDeps` is a factory, not a built `PipelineDeps`, and it is called only
  * once auth and body validation have already succeeded, inside the `try`
  * that already turns a failure into a logged 503. Accepting a built object
- * instead would mean the caller's expression -- `buildTmdbDeps()` in
+ * instead would mean the caller's expression -- `buildDeps()` in
  * production -- evaluates before this function ever runs, since JavaScript
- * evaluates call arguments eagerly. `buildTmdbDeps()` calls
+ * evaluates call arguments eagerly. `buildDeps()` calls
  * `tmdbTokenFromEnv()`, which throws when neither TMDB env var is set; with
  * an eager argument that throw happens outside any `catch` here, so a
  * request that should cleanly 401 (bad token) or 400 (bad body) would

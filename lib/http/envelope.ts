@@ -1,6 +1,8 @@
 import { createTmdbClient, tmdbTokenFromEnv } from '../providers/tmdb/client';
 import { createTmdbProvider } from '../providers/tmdb/resolve';
-import type { ProviderCallRecord } from '../providers/types';
+import { createTpdbClient, tpdbTokenFromEnv } from '../providers/tpdb/client';
+import { createTpdbProvider } from '../providers/tpdb/resolve';
+import type { Provider, ProviderCallRecord } from '../providers/types';
 import type { PipelineDeps, PipelineResult } from '../resolve/pipeline';
 import type { MediaView } from '../media/read';
 
@@ -48,18 +50,43 @@ export function toEnvelope(result: PipelineResult, media: MediaView | null): Loo
 /**
  * The provider wiring, built once per request.
  *
- * `drainCalls` has to be created alongside the client, because the client owns
- * the `recordCall` sink and the pipeline cannot reach into it. Building both
- * here is what keeps `provider_calls` from silently staying empty.
+ * `drainCalls` has to be created alongside the clients, because each client
+ * owns its own `recordCall` sink and the pipeline cannot reach into either.
+ * Building all of them here is what keeps `provider_calls` from silently
+ * staying empty. Both clients share one `pending` queue and feed it through
+ * the same `recordCall`, which is safe because every `ProviderCallRecord`
+ * already carries its own `provider` field.
+ *
+ * Each provider is constructed only when its credential is present. A
+ * deployment missing `TPDB_API_KEY` must still serve `movies`/`tv` lookups,
+ * and `tpdbTokenFromEnv()`/`tmdbTokenFromEnv()` both throw when their
+ * variable is absent -- so the throw is caught here rather than left to
+ * escape at request time. The resulting gap in `providers` is not silent: the
+ * pipeline's "no provider supports <category>" branch is what a lookup for
+ * that category gets instead.
  */
-export function buildTmdbDeps(): PipelineDeps {
+export function buildDeps(): PipelineDeps {
   let pending: ProviderCallRecord[] = [];
-  const client = createTmdbClient({
-    token: tmdbTokenFromEnv(),
-    recordCall: (row) => { pending.push(row); },
-  });
+  const recordCall = (row: ProviderCallRecord): void => { pending.push(row); };
+
+  const providers: Provider[] = [];
+  try {
+    const tmdbClient = createTmdbClient({ token: tmdbTokenFromEnv(), recordCall });
+    providers.push(createTmdbProvider(tmdbClient));
+  } catch {
+    // TMDB not configured for this deployment; movies/tv lookups will find
+    // no provider and resolve to `unresolved` rather than throwing.
+  }
+  try {
+    const tpdbClient = createTpdbClient({ token: tpdbTokenFromEnv(), recordCall });
+    providers.push(createTpdbProvider(tpdbClient));
+  } catch {
+    // TPDB not configured for this deployment; xxx lookups will find no
+    // provider and resolve to `unresolved` rather than throwing.
+  }
+
   return {
-    provider: createTmdbProvider(client),
+    providers,
     now: () => new Date(),
     drainCalls: () => {
       const out = pending;

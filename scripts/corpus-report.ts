@@ -204,7 +204,7 @@ async function main(): Promise<void> {
     const provider = createTmdbProvider(createTmdbClient({
       token: 'fixture', fetchImpl: fixtureFetch(), ratePerSecond: 1000,
     }));
-    const deps = { provider, now: (): Date => new Date() };
+    const deps = { providers: [provider], now: (): Date => new Date() };
     const sampleSize = 20;
     resolveRate = {};
     console.log('\nResolve rate is over *measurable* lines only. A line with no recorded');

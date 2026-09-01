@@ -1,5 +1,5 @@
 import { handleLookup } from '../../../../lib/http/lookupHandler';
-import { buildTmdbDeps } from '../../../../lib/http/envelope';
+import { buildDeps } from '../../../../lib/http/envelope';
 import { sessionGate } from '../../../../lib/http/gate';
 import { badRequest } from '../../../../lib/http/problem';
 import { CORPUS_CHUNK } from '../../../../lib/corpus/chunk';
@@ -42,5 +42,5 @@ export async function POST(request: Request): Promise<Response> {
   if (Array.isArray(items) && items.length > CORPUS_CHUNK) {
     return badRequest(`a corpus chunk holds at most ${CORPUS_CHUNK} names`);
   }
-  return handleLookup(request, buildTmdbDeps, { gate: sessionGate });
+  return handleLookup(request, buildDeps, { gate: sessionGate });
 }

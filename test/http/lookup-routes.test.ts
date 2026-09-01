@@ -33,7 +33,7 @@ function testDeps(): PipelineDeps {
     ratePerSecond: 1000,
   });
   return {
-    provider: createTmdbProvider(client),
+    providers: [createTmdbProvider(client)],
     now: () => new Date(),
     drainCalls: () => {
       const out = pending;
@@ -82,7 +82,7 @@ function countingDeps(counter: { calls: number }): PipelineDeps {
     ratePerSecond: 1000,
   });
   return {
-    provider: createTmdbProvider(client),
+    providers: [createTmdbProvider(client)],
     now: () => new Date(),
     drainCalls: () => {
       const out = pending;
@@ -97,7 +97,7 @@ function failingDeps(): PipelineDeps {
   const refuses = ((): Promise<Response> =>
     Promise.reject(new Error('the deadline tripped'))) as unknown as typeof fetch;
   const client = createTmdbClient({ token: 'fixture', fetchImpl: refuses, ratePerSecond: 1000 });
-  return { provider: createTmdbProvider(client), now: () => new Date() };
+  return { providers: [createTmdbProvider(client)], now: () => new Date() };
 }
 
 async function post(body: unknown, auth = true): Promise<Response> {

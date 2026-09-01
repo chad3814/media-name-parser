@@ -89,7 +89,7 @@ async function runJob(
     // accident is worse than none.
     const shared = client();
     const pipelineDeps = {
-      provider: createTmdbProvider(shared.client),
+      providers: [createTmdbProvider(shared.client)],
       now: deps.now,
       drainCalls: shared.drain,
     };

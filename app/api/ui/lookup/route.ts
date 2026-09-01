@@ -1,5 +1,5 @@
 import { handleLookup } from '../../../../lib/http/lookupHandler';
-import { buildTmdbDeps } from '../../../../lib/http/envelope';
+import { buildDeps } from '../../../../lib/http/envelope';
 import { sessionGate } from '../../../../lib/http/gate';
 import { badRequest } from '../../../../lib/http/problem';
 
@@ -38,5 +38,5 @@ export async function POST(request: Request): Promise<Response> {
   if (typeof raw === 'object' && raw !== null && 'items' in raw) {
     return badRequest('batched lookups go to /api/ui/corpus');
   }
-  return handleLookup(request, buildTmdbDeps, { gate: sessionGate });
+  return handleLookup(request, buildDeps, { gate: sessionGate });
 }

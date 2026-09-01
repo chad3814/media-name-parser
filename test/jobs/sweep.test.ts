@@ -198,7 +198,7 @@ test('resolveLookup with force reaches the provider despite a fresh last_attempt
   // leaves behind, and exactly the row `decide()` calls `cooling` for.
   const id = await pendingLookup(name);
   const client = createTmdbClient({ token: 'fixture', fetchImpl: fixtureFetch(), ratePerSecond: 1000 });
-  const deps = { provider: createTmdbProvider(client), now: () => new Date() };
+  const deps = { providers: [createTmdbProvider(client)], now: () => new Date() };
 
   // Without force: inside the cooling window, so the stale row is served
   // and the provider is never called.

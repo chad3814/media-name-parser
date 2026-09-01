@@ -35,7 +35,7 @@ function tmdb(count?: { n: number }) {
 }
 
 const deps = (t: ReturnType<typeof tmdb>) => ({
-  provider: t.provider,
+  providers: [t.provider],
   now: () => new Date(),
   drainCalls: t.drainCalls,
 });
@@ -59,8 +59,8 @@ test('two concurrent misses for one release make one set of provider calls', opt
   const b = tmdb();
   const callsA = { n: 0 };
   const callsB = { n: 0 };
-  const countA = { provider: a.provider, now: () => new Date(), drainCalls: a.drainCalls };
-  const countB = { provider: b.provider, now: () => new Date(), drainCalls: b.drainCalls };
+  const countA = { providers: [a.provider], now: () => new Date(), drainCalls: a.drainCalls };
+  const countB = { providers: [b.provider], now: () => new Date(), drainCalls: b.drainCalls };
 
   // Count through the drain, which the pipeline calls exactly once per attempt.
   const wrapA = { ...countA, drainCalls: () => { const r = a.drainCalls(); callsA.n += r.length; return r; } };

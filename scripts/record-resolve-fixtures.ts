@@ -62,7 +62,7 @@ function recordingFetch(): typeof fetch {
 const provider = createTmdbProvider(createTmdbClient({
   token: TOKEN, fetchImpl: recordingFetch(), ratePerSecond: 20,
 }));
-const deps = { provider, now: (): Date => new Date() };
+const deps = { providers: [provider], now: (): Date => new Date() };
 
 for (const { file, category } of CORPUS) {
   const lines = readLines(file);
