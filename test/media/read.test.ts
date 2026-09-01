@@ -1,6 +1,6 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { SQL, StringChunk } from 'drizzle-orm';
+import { SQL, StringChunk, sql } from 'drizzle-orm';
 import { withTransaction, closeDb, type Tx } from '../../lib/db/client';
 import { readMediaTree } from '../../lib/media/read';
 import { persistResolved } from '../../lib/resolve/persist';
@@ -177,5 +177,37 @@ test('hydration costs a bounded number of queries regardless of depth', opts, as
     assert.ok(seriesView !== null);
     assert.equal(seriesView.parents.length, 0);
     assert.equal(seriesCalls.count, 3, 'the same three queries with no ancestors at all');
+  });
+});
+
+test('a scene carries the provider ids for its site and its performers', opts, async () => {
+  // The scene's own id has always been on the node as `providerRef`. These two
+  // were not, and without them a caller holding our answer cannot ask the
+  // provider anything further about the site or the people in it.
+  await inRollback(async (tx) => {
+    const media = await tx.execute(sql`
+      INSERT INTO media (category, kind, title, sort_title, provider, provider_ref,
+                         raw, raw_fetched_at)
+      VALUES ('xxx', 'scene', 'Ids Scene', 'Ids Scene', 'tpdb', 'tpdb-scene-ids',
+              '{}'::jsonb, now())
+      RETURNING id`);
+    const mediaId = String(media.rows[0]?.id);
+    await tx.execute(sql`
+      INSERT INTO scene_details (media_id, site_name, site_ref, duration_seconds, released_on)
+      VALUES (${mediaId}::uuid, 'Ids Site', '4242', 1800, '2026-09-01')`);
+    const person = await tx.execute(sql`
+      INSERT INTO people (provider, provider_ref, name, sort_name, raw, raw_fetched_at)
+      VALUES ('tpdb', 'tpdb-person-ids', 'Ids Performer', 'Ids Performer', '{}'::jsonb, now())
+      RETURNING id`);
+    await tx.execute(sql`
+      INSERT INTO media_people (media_id, person_id, role, billing_order)
+      VALUES (${mediaId}::uuid, ${String(person.rows[0]?.id)}::uuid, 'performer', 0)`);
+
+    const view = await readMediaTree(tx, mediaId);
+    assert.equal(view?.providerRef, 'tpdb-scene-ids', 'the scene id');
+    assert.equal(view?.details.siteRef, '4242', 'the site id, beside its display name');
+    assert.equal(view?.details.siteName, 'Ids Site');
+    assert.equal(view?.people[0]?.providerRef, 'tpdb-person-ids', 'the performer id');
+    assert.equal(view?.people[0]?.name, 'Ids Performer');
   });
 });

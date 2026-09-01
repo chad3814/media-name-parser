@@ -15,6 +15,13 @@
       "when": 1788210127145,
       "tag": "0001_cooing_loners",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788287155069,
+      "tag": "0002_mushy_masked_marvel",
+      "breakpoints": true
     }
   ]
 }

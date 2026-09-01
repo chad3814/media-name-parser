@@ -50,12 +50,17 @@ const problemSchema: JsonSchema = {
 const personSchema: JsonSchema = {
   type: 'object',
   properties: {
+    providerRef: {
+      type: 'string',
+      description: "The provider's own person id, for looking the performer up there.",
+      examples: ['0664972e-8f2c-43f8-95ff-1ac01681420d'],
+    },
     name: { type: 'string' },
     role: { type: 'string', examples: ['cast', 'director'] },
     characterName: { type: ['string', 'null'] },
     billingOrder: { type: ['integer', 'null'] },
   },
-  required: ['name', 'role', 'characterName', 'billingOrder'],
+  required: ['providerRef', 'name', 'role', 'characterName', 'billingOrder'],
 };
 
 const nodeProperties: JsonSchema = {
@@ -77,7 +82,10 @@ const mediaSchema: JsonSchema = {
     overview: { type: ['string', 'null'] },
     details: {
       type: 'object',
-      description: 'Whichever detail table matches `kind`, flattened.',
+      description: 'Whichever detail table matches `kind`, flattened. For a scene: '
+        + '`siteName`, `siteRef` (the provider\'s site id), `durationSeconds` and '
+        + '`releasedOn`. For a movie: `runtimeMinutes`, `imdbId`, `tagline`, '
+        + '`collectionName`. Keys differ by `kind`, so read them against it.',
       additionalProperties: { type: ['string', 'number', 'null'] },
     },
     parents: {

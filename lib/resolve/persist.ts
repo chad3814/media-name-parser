@@ -87,10 +87,12 @@ async function persistDetails(tx: Tx, mediaId: string, resolved: ResolvedMedia):
   }
   if (scene !== null) {
     await tx.execute(sql`
-      INSERT INTO scene_details (media_id, site_name, duration_seconds, released_on)
-      VALUES (${mediaId}::uuid, ${scene.siteName}, ${scene.durationSeconds}, ${scene.releasedOn}::date)
+      INSERT INTO scene_details (media_id, site_name, site_ref, duration_seconds, released_on)
+      VALUES (${mediaId}::uuid, ${scene.siteName}, ${scene.siteRef}, ${scene.durationSeconds},
+              ${scene.releasedOn}::date)
       ON CONFLICT (media_id) DO UPDATE SET
-        site_name = excluded.site_name, duration_seconds = excluded.duration_seconds,
+        site_name = excluded.site_name,
+        site_ref = excluded.site_ref, duration_seconds = excluded.duration_seconds,
         released_on = excluded.released_on`);
   }
 }

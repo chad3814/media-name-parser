@@ -3,6 +3,8 @@ import type { Tx } from '../db/client';
 import type { MediaKind, PersonRole, ProviderName } from '../providers/types';
 
 export interface PersonView {
+  /** The provider's own person id, so a caller can look the performer up there. */
+  readonly providerRef: string;
   readonly name: string;
   readonly role: PersonRole;
   readonly characterName: string | null;
@@ -82,7 +84,7 @@ export async function readMediaTree(tx: Tx, mediaId: string): Promise<MediaView 
       (SELECT to_jsonb(d) - 'media_id' FROM scene_details  d WHERE d.media_id = ${mediaId}::uuid) AS scene`);
 
   const people = await tx.execute(sql`
-    SELECT p.name, mp.role, mp.character_name, mp.billing_order
+    SELECT p.provider_ref, p.name, mp.role, mp.character_name, mp.billing_order
       FROM media_people mp JOIN people p ON p.id = mp.person_id
      WHERE mp.media_id = ${mediaId}::uuid
      -- Performers first in billing order, then everyone else by name. A
@@ -111,6 +113,7 @@ export async function readMediaTree(tx: Tx, mediaId: string): Promise<MediaView 
     details: flattened,
     parents: rows.slice(1).map(node),
     people: people.rows.map((r) => ({
+      providerRef: String(r.provider_ref),
       name: String(r.name),
       role: r.role as PersonRole,
       characterName: r.character_name === null || r.character_name === '' ? null : String(r.character_name),

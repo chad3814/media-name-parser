@@ -43,6 +43,8 @@ export interface ResolvedDetails {
   /** Field names track the `scene_details` columns they are written to. */
   readonly scene: {
     readonly siteName: string | null;
+    /** The provider's own site id, so a caller can query the provider directly. */
+    readonly siteRef: string | null;
     readonly durationSeconds: number | null;
     readonly releasedOn: string | null;
   } | null;

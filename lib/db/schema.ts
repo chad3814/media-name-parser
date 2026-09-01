@@ -162,6 +162,14 @@ export const bookDetails = pgTable('book_details', {
 export const sceneDetails = pgTable('scene_details', {
   mediaId: uuid('media_id').primaryKey().references(() => media.id, { onDelete: 'cascade' }),
   siteName: text('site_name'),
+  /**
+   * The provider's own site identifier, stored beside the display name.
+   *
+   * Derivable from `site_name` only by normalising it and hoping it matches a
+   * `provider_sites.short_name`, which is a coincidence rather than a
+   * guarantee. It is known exactly at write time, so it is written.
+   */
+  siteRef: text('site_ref'),
   durationSeconds: integer('duration_seconds'),
   releasedOn: date('released_on'),
 });

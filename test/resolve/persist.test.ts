@@ -153,7 +153,7 @@ test('a scene writes scene_details, its performers, and no parent', opts, async 
       parent: null,
       details: {
         movie: null, series: null, season: null, episode: null,
-        scene: { siteName: 'Spank Monster', durationSeconds: 2340, releasedOn: '2022-07-07' },
+        scene: { siteName: 'Spank Monster', siteRef: '4347', durationSeconds: 2340, releasedOn: '2022-07-07' },
       },
       people: [
         { providerRef: 'tpdb:person:t7a', name: 'Ruby Redbottom', role: 'performer', characterName: null, billingOrder: 0, raw: {} },

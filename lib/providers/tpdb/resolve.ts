@@ -139,6 +139,7 @@ function normalizeScene(scene: TpdbScene): ResolvedMedia {
       episode: null,
       scene: {
         siteName: scene.site?.name ?? null,
+        siteRef: scene.site?.id === undefined ? null : String(scene.site.id),
         // Seconds. A 25-scene sample ran 1920 to 3060; the one row reporting
         // 60 is bad data in that row, not a value in minutes to be converted.
         durationSeconds: scene.duration ?? null,
