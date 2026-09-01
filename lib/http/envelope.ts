@@ -4,6 +4,7 @@ import { createTpdbClient, tpdbTokenFromEnv } from '../providers/tpdb/client';
 import { createTpdbProvider } from '../providers/tpdb/resolve';
 import type { Provider, ProviderCallRecord } from '../providers/types';
 import type { PipelineDeps, PipelineResult } from '../resolve/pipeline';
+import type { Category } from '../parse/types';
 import type { MediaView } from '../media/read';
 
 export interface LookupEnvelope {
@@ -48,42 +49,33 @@ export function toEnvelope(result: PipelineResult, media: MediaView | null): Loo
 }
 
 /**
- * The provider wiring, built once per request.
+ * The provider wiring for one category's lookup.
  *
- * `drainCalls` has to be created alongside the clients, because each client
- * owns its own `recordCall` sink and the pipeline cannot reach into either.
- * Building all of them here is what keeps `provider_calls` from silently
- * staying empty. Both clients share one `pending` queue and feed it through
- * the same `recordCall`, which is safe because every `ProviderCallRecord`
- * already carries its own `provider` field.
+ * `drainCalls` has to be created alongside the client, because the client
+ * owns its own `recordCall` sink and the pipeline cannot reach into it.
+ * Building it here is what keeps `provider_calls` from silently staying empty.
  *
- * Each provider is constructed only when its credential is present. A
- * deployment missing `TPDB_API_KEY` must still serve `movies`/`tv` lookups,
- * and `tpdbTokenFromEnv()`/`tmdbTokenFromEnv()` both throw when their
- * variable is absent -- so the throw is caught here rather than left to
- * escape at request time. The resulting gap in `providers` is not silent: the
- * pipeline's "no provider supports <category>" branch is what a lookup for
- * that category gets instead.
+ * Per category and on demand, mirroring `lib/jobs/sweep.ts`. Building both
+ * providers up front and catching the throw when a credential was absent
+ * turned a missing `TMDB_API_KEY` into a `movies` lookup that took the
+ * pipeline's "no provider supports movies" branch: `unresolved` written with a
+ * fresh `last_attempt_at`, so every request for the next twelve hours was
+ * served the cooling answer -- HTTP 202, `partial: true`, no refusal, and
+ * nothing logged. A server that cannot serve a category must say so. Nothing
+ * is caught here; the throw lands in `handleLookup`'s own try, which logs it
+ * and answers 503.
+ *
+ * Splitting it per category is what stops one missing credential stranding the
+ * other category: an `xxx` lookup on a deployment with no TPDB key throws,
+ * and a `movies` lookup on that same deployment does not.
  */
-export function buildDeps(): PipelineDeps {
+export function buildDeps(category: Category): PipelineDeps {
   let pending: ProviderCallRecord[] = [];
   const recordCall = (row: ProviderCallRecord): void => { pending.push(row); };
 
-  const providers: Provider[] = [];
-  try {
-    const tmdbClient = createTmdbClient({ token: tmdbTokenFromEnv(), recordCall });
-    providers.push(createTmdbProvider(tmdbClient));
-  } catch {
-    // TMDB not configured for this deployment; movies/tv lookups will find
-    // no provider and resolve to `unresolved` rather than throwing.
-  }
-  try {
-    const tpdbClient = createTpdbClient({ token: tpdbTokenFromEnv(), recordCall });
-    providers.push(createTpdbProvider(tpdbClient));
-  } catch {
-    // TPDB not configured for this deployment; xxx lookups will find no
-    // provider and resolve to `unresolved` rather than throwing.
-  }
+  const providers: readonly Provider[] = category === 'xxx'
+    ? [createTpdbProvider(createTpdbClient({ token: tpdbTokenFromEnv(), recordCall }))]
+    : [createTmdbProvider(createTmdbClient({ token: tmdbTokenFromEnv(), recordCall }))];
 
   return {
     providers,

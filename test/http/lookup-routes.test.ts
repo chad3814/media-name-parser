@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { sql } from 'drizzle-orm';
 import { getDb, withTransaction, closeDb } from '../../lib/db/client';
 import { handleLookup, handlePoll } from '../../lib/http/lookupHandler';
+import { buildDeps } from '../../lib/http/envelope';
 import { createTmdbClient } from '../../lib/providers/tmdb/client';
 import { createTmdbProvider } from '../../lib/providers/tmdb/resolve';
 import { fixtureFetch } from '../support/tmdb-fixtures';
@@ -358,12 +359,13 @@ test('a rate-limited caller gets 429 with Retry-After', opts, async () => {
 });
 
 test('a deps factory that throws is a 503 problem response, not a crash', opts, async () => {
-  // A missing TMDB credential is what actually throws here in production
-  // (`buildTmdbDeps()` -> `tmdbTokenFromEnv()`); a plain throw stands in for
-  // it without needing to touch real env vars. The point is that this throw,
-  // happening after auth and validation have already succeeded, is caught
-  // and turned into the same 503 problem+json shape as any other failure
-  // inside the pipeline -- not an uncaught exception.
+  // A synthetic throw, standing in for any failure the factory can raise. The
+  // production case -- a missing TMDB credential reaching
+  // `buildDeps('movies')` -> `tmdbTokenFromEnv()` -- is covered on the real
+  // path by the test below; this one pins the handler's own behaviour, that a
+  // throw after auth and validation have succeeded becomes the same 503
+  // problem+json shape as any other failure inside the pipeline rather than
+  // an uncaught exception.
   const response = await handleLookup(new Request('https://x.test/api/v1/lookup', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${await token()}` },
@@ -371,6 +373,60 @@ test('a deps factory that throws is a 503 problem response, not a crash', opts, 
   }), () => { throw new Error('no token configured'); });
   assert.equal(response.status, 503);
   assert.equal(response.headers.get('content-type'), 'application/problem+json');
+});
+
+const tmdbConfigured = ((process.env.TMDB_READ_ACCESS_TOKEN ?? process.env.TMDB_API_KEY) ?? '').length > 0;
+
+test('a missing credential for the requested category is a 503 on the real path', opts, async () => {
+  // The real `buildDeps`, not a synthetic factory. It used to catch the throw
+  // from `tmdbTokenFromEnv()` and simply omit the provider, so a `movies`
+  // lookup on a deployment with no TMDB key took the pipeline's "no provider
+  // supports movies" branch: `unresolved` written with a fresh
+  // `last_attempt_at`, and every request for the next twelve hours answered
+  // 202 with `partial: true`, no refusal and nothing logged. A server that
+  // cannot serve the category has to say so.
+  const saved = {
+    read: process.env.TMDB_READ_ACCESS_TOKEN,
+    key: process.env.TMDB_API_KEY,
+  };
+  delete process.env.TMDB_READ_ACCESS_TOKEN;
+  delete process.env.TMDB_API_KEY;
+  try {
+    const response = await handleLookup(new Request('https://x.test/api/v1/lookup', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${await token()}` },
+      body: JSON.stringify({
+        category: 'movies',
+        name: 'rtestcred/Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn.nzb',
+      }),
+    }), buildDeps);
+    assert.equal(response.status, 503, 'a movies lookup with no TMDB credential must refuse');
+    assert.equal(response.headers.get('content-type'), 'application/problem+json');
+  } finally {
+    if (saved.read !== undefined) process.env.TMDB_READ_ACCESS_TOKEN = saved.read;
+    if (saved.key !== undefined) process.env.TMDB_API_KEY = saved.key;
+  }
+  // Nothing was attempted, so nothing should have been recorded either.
+  const rows = await getDb().execute(sql`
+    SELECT count(*)::int AS n FROM lookups WHERE name LIKE 'rtestcred%'`);
+  assert.equal(rows.rows[0]?.n, 0, 'a refused lookup must not leave a cooling row behind');
+});
+
+test('a credential missing for one category does not strand the other', opts, async () => {
+  // The reason the wiring is per category and built on demand. Neither call
+  // touches the network: `buildDeps` only constructs a client.
+  if (!tmdbConfigured) return;
+  const saved = process.env.TPDB_API_KEY;
+  delete process.env.TPDB_API_KEY;
+  try {
+    assert.throws(() => buildDeps('xxx'), /TPDB_API_KEY/,
+      'the category whose credential is missing throws');
+    const movies = buildDeps('movies');
+    assert.equal(movies.providers.length, 1, 'the other category is still served');
+    assert.equal(movies.providers[0]?.name, 'tmdb');
+  } finally {
+    if (saved !== undefined) process.env.TPDB_API_KEY = saved;
+  }
 });
 
 test('an unauthenticated request is 401 and never calls the deps factory', opts, async () => {

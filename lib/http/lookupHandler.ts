@@ -110,24 +110,30 @@ export interface LookupHandlerOptions {
  * The `POST /api/v1/lookup` body, given a way to build the provider wiring
  * to resolve with.
  *
- * `makeDeps` is a factory, not a built `PipelineDeps`, and it is called only
- * once auth and body validation have already succeeded, inside the `try`
- * that already turns a failure into a logged 503. Accepting a built object
- * instead would mean the caller's expression -- `buildDeps()` in
+ * `makeDeps` takes the category, and is a factory rather than a built
+ * `PipelineDeps` for two reasons.
+ *
+ * It is called only once auth and body validation have already succeeded,
+ * inside the `try` that turns a failure into a logged 503. Accepting a built
+ * object instead would mean the caller's expression -- `buildDeps(...)` in
  * production -- evaluates before this function ever runs, since JavaScript
- * evaluates call arguments eagerly. `buildDeps()` calls
- * `tmdbTokenFromEnv()`, which throws when neither TMDB env var is set; with
- * an eager argument that throw happens outside any `catch` here, so a
- * request that should cleanly 401 (bad token) or 400 (bad body) would
- * instead surface as an uncaught exception before either check ran. Delaying
- * construction behind a factory, and constructing only after those checks
- * pass, keeps a missing credential a 503 -- a server misconfiguration, which
- * is what it actually is -- rather than a crash that bypasses the
- * problem+json contract and `logFailure` entirely.
+ * evaluates call arguments eagerly; and `buildDeps` throws when the
+ * credential for its category is not configured. With an eager argument that
+ * throw happens outside any `catch` here, so a request that should cleanly
+ * 401 (bad token) or 400 (bad body) would surface as an uncaught exception
+ * before either check ran. Constructing only after those checks pass keeps a
+ * missing credential a 503 -- a server misconfiguration, which is what it
+ * actually is -- rather than a crash that bypasses the problem+json contract
+ * and `logFailure` entirely.
+ *
+ * And it takes the category because a batch may mix them, and a credential
+ * missing for one category must not decide the answer for another. It is
+ * called at most once per category per request (see `depsFor`), so a batch
+ * still shares one client -- and therefore one token bucket -- per category.
  */
 export async function handleLookup(
   request: Request,
-  makeDeps: () => PipelineDeps,
+  makeDeps: (category: Category) => PipelineDeps,
   options: LookupHandlerOptions = {},
 ): Promise<Response> {
   const defer = options.defer ?? waitUntil;
@@ -163,11 +169,23 @@ export async function handleLookup(
   }
 
   try {
-    // Built here, not passed in already built: this is the one call site
-    // that can turn "no TMDB credential configured" into a clean 503 instead
-    // of an uncaught throw, because it runs after auth and validation have
-    // already succeeded and it is covered by the catch below.
-    const deps = makeDeps();
+    // Built here, not passed in already built: this is the one call site that
+    // can turn "no credential configured for this category" into a clean 503
+    // instead of an uncaught throw, because it runs after auth and validation
+    // have already succeeded and it is covered by the catch below.
+    //
+    // Memoised per category, so a hundred `movies` items in one batch share
+    // one client and therefore one token bucket -- the sequential loop below
+    // is not what bounds provider load, and a limiter that works only because
+    // nobody has parallelised the loop yet enforces nothing.
+    const built = new Map<Category, PipelineDeps>();
+    const depsFor = (forCategory: Category): PipelineDeps => {
+      const existing = built.get(forCategory);
+      if (existing !== undefined) return existing;
+      const made = makeDeps(forCategory);
+      built.set(forCategory, made);
+      return made;
+    };
 
     if ('items' in parsed.data) {
       // Sequential rather than parallel: a batch of 100 fired at once would
@@ -175,7 +193,7 @@ export async function handleLookup(
       // serialise them anyway, just with 100 open sockets instead of one.
       const results: (LookupEnvelope & { readonly status: number })[] = [];
       for (const item of parsed.data.items) {
-        const envelope = await runOne(item.category, item.name, deps);
+        const envelope = await runOne(item.category, item.name, depsFor(item.category));
         // A batch item gets the same durability guarantee a single lookup
         // does. The spec's Batch form says "misses are enqueued", and without
         // this an item that blew its deadline came back `pending` with no job
@@ -201,7 +219,8 @@ export async function handleLookup(
       return Response.json({ results });
     }
 
-    const envelope = await runOne(parsed.data.category, parsed.data.name, deps);
+    const envelope = await runOne(parsed.data.category, parsed.data.name,
+      depsFor(parsed.data.category));
     if (envelope.partial) {
       // Only the request that actually made the attempt owns the follow-up
       // work. A partial *and cached* envelope is the cooling-window answer:
@@ -222,12 +241,12 @@ export async function handleLookup(
         // fast; the durable row, written first, is what covers the case where
         // the function dies before it can.
         const jobId = await withTransaction(async (tx) => enqueue(tx, envelope.lookupId));
-        // A fresh `makeDeps()` call, not the `deps` already in scope: that
-        // one's `drainCalls` has already been consumed by the in-request
+        // A fresh `makeDeps()` call, not the deps `depsFor` already built:
+        // that one's `drainCalls` has already been consumed by the in-request
         // attempt, and this continuation runs after the response is sent, so
         // it should not share a token bucket across that boundary either.
         defer(finishAfterDeadline(
-          parsed.data.category, parsed.data.name, makeDeps(), jobId,
+          parsed.data.category, parsed.data.name, makeDeps(parsed.data.category), jobId,
         ).catch((error: unknown) => {
           // Nothing is swallowed. The continuation is past the response, so
           // there is no status left to set; the durable job row is what
