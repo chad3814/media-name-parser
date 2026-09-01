@@ -40,6 +40,57 @@ async function clean(prefix: string): Promise<void> {
   await getDb().execute(sql`DELETE FROM parses WHERE normalized_key LIKE ${`${prefix.toLowerCase()}%`}`);
 }
 
+/** A pending xxx lookup plus its job, so the sweeper has an xxx job to retry. */
+async function pendingScene(name: string): Promise<string> {
+  const key = name.toLowerCase();
+  return withTransaction(async (tx) => {
+    await tx.execute(sql`
+      INSERT INTO parses (category, normalized_key, tokens, parser_version)
+      VALUES ('xxx', ${key}, '{}'::jsonb, 1)
+      ON CONFLICT (category, normalized_key) DO NOTHING`);
+    const row = await tx.execute(sql`
+      INSERT INTO lookups (category, name, normalized_key, state, last_attempt_at)
+      VALUES ('xxx', ${name}, ${key}, 'pending', now())
+      ON CONFLICT (category, name) DO UPDATE SET state = 'pending'
+      RETURNING id`);
+    const id = String(row.rows[0]?.id);
+    await enqueue(tx, id);
+    return id;
+  });
+}
+
+async function cleanScene(prefix: string): Promise<void> {
+  await getDb().execute(sql`
+    DELETE FROM lookup_jobs WHERE lookup_id IN (
+      SELECT id FROM lookups WHERE category = 'xxx' AND name LIKE ${`${prefix}%`})`);
+  await getDb().execute(sql`DELETE FROM lookups WHERE category = 'xxx' AND name LIKE ${`${prefix}%`}`);
+  await getDb().execute(sql`DELETE FROM parses WHERE category = 'xxx' AND normalized_key LIKE ${`${prefix.toLowerCase()}%`}`);
+}
+
+test('an xxx job is retried against TPDB, not stranded', opts, async () => {
+  // The sweeper used to build only a TMDB provider, so an xxx lookup that blew
+  // its deadline landed in the durable queue and could never be finished: every
+  // sweep found no provider supporting `xxx` and settled it unresolved. This
+  // asserts the sweep actually reaches TPDB, by watching for the request.
+  await cleanScene('jtestx');
+  const name = 'jtestx.SpankMonster.22.07.07.Ruby.Redbottom.XXX.1080p.mp4';
+  await pendingScene(name);
+
+  const urls: string[] = [];
+  const stub: typeof fetch = async (input) => {
+    urls.push(String(input));
+    return new Response(JSON.stringify({ data: [], meta: { total: 0 } }),
+      { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+
+  await sweep({ fetchImpl: stub, workerId: 'test-worker', now: () => new Date() }, { limit: 25 });
+
+  assert.ok(urls.length > 0, 'the sweep must call a provider for an xxx job');
+  assert.ok(urls.every((u) => u.includes('theporndb.net')),
+    `an xxx job must be retried against TPDB, saw: ${urls.join(', ')}`);
+  await cleanScene('jtestx');
+});
+
 test('enqueue is idempotent on lookup_id', opts, async () => {
   await clean('jtesta');
   const id = await pendingLookup('jtesta/x.mkv');

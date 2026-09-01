@@ -4,7 +4,10 @@ import { pruneRateWindows } from '../auth/rateLimit';
 import { logFailure } from '../http/log';
 import { createTmdbClient, tmdbTokenFromEnv } from '../providers/tmdb/client';
 import { createTmdbProvider } from '../providers/tmdb/resolve';
-import type { ProviderCallRecord } from '../providers/types';
+import { createTpdbClient, tpdbTokenFromEnv } from '../providers/tpdb/client';
+import { createTpdbProvider } from '../providers/tpdb/resolve';
+import type { Provider, ProviderCallRecord, ProviderName } from '../providers/types';
+import type { Category } from '../parse/types';
 import { resolveLookup } from '../resolve/pipeline';
 import { pruneProviderCalls } from '../resolve/persist';
 import { CONFIDENCE_FLOOR } from '../resolve/confidence';
@@ -55,7 +58,11 @@ type JobResult = 'done' | 'retried' | 'abandoned';
  * before `claimDue` grew a lease reaper, meant permanently invisible.
  */
 interface SharedProvider {
-  readonly client: ReturnType<typeof createTmdbClient>;
+  /**
+   * The providers able to serve this job's category -- built on demand, so a
+   * credential missing for one category cannot affect jobs of another.
+   */
+  readonly providersFor: (category: Category) => readonly Provider[];
   readonly drain: () => readonly ProviderCallRecord[];
 }
 
@@ -89,7 +96,7 @@ async function runJob(
     // accident is worse than none.
     const shared = client();
     const pipelineDeps = {
-      providers: [createTmdbProvider(shared.client)],
+      providers: shared.providersFor(category),
       now: deps.now,
       drainCalls: shared.drain,
     };
@@ -172,12 +179,34 @@ export async function sweep(
   const sharedProvider = (): SharedProvider => {
     if (built === null) {
       let pending: ProviderCallRecord[] = [];
+      const recordCall = (row: ProviderCallRecord): void => { pending.push(row); };
+      const fetchOverride = deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl };
+
+      // One client per provider for the whole sweep, and therefore one token
+      // bucket each. Built on demand rather than up front: a token function
+      // throws when its variable is unset, and that throw has to land inside
+      // the try of a job that actually needs that provider. Building both
+      // eagerly would let a missing TPDB key strand a movies job, and
+      // swallowing the throw would turn a typo'd variable into a silent
+      // "unresolved" instead of an error the operator can see.
+      const cache = new Map<ProviderName, Provider>();
+      const build = (name: ProviderName): Provider => {
+        const existing = cache.get(name);
+        if (existing !== undefined) return existing;
+        const made = name === 'tpdb'
+          ? createTpdbProvider(createTpdbClient({
+            token: tpdbTokenFromEnv(), ...fetchOverride, recordCall,
+          }))
+          : createTmdbProvider(createTmdbClient({
+            token: tmdbTokenFromEnv(), ...fetchOverride, recordCall,
+          }));
+        cache.set(name, made);
+        return made;
+      };
+
       built = {
-        client: createTmdbClient({
-          token: tmdbTokenFromEnv(),
-          ...(deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl }),
-          recordCall: (row) => { pending.push(row); },
-        }),
+        providersFor: (category: Category): readonly Provider[] =>
+          category === 'xxx' ? [build('tpdb')] : [build('tmdb')],
         drain: (): readonly ProviderCallRecord[] => {
           const out = pending;
           pending = [];
