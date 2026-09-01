@@ -15,16 +15,16 @@ const SERIES: ResolvedMedia = {
   title: 'Test Show', sortTitle: 'test show', originalTitle: null,
   releaseDate: '2020-01-01', year: 2020, overview: null,
   raw: { probe: true }, people: [], parent: null,
-  details: { movie: null, series: { firstAirDate: '2020-01-01', lastAirDate: null, status: 'Ended' }, season: null, episode: null },
+  details: { movie: null, series: { firstAirDate: '2020-01-01', lastAirDate: null, status: 'Ended' }, season: null, episode: null, scene: null },
 };
 const SEASON: ResolvedMedia = {
   ...SERIES, kind: 'season', providerRef: 'tmdb:tv:t1:1', title: 'Season 1', sortTitle: 'season 1',
-  details: { movie: null, series: null, season: { seasonNumber: 1 }, episode: null },
+  details: { movie: null, series: null, season: { seasonNumber: 1 }, episode: null, scene: null },
   parent: SERIES,
 };
 const EPISODE: ResolvedMedia = {
   ...SERIES, kind: 'episode', providerRef: 'tmdb:tv:t1:1:1', title: 'Pilot', sortTitle: 'pilot',
-  details: { movie: null, series: null, season: null, episode: { seasonNumber: 1, episodeNumber: 1, airDate: '2020-01-08' } },
+  details: { movie: null, series: null, season: null, episode: { seasonNumber: 1, episodeNumber: 1, airDate: '2020-01-08' }, scene: null },
   parent: SEASON,
   people: [
     { providerRef: 'tmdb:person:p1', name: 'A Director', role: 'director', characterName: null, billingOrder: null, raw: {} },
@@ -131,7 +131,7 @@ test('a movie writes movie_details and no parent', opts, async () => {
       category: 'movies', kind: 'movie', provider: 'tmdb', providerRef: 'tmdb:movie:t9',
       title: 'Test Film', sortTitle: 'test film', originalTitle: null,
       releaseDate: '1999-01-01', year: 1999, overview: null, raw: {}, people: [], parent: null,
-      details: { movie: { runtimeMinutes: 100, imdbId: 'tt1', tagline: null, collectionName: null }, series: null, season: null, episode: null },
+      details: { movie: { runtimeMinutes: 100, imdbId: 'tt1', tagline: null, collectionName: null }, series: null, season: null, episode: null, scene: null },
     });
     const row = await tx.execute(sql`SELECT parent_id FROM media WHERE id = ${id}::uuid`);
     assert.equal(row.rows[0]?.parent_id, null);

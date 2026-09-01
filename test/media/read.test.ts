@@ -16,11 +16,11 @@ const SERIES: ResolvedMedia = {
   title: 'Read Show', sortTitle: 'read show', originalTitle: null,
   releaseDate: '2020-01-01', year: 2020, overview: 'A show.',
   raw: {}, people: [], parent: null,
-  details: { movie: null, series: { firstAirDate: '2020-01-01', lastAirDate: null, status: 'Ended' }, season: null, episode: null },
+  details: { movie: null, series: { firstAirDate: '2020-01-01', lastAirDate: null, status: 'Ended' }, season: null, episode: null, scene: null },
 };
 const SEASON: ResolvedMedia = {
   ...SERIES, kind: 'season', providerRef: 'tmdb:tv:r1:2', title: 'Season 2', sortTitle: 'season 2',
-  details: { movie: null, series: null, season: { seasonNumber: 2 }, episode: null }, parent: SERIES,
+  details: { movie: null, series: null, season: { seasonNumber: 2 }, episode: null, scene: null }, parent: SERIES,
 };
 const EPISODE: ResolvedMedia = {
   ...SERIES, kind: 'episode', providerRef: 'tmdb:tv:r1:2:4', title: 'Down', sortTitle: 'down',
@@ -29,7 +29,7 @@ const EPISODE: ResolvedMedia = {
   // (2020-03-01). Adding it here so the media row matches what the test --
   // and persistResolved's actual column -- expect.
   releaseDate: '2020-03-01',
-  details: { movie: null, series: null, season: null, episode: { seasonNumber: 2, episodeNumber: 4, airDate: '2020-03-01' } },
+  details: { movie: null, series: null, season: null, episode: { seasonNumber: 2, episodeNumber: 4, airDate: '2020-03-01' }, scene: null },
   parent: SEASON,
   people: [
     { providerRef: 'tmdb:person:r1', name: 'Reed Director', role: 'director', characterName: null, billingOrder: null, raw: {} },

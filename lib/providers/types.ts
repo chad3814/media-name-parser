@@ -40,6 +40,12 @@ export interface ResolvedDetails {
     readonly episodeNumber: number;
     readonly airDate: string | null;
   } | null;
+  /** Field names track the `scene_details` columns they are written to. */
+  readonly scene: {
+    readonly siteName: string | null;
+    readonly durationSeconds: number | null;
+    readonly releasedOn: string | null;
+  } | null;
 }
 
 /**
