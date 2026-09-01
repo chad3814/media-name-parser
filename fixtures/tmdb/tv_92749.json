@@ -38,8 +38,8 @@
     "id": 3453975,
     "name": "Gods and Monsters",
     "overview": "With Layla tracking down Harrow, Marc, Steven, and Khonshu must return to Cairo to stop Ammit as she looks to threaten humanity once more.",
-    "vote_average": 7.56,
-    "vote_count": 109,
+    "vote_average": 7.545,
+    "vote_count": 110,
     "air_date": "2022-05-04",
     "episode_number": 6,
     "episode_type": "finale",
@@ -67,7 +67,7 @@
   "original_language": "en",
   "original_name": "Moon Knight",
   "overview": "When Steven Grant, a mild-mannered gift-shop employee, becomes plagued with blackouts and memories of another life, he discovers he has dissociative identity disorder and shares a body with mercenary Marc Spector. As Steven/Marc’s enemies converge upon them, they must navigate their complex identities while thrust into a deadly mystery among the powerful gods of Egypt.",
-  "popularity": 24.1274,
+  "popularity": 27.2051,
   "poster_path": "/x6FsYvt33846IQnDSFxla9j0RX8.jpg",
   "production_companies": [
     {
@@ -98,7 +98,7 @@
       "overview": "",
       "poster_path": "/zPFm8ZbvdzoViRHnLi8cH7TBS1B.jpg",
       "season_number": 1,
-      "vote_average": 7.7
+      "vote_average": 7.6
     }
   ],
   "softcore": false,
@@ -112,6 +112,6 @@
   "status": "Ended",
   "tagline": "Embrace the chaos.",
   "type": "Miniseries",
-  "vote_average": 7.634,
-  "vote_count": 3654
+  "vote_average": 7.633,
+  "vote_count": 3664
 }

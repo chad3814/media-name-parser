@@ -1,0 +1,69 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "adult": false,
+      "backdrop_path": "/gNdLJU9TxrpGx4dkZidjys3fyy0.jpg",
+      "genre_ids": [
+        878,
+        18
+      ],
+      "id": 335984,
+      "title": "Blade Runner 2049",
+      "original_language": "en",
+      "original_title": "Blade Runner 2049",
+      "overview": "Thirty years after the events of the first film, a new blade runner, LAPD Officer K, unearths a long-buried secret that has the potential to plunge what's left of society into chaos. K's discovery leads him on a quest to find Rick Deckard, a former LAPD blade runner who has been missing for 30 years.",
+      "popularity": 29.6453,
+      "poster_path": "/gajva2L0rPYkEWjzgFlBXCAVBE5.jpg",
+      "release_date": "2017-10-04",
+      "softcore": false,
+      "video": false,
+      "vote_average": 7.604,
+      "vote_count": 15592
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/pMYSFleKKpLGhIbTiqd3o5r96jo.jpg",
+      "genre_ids": [
+        878,
+        53
+      ],
+      "id": 473072,
+      "title": "2036: Nexus Dawn",
+      "original_language": "en",
+      "original_title": "2036: Nexus Dawn",
+      "overview": "This in-world short film takes place in the year 2036 and revolves around Jared Leto’s character, Niander Wallace. In this short, Wallace introduces a new line of “perfected” replicants called the Nexus 9, seeking to get the prohibition on replicants repealed. This no doubt has serious ramifications that will be crucial to the plot of Blade Runner 2049.",
+      "popularity": 2.1571,
+      "poster_path": "/qPci3811kFmPPEevGrnjeKWokD4.jpg",
+      "release_date": "2017-08-30",
+      "softcore": false,
+      "video": false,
+      "vote_average": 6.856,
+      "vote_count": 423
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/gps88CAZeTTuorh66xwMXg0lBG4.jpg",
+      "genre_ids": [
+        878,
+        53,
+        28,
+        18
+      ],
+      "id": 475759,
+      "title": "2048: Nowhere to Run",
+      "original_language": "en",
+      "original_title": "2048: Nowhere to Run",
+      "overview": "“2048: Nowhere to Run” takes place one year before the events of Blade Runner 2049. The short film focuses on Sapper, a man who is trying to make it through life day-by-day without turning back to his old ways. We’re introduced to both the gentle nature of Sapper and the violence he’s capable of when set off.",
+      "popularity": 2.1777,
+      "poster_path": "/l8JKbUCIe4y1LujxMMjbxG6ueH.jpg",
+      "release_date": "2017-09-14",
+      "softcore": false,
+      "video": false,
+      "vote_average": 6.776,
+      "vote_count": 380
+    }
+  ],
+  "total_pages": 1,
+  "total_results": 3
+}

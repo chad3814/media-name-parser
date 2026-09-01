@@ -48,6 +48,33 @@ function searchYear(parsed: ParsedVideo): number | undefined {
   return undefined;
 }
 
+/**
+ * The same parse, reading its trailing year as part of the title.
+ *
+ * `Blade Runner 2049` splits into the title `Blade Runner` and the year 2049,
+ * which is a reasonable reading of the characters and the wrong reading of the
+ * film. The filename cannot settle it -- `Some Movie 2012` has the identical
+ * shape -- but the provider's catalogue can, and only it can: no bound on
+ * plausible release years distinguishes the two, and a bound read off the
+ * clock would make the parser non-deterministic.
+ *
+ * So the question is asked rather than guessed. A year-filtered search that
+ * matches nothing at all is the evidence: 2049 returns zero films, while the
+ * rejoined title returns `Blade Runner 2049` first. Clearing the year matters
+ * as much as joining it -- `scoreCandidate` docks 0.35 for a year gap over
+ * one, which is enough to keep the 1982 original ahead of the 2017 sequel.
+ *
+ * Only a year the name itself carried is folded back. A `(2019)` directory
+ * hint is a human's filing decision, not a token that might be a title word.
+ */
+function yearReadAsTitle<T extends ParsedVideo>(parsed: T): T | null {
+  // Generic so it preserves whatever narrowing the caller already has: the tv
+  // path has excluded `scene` before this runs, and returning the whole union
+  // would hand that back.
+  if (parsed.year === null) return null;
+  return { ...parsed, title: `${parsed.title} ${parsed.year}`, year: null };
+}
+
 async function resolveMovie(
   client: TmdbClient, parsed: ParsedVideo, ctx: ResolveContext,
 ): Promise<ResolveOutcome | null> {
@@ -56,7 +83,21 @@ async function resolveMovie(
     primary_release_year: searchYear(parsed),
   }, tmdbMovieSearch, ctx);
   if (search === null) return null;
-  const best = pickBest(parsed, search.results, movieCandidate);
+
+  let effective = parsed;
+  let results = search.results;
+  const rejoined = results.length === 0 ? yearReadAsTitle(parsed) : null;
+  if (rejoined !== null) {
+    const retry = await client.get(
+      '/search/movie', { query: rejoined.title }, tmdbMovieSearch, ctx,
+    );
+    if (retry !== null && retry.results.length > 0) {
+      effective = rejoined;
+      results = retry.results;
+    }
+  }
+
+  const best = pickBest(effective, results, movieCandidate);
   if (best === null) return null;
   const details = await client.get(
     `/movie/${best.item.id}`, { append_to_response: 'credits' }, tmdbMovieDetails, ctx,
@@ -94,7 +135,20 @@ async function resolveTv(
     first_air_date_year: searchYear(parsed),
   }, tmdbTvSearch, ctx);
   if (search === null) return null;
-  const best = pickBest(parsed, search.results, tvCandidate);
+
+  // The same reading applies to a series whose title ends in a number.
+  let effective = parsed;
+  let results = search.results;
+  const rejoined = results.length === 0 ? yearReadAsTitle(parsed) : null;
+  if (rejoined !== null) {
+    const retry = await client.get('/search/tv', { query: rejoined.title }, tmdbTvSearch, ctx);
+    if (retry !== null && retry.results.length > 0) {
+      effective = rejoined;
+      results = retry.results;
+    }
+  }
+
+  const best = pickBest(effective, results, tvCandidate);
   if (best === null) return null;
 
   const details = await client.get(`/tv/${best.item.id}`, {}, tmdbTvDetails, ctx);

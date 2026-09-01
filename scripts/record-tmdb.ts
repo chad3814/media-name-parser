@@ -48,11 +48,19 @@ const PLAN: readonly (readonly [string, Record<string, string>])[] = [
   // and that is a different request from the bare `Ghosts` search above.
   ['/search/tv', { query: 'Ghosts', first_air_date_year: '2019' }],
 
+  // `Blade Runner 2049` parses as the title `Blade Runner` and the year 2049,
+  // which is the wrong reading. Both halves of the retry are recorded: the
+  // year-filtered search that matches nothing, and the rejoined title that
+  // finds the film.
+  ['/search/movie', { query: 'Blade Runner', primary_release_year: '2049' }],
+  ['/search/movie', { query: 'Blade Runner 2049' }],
+
   // Details. Ids read out of the recorded searches, not guessed:
   // Outbreak is 6950 (not the 8339 the plan supposed), and the two Ghosts are
   // 126027 (US, 2021) and 17174 (GB, 2019) -- genuinely different series.
   ['/movie/6950', { append_to_response: 'credits' }],
   ['/movie/157336', { append_to_response: 'credits' }],
+  ['/movie/335984', { append_to_response: 'credits' }],
   ['/tv/92749', {}],
   ['/tv/92749/season/1', {}],
   ['/tv/126027', {}],

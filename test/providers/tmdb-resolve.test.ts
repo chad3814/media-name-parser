@@ -158,3 +158,33 @@ test('an aborted context stops before any request', async () => {
   );
   assert.equal(count(), 0);
 });
+
+test('a title ending in a year resolves to the film, not its predecessor', async () => {
+  // `Blade Runner 2049` splits into the title `Blade Runner` and the year
+  // 2049 -- a fair reading of the characters and the wrong film. The filename
+  // cannot settle it, since `Some Movie 2012` has the same shape, so the
+  // provider's catalogue is asked instead: a year-filtered search matching
+  // nothing is the evidence that the number was never a year.
+  const { p, paths } = provider();
+  const out = await p.resolve(parsed('movies', 'Blade Runner 2049.mkv'), ctx);
+  assert.equal(out?.media.title, 'Blade Runner 2049');
+  assert.equal(out?.media.year, 2017, 'the sequel, not the 1982 original');
+  assert.ok(paths.some((path) => path === '/search/movie'), 'it searched');
+  assert.equal(paths.filter((path) => path === '/search/movie').length, 2,
+    'the retry costs one extra search, and only when the first found nothing');
+  // Clearing the year matters as much as rejoining it. Leaving 2049 on the
+  // parse costs 0.35 against a 2017 candidate -- the scorer's penalty for a
+  // year gap over one -- which drops this from 0.73 to 0.38. Same film either
+  // way here, so only the confidence catches it.
+  assert.ok((out?.confidence ?? 0) > 0.7,
+    `the rejoined year must not then be scored against the film: ${String(out?.confidence)}`);
+});
+
+test('a search that finds something is never retried', async () => {
+  // The retry must not double every lookup. `Outbreak.1995` matches on the
+  // first search, so the second must never happen.
+  const { p, paths } = provider();
+  const out = await p.resolve(parsed('movies', 'Outbreak.1995.1080p.BluRay.x264-GRP.mkv'), ctx);
+  assert.equal(out?.media.title, 'Outbreak');
+  assert.equal(paths.filter((path) => path === '/search/movie').length, 1);
+});
