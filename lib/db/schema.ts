@@ -8,6 +8,12 @@ export const mediaKindEnum = pgEnum('media_kind', [
   'movie', 'series', 'season', 'episode', 'book', 'scene',
 ]);
 export const providerEnum = pgEnum('provider', ['tmdb', 'ibdb', 'tpdb']);
+/**
+ * Where an id a filename can carry comes from. Wider than `provider`: imdb and
+ * tvdb are catalogues this service never calls, but whose ids appear in
+ * filenames and which TMDB can translate.
+ */
+export const idSourceEnum = pgEnum('id_source', ['tmdb', 'imdb', 'tvdb', 'tpdb']);
 export const personRoleEnum = pgEnum('person_role', [
   'performer', 'director', 'producer', 'writer', 'author', 'illustrator', 'narrator',
 ]);
@@ -173,6 +179,34 @@ export const sceneDetails = pgTable('scene_details', {
   durationSeconds: integer('duration_seconds'),
   releasedOn: date('released_on'),
 });
+
+/**
+ * Alternate identifiers for a media row, so a filename naming one can be
+ * answered without a provider call.
+ *
+ * `media.provider_ref` already holds the identifier of the provider that
+ * supplied the row (`tmdb:movie:5725`), and a TMDB token is looked up there
+ * rather than duplicated here -- a bare `{tmdb-5725}` has to try both
+ * namespaces either way, since TMDB numbers films and series separately.
+ *
+ * What this table adds is the ids that have nowhere else to live: an imdb or
+ * tvdb id, which TMDB returns but this schema had no place for, and TPDB's
+ * numeric `_id` and slug, which address the same scene as its uuid.
+ *
+ * Keyed on the id itself, because that is the question asked of it: one
+ * external id names one record. A conflict updates the row rather than
+ * failing, so a record moving between ids upstream is absorbed.
+ */
+export const mediaExternalIds = pgTable('media_external_ids', {
+  mediaId: uuid('media_id').notNull().references(() => media.id, { onDelete: 'cascade' }),
+  source: idSourceEnum('source').notNull(),
+  /** As it would appear in a filename token, minus the braces and prefix. */
+  ref: text('ref').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.source, t.ref] }),
+  index('media_external_ids_media_idx').on(t.mediaId),
+]);
 
 export const people = pgTable('people', {
   id: uuid('id').primaryKey().defaultRandom(),

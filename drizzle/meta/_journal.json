@@ -22,6 +22,13 @@
       "when": 1788287155069,
       "tag": "0002_mushy_masked_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788732129490,
+      "tag": "0003_massive_sugar_man",
+      "breakpoints": true
     }
   ]
 }
