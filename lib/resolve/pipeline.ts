@@ -200,7 +200,7 @@ export async function resolveLookup(
     const named = parsed.externalId;
     const storedId = named === undefined
       ? null
-      : await findMediaByExternalId(tx, named);
+      : await findMediaByExternalId(tx, named, category, parsed.title);
     if (storedId !== null) {
       const lookupId = await writeLookupOutcome(tx, {
         category, name, normalizedKey, mediaId: storedId, confidence: 1, state: 'resolved',

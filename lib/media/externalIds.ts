@@ -1,6 +1,8 @@
 import { sql } from 'drizzle-orm';
 import type { Tx } from '../db/client';
 import type { ExternalId } from '../parse/ids';
+import type { Category } from '../parse/types';
+import { titleSimilarity } from '../resolve/confidence';
 
 /**
  * Finding a stored record from an id a filename carried.
@@ -15,20 +17,52 @@ import type { ExternalId } from '../parse/ids';
  * rather than duplicated. Everything else lives in `media_external_ids`.
  */
 
-export async function findMediaByExternalId(tx: Tx, named: ExternalId): Promise<string | null> {
+/** The `provider_ref` namespace a declared category fixes, or null. */
+function namespaceFor(category: Category): 'movie' | 'tv' | null {
+  if (category === 'movies') return 'movie';
+  if (category === 'tv') return 'tv';
+  return null;
+}
+
+/**
+ * How much a stored title must agree before a cross-namespace id is believed.
+ * Same bar the provider path uses for the same question.
+ */
+const CORROBORATION = 0.8;
+
+export async function findMediaByExternalId(
+  tx: Tx, named: ExternalId, category: Category, title: string,
+): Promise<string | null> {
   if (named.source === 'tmdb') {
-    // TMDB numbers films and series separately and both spaces are populated:
-    // 5725 is the film `Supervixens` and the series `Project Catwalk`. Two
-    // hits mean the id alone cannot say which, so this declines rather than
-    // guessing and the caller corroborates against the provider.
-    // Both forms bound as parameters. The id came from a filename, so it is
-    // caller-controlled text and never belongs in the statement itself.
+    // The declared category IS the namespace when there is one. TMDB numbers
+    // films and series separately -- 5725 is the film `Supervixens` and the
+    // series `Project Catwalk` -- but a `movies` lookup has already said which
+    // of those it means, so there is nothing to decline.
+    const namespace = namespaceFor(category);
+    if (namespace !== null) {
+      const row = await tx.execute(sql`
+        SELECT id FROM media
+         WHERE provider = 'tmdb' AND provider_ref = ${`tmdb:${namespace}:${named.id}`}`);
+      const only = row.rows[0];
+      return only === undefined ? null : String(only.id);
+    }
+
+    // No namespace: the caller filed this under a category TMDB does not
+    // serve, so the id alone cannot say film or series. The stored title
+    // settles it without a provider call -- `tmdb:movie:5725` is titled
+    // `Supervixens` and so is the filename. Bound as parameters because the id
+    // came out of a filename.
     const rows = await tx.execute(sql`
-      SELECT id FROM media
+      SELECT id, title FROM media
        WHERE provider = 'tmdb'
          AND provider_ref IN (${`tmdb:movie:${named.id}`}, ${`tmdb:tv:${named.id}`})`);
-    if (rows.rows.length !== 1) return null;
-    const only = rows.rows[0];
+    const agreeing = rows.rows.filter(
+      (row) => titleSimilarity(title, String(row.title)) >= CORROBORATION,
+    );
+    // Two agreeing titles is a genuine tie, and a guess reported at confidence
+    // 1 is the worst answer available.
+    if (agreeing.length !== 1) return null;
+    const only = agreeing[0];
     return only === undefined ? null : String(only.id);
   }
 
@@ -41,6 +75,8 @@ export async function findMediaByExternalId(tx: Tx, named: ExternalId): Promise<
     if (hit !== undefined) return String(hit.id);
   }
 
+  // imdb and tvdb ids are globally unique within their own catalogue, so the
+  // side table answers them outright with no namespace to resolve.
   const rows = await tx.execute(sql`
     SELECT media_id FROM media_external_ids
      WHERE source = ${named.source}::id_source AND ref = ${named.id}`);
