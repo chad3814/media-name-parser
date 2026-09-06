@@ -1,4 +1,5 @@
 import type { Category, ParsedVideo } from '../parse/types';
+import type { ExternalId } from '../parse/ids';
 
 /** What a jsonb column accepts. Used for the stored `raw` payloads. */
 export type JsonValue =
@@ -69,6 +70,15 @@ export interface ResolvedMedia {
   readonly raw: JsonValue;
   readonly details: ResolvedDetails;
   readonly people: readonly ResolvedPerson[];
+  /**
+   * Other ids naming this same record, for `media_external_ids`.
+   *
+   * Every one of these is already in the response the provider sent, so
+   * recording them costs nothing: a movie's `imdb_id`, a series' external ids,
+   * a scene's numeric id and slug. They are what lets a later filename naming
+   * any of them be answered without a call.
+   */
+  readonly externalIds: readonly ExternalId[];
   readonly parent: ResolvedMedia | null;
 }
 

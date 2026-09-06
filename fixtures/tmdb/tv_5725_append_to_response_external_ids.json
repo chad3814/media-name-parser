@@ -100,5 +100,16 @@
   "tagline": "",
   "type": "Reality",
   "vote_average": 9,
-  "vote_count": 3
+  "vote_count": 3,
+  "external_ids": {
+    "imdb_id": "tt0467157",
+    "freebase_mid": "/m/0bpb6h",
+    "freebase_id": "/en/project_catwalk",
+    "tvdb_id": 79265,
+    "tvrage_id": 7078,
+    "wikidata_id": "Q7249028",
+    "facebook_id": null,
+    "instagram_id": null,
+    "twitter_id": null
+  }
 }

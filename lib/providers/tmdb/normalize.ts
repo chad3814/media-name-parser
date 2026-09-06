@@ -1,3 +1,4 @@
+import type { ExternalId } from '../../parse/ids';
 import type {
   JsonValue, PersonRole, ResolvedMedia, ResolvedPerson,
 } from '../types';
@@ -97,6 +98,23 @@ function peopleFrom(cast: readonly RawCast[], crew: readonly RawCrew[]): readonl
   return out;
 }
 
+/** Ids a TMDB payload already carries, so recording them costs no call. */
+function idsFromMovie(details: TmdbMovieDetails): readonly ExternalId[] {
+  const imdb = details.imdb_id;
+  return imdb === null || imdb === undefined || imdb.length === 0
+    ? []
+    : [{ source: 'imdb', id: imdb }];
+}
+
+function idsFromSeries(details: TmdbTvDetails): readonly ExternalId[] {
+  const out: ExternalId[] = [];
+  const imdb = details.external_ids?.imdb_id;
+  if (imdb !== null && imdb !== undefined && imdb.length > 0) out.push({ source: 'imdb', id: imdb });
+  const tvdb = details.external_ids?.tvdb_id;
+  if (tvdb !== null && tvdb !== undefined) out.push({ source: 'tvdb', id: String(tvdb) });
+  return out;
+}
+
 export function normalizeMovie(details: TmdbMovieDetails): ResolvedMedia {
   const releaseDate = dateOrNull(details.release_date);
   return {
@@ -121,6 +139,7 @@ export function normalizeMovie(details: TmdbMovieDetails): ResolvedMedia {
       series: null, season: null, episode: null, scene: null,
     },
     people: peopleFrom(details.credits?.cast ?? [], details.credits?.crew ?? []),
+    externalIds: idsFromMovie(details),
     parent: null,
   };
 }
@@ -149,6 +168,7 @@ export function normalizeSeries(details: TmdbTvDetails): ResolvedMedia {
       season: null, episode: null, scene: null,
     },
     people: [],
+    externalIds: idsFromSeries(details),
     parent: null,
   };
 }
@@ -182,6 +202,7 @@ export function normalizeSeason(series: ResolvedMedia, season: TmdbSeasonDetails
       scene: null,
     },
     people: [],
+    externalIds: [],
     parent: series,
   };
 }
@@ -216,6 +237,7 @@ export function normalizeEpisode(season: ResolvedMedia, episode: TmdbEpisode): R
     // The season payload already carries per-episode crew and guest stars,
     // which is why episode resolution needs no separate credits call.
     people: peopleFrom(episode.guest_stars, episode.crew),
+    externalIds: [],
     parent: season,
   };
 }

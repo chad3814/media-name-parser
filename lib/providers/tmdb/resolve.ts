@@ -186,7 +186,7 @@ async function resolveTv(
   const namedId = await tmdbIdFor(client, parsed, 'tv', ctx);
   const namedDetails = namedId === null
     ? null
-    : await client.get(`/tv/${namedId}`, {}, tmdbTvDetails, ctx);
+    : await client.get(`/tv/${namedId}`, { append_to_response: 'external_ids' }, tmdbTvDetails, ctx);
 
   const search = namedDetails !== null ? null : await client.get('/search/tv', {
     query: parsed.title,
@@ -214,7 +214,7 @@ async function resolveTv(
 
   const details = namedDetails ?? (searched === null
     ? null
-    : await client.get(`/tv/${searched.id}`, {}, tmdbTvDetails, ctx));
+    : await client.get(`/tv/${searched.id}`, { append_to_response: 'external_ids' }, tmdbTvDetails, ctx));
   if (details === null) return null;
   const seriesId = searched?.id ?? namedId;
   if (seriesId === null) return null;
@@ -327,7 +327,7 @@ async function resolveAcrossNamespaces(
   if (asMovie !== null && titleSimilarity(parsed.title, asMovie.title) >= CORROBORATION) {
     return { media: normalizeMovie(asMovie), confidence: 1 };
   }
-  const asSeries = await client.get(`/tv/${id}`, {}, tmdbTvDetails, ctx);
+  const asSeries = await client.get(`/tv/${id}`, { append_to_response: 'external_ids' }, tmdbTvDetails, ctx);
   if (asSeries !== null && titleSimilarity(parsed.title, asSeries.name) >= CORROBORATION) {
     return { media: normalizeSeries(asSeries), confidence: 1 };
   }
@@ -346,7 +346,7 @@ async function detailsForMovie(
 async function detailsForSeries(
   client: TmdbClient, id: number, ctx: ResolveContext,
 ): Promise<ResolveOutcome | null> {
-  const details = await client.get(`/tv/${id}`, {}, tmdbTvDetails, ctx);
+  const details = await client.get(`/tv/${id}`, { append_to_response: 'external_ids' }, tmdbTvDetails, ctx);
   return details === null ? null : { media: normalizeSeries(details), confidence: 1 };
 }
 

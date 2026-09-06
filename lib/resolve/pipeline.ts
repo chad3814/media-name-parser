@@ -5,6 +5,7 @@ import type { Category, ParsedVideo } from '../parse/types';
 import type { JsonValue, Provider, ProviderCallRecord } from '../providers/types';
 import { ProviderAuthFailed } from '../providers/errors';
 import { providerForIdSource } from '../providers/routing';
+import { findMediaByExternalId } from '../media/externalIds';
 import { CONFIDENCE_FLOOR } from './confidence';
 import { persistResolved, recordProviderCalls } from './persist';
 import {
@@ -184,6 +185,27 @@ export async function resolveLookup(
     const recheck = decide(current, deps.now(), CONFIDENCE_FLOOR);
     if (current !== null && (recheck.kind === 'fresh' || (recheck.kind === 'cooling' && !force))) {
       return { kind: 'yield' as const, row: current, cooling: recheck.kind === 'cooling' };
+    }
+
+    // An id names a record, so it can address the cache directly -- the one
+    // thing a title cannot do. Without this, a new filename for a record
+    // already stored misses the lookup cache on its name and the sibling check
+    // on its normalized key, and spends a provider call rediscovering a row
+    // that was already there.
+    //
+    // Confidence 1 because nothing was matched: the filename named this record
+    // and the record is present. A bare TMDB id whose number exists in both
+    // namespaces returns null from here rather than guessing, and the provider
+    // path corroborates it instead.
+    const named = parsed.externalId;
+    const storedId = named === undefined
+      ? null
+      : await findMediaByExternalId(tx, named);
+    if (storedId !== null) {
+      const lookupId = await writeLookupOutcome(tx, {
+        category, name, normalizedKey, mediaId: storedId, confidence: 1, state: 'resolved',
+      });
+      return { kind: 'adopted' as const, lookupId, sibling: { mediaId: storedId, confidence: 1 } };
     }
 
     const sibling = await findResolvedSibling(tx, category, normalizedKey, current?.id ?? null);

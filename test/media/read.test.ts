@@ -15,7 +15,7 @@ const SERIES: ResolvedMedia = {
   category: 'tv', kind: 'series', provider: 'tmdb', providerRef: 'tmdb:tv:r1',
   title: 'Read Show', sortTitle: 'read show', originalTitle: null,
   releaseDate: '2020-01-01', year: 2020, overview: 'A show.',
-  raw: {}, people: [], parent: null,
+  raw: {}, people: [], parent: null, externalIds: [],
   details: { movie: null, series: { firstAirDate: '2020-01-01', lastAirDate: null, status: 'Ended' }, season: null, episode: null, scene: null },
 };
 const SEASON: ResolvedMedia = {

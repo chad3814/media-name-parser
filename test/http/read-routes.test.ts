@@ -16,7 +16,7 @@ after(async () => { if (hasDb) await closeDb(); });
 const MOVIE: ResolvedMedia = {
   category: 'movies', kind: 'movie', provider: 'tmdb', providerRef: 'tmdb:movie:r9',
   title: 'Route Film', sortTitle: 'route film', originalTitle: null,
-  releaseDate: '2001-01-01', year: 2001, overview: null, raw: {}, people: [], parent: null,
+  releaseDate: '2001-01-01', year: 2001, overview: null, raw: {}, people: [], parent: null, externalIds: [],
   details: { movie: { runtimeMinutes: 90, imdbId: 'tt9', tagline: null, collectionName: null }, series: null, season: null, episode: null, scene: null },
 };
 

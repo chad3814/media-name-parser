@@ -243,3 +243,32 @@ test('a caller signal that is already aborted is honoured, not ignored', opts, a
   assert.equal(got.state, 'pending');
   await cleanup('ptestj');
 });
+
+test('an id for a record already stored costs no provider call', opts, async () => {
+  // The one thing an id can do that a title cannot: address the cache
+  // directly. A new filename for a stored record misses the lookup cache on
+  // its name and the sibling check on its normalized key, so before this it
+  // spent a call rediscovering a row that was already there.
+  await cleanup('ptestid');
+  try {
+    const count = { n: 0 };
+    const first = await resolveLookup(
+      { category: 'movies', name: 'ptestid/Outbreak.1995.1080p.BluRay-GRP.nzb' }, deps(tmdb(count)),
+    );
+    assert.equal(first.state, 'resolved');
+    const spentFirst = count.n;
+    assert.ok(spentFirst > 0, 'the first lookup pays for the record');
+
+    // A different filename for the same record, naming it by id.
+    const second = { n: 0 };
+    const byId = await resolveLookup(
+      { category: 'movies', name: 'ptestid/Renamed Entirely {tmdb-6950}.mkv' }, deps(tmdb(second)),
+    );
+    assert.equal(byId.state, 'resolved');
+    assert.equal(byId.mediaId, first.mediaId, 'the same stored record, found by its id');
+    assert.equal(byId.confidence, 1, 'nothing was matched, so nothing is uncertain');
+    assert.equal(second.n, 0, `an id hit must spend nothing, spent ${String(second.n)}`);
+  } finally {
+    await cleanup('ptestid');
+  }
+});

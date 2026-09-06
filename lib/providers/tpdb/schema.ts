@@ -34,6 +34,10 @@ const siteSchema = z.object({
 
 export const sceneSchema = z.object({
   id: z.string(),
+  /** The numeric form of `id`. `/scenes/{n}` accepts it, so a filename may name it. */
+  _id: z.number().nullish(),
+  /** Also accepted by `/scenes/{slug}`. */
+  slug: z.string().nullish(),
   title: z.string(),
   date: z.string().nullish(),
   /** Seconds, verified against a live 25-scene sample (min 1920, median 2340, max 3060). */

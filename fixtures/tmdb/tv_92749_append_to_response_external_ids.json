@@ -38,8 +38,8 @@
     "id": 3453975,
     "name": "Gods and Monsters",
     "overview": "With Layla tracking down Harrow, Marc, Steven, and Khonshu must return to Cairo to stop Ammit as she looks to threaten humanity once more.",
-    "vote_average": 7.545,
-    "vote_count": 110,
+    "vote_average": 7.541,
+    "vote_count": 111,
     "air_date": "2022-05-04",
     "episode_number": 6,
     "episode_type": "finale",
@@ -113,5 +113,16 @@
   "tagline": "Embrace the chaos.",
   "type": "Miniseries",
   "vote_average": 7.635,
-  "vote_count": 3675
+  "vote_count": 3676,
+  "external_ids": {
+    "imdb_id": "tt10234724",
+    "freebase_mid": null,
+    "freebase_id": null,
+    "tvdb_id": 368611,
+    "tvrage_id": null,
+    "wikidata_id": "Q84712802",
+    "facebook_id": "moonknight",
+    "instagram_id": "themoonknight",
+    "twitter_id": "moonknight"
+  }
 }

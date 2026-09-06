@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { Tx } from '../db/client';
+import { rememberExternalIds } from '../media/externalIds';
 import type {
   ProviderCallRecord, ProviderName, ResolvedMedia, ResolvedPerson,
 } from '../providers/types';
@@ -54,6 +55,8 @@ export async function persistResolved(tx: Tx, resolved: ResolvedMedia): Promise<
 }
 
 async function persistDetails(tx: Tx, mediaId: string, resolved: ResolvedMedia): Promise<void> {
+  await rememberExternalIds(tx, mediaId, resolved.externalIds);
+
   const { movie, series, season, episode, scene } = resolved.details;
   if (movie !== null) {
     await tx.execute(sql`

@@ -125,6 +125,14 @@ function normalizeScene(scene: TpdbScene): ResolvedMedia {
     kind: 'scene',
     provider: 'tpdb',
     providerRef: scene.id,
+    // Both already in the response, and `/scenes/{id}` accepts either, so a
+    // filename may name the numeric form or the slug rather than the uuid.
+    externalIds: [
+      ...(scene._id === null || scene._id === undefined
+        ? [] : [{ source: 'tpdb' as const, id: String(scene._id) }]),
+      ...(scene.slug === null || scene.slug === undefined || scene.slug.length === 0
+        ? [] : [{ source: 'tpdb' as const, id: scene.slug }]),
+    ],
     title: scene.title,
     sortTitle: sortTitleOf(scene.title),
     originalTitle: null,

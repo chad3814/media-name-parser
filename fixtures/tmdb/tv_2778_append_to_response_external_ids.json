@@ -607,5 +607,16 @@
   "tagline": "",
   "type": "Reality",
   "vote_average": 6.889,
-  "vote_count": 81
+  "vote_count": 81,
+  "external_ids": {
+    "imdb_id": "tt0072584",
+    "freebase_mid": "/m/0bppm",
+    "freebase_id": "/en/wheel_of_fortune",
+    "tvdb_id": 76573,
+    "tvrage_id": null,
+    "wikidata_id": "Q3567653",
+    "facebook_id": null,
+    "instagram_id": null,
+    "twitter_id": null
+  }
 }

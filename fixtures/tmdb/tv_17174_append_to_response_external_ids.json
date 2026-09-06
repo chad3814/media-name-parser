@@ -199,5 +199,16 @@
   "tagline": "It's a live-in nightmare.",
   "type": "Scripted",
   "vote_average": 7.923,
-  "vote_count": 259
+  "vote_count": 259,
+  "external_ids": {
+    "imdb_id": "tt8594324",
+    "freebase_mid": "",
+    "freebase_id": null,
+    "tvdb_id": 361701,
+    "tvrage_id": null,
+    "wikidata_id": "Q63438775",
+    "facebook_id": null,
+    "instagram_id": null,
+    "twitter_id": null
+  }
 }

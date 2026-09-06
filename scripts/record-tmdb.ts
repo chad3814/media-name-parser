@@ -66,8 +66,8 @@ const PLAN: readonly (readonly [string, Record<string, string>])[] = [
   // Catwalk`; 603 is `The Matrix` and `Veronica's Closet`. Both sides of both
   // ids are recorded so the corroboration guard can be tested offline.
   ['/movie/5725', { append_to_response: 'credits' }],
-  ['/tv/5725', {}],
-  ['/tv/603', {}],
+  ['/tv/5725', { append_to_response: 'external_ids' }],
+  ['/tv/603', { append_to_response: 'external_ids' }],
 
   // Details. Ids read out of the recorded searches, not guessed:
   // Outbreak is 6950 (not the 8339 the plan supposed), and the two Ghosts are
@@ -75,13 +75,13 @@ const PLAN: readonly (readonly [string, Record<string, string>])[] = [
   ['/movie/6950', { append_to_response: 'credits' }],
   ['/movie/157336', { append_to_response: 'credits' }],
   ['/movie/335984', { append_to_response: 'credits' }],
-  ['/tv/92749', {}],
+  ['/tv/92749', { append_to_response: 'external_ids' }],
   ['/tv/92749/season/1', {}],
-  ['/tv/126027', {}],
+  ['/tv/126027', { append_to_response: 'external_ids' }],
   ['/tv/126027/season/5', {}],
-  ['/tv/17174', {}],
+  ['/tv/17174', { append_to_response: 'external_ids' }],
   ['/tv/17174/season/1', {}],
-  ['/tv/2778', {}],
+  ['/tv/2778', { append_to_response: 'external_ids' }],
   ['/tv/2778/season/43', {}],
 ];
 

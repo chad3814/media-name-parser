@@ -85,6 +85,11 @@ export const tmdbTvDetails = z.object({
   origin_country: z.array(z.string()).default([]),
   number_of_seasons: z.number().nullish(),
   seasons: z.array(tmdbSeasonSummary).default([]),
+  /** Present when the request asked for `append_to_response=external_ids`. */
+  external_ids: z.object({
+    imdb_id: z.string().nullish(),
+    tvdb_id: z.number().nullish(),
+  }).nullish(),
 });
 
 export const tmdbEpisode = z.object({

@@ -135,5 +135,16 @@
   "tagline": "",
   "type": "Scripted",
   "vote_average": 5.375,
-  "vote_count": 16
+  "vote_count": 16,
+  "external_ids": {
+    "imdb_id": "tt0118506",
+    "freebase_mid": "/m/052b3s",
+    "freebase_id": "/en/veronicas_closet",
+    "tvdb_id": 77013,
+    "tvrage_id": 6505,
+    "wikidata_id": "Q928149",
+    "facebook_id": null,
+    "instagram_id": null,
+    "twitter_id": null
+  }
 }

@@ -205,5 +205,16 @@
   "tagline": "Dead people are just like you and me, they still want things.",
   "type": "Scripted",
   "vote_average": 8.1,
-  "vote_count": 460
+  "vote_count": 460,
+  "external_ids": {
+    "imdb_id": "tt11379026",
+    "freebase_mid": null,
+    "freebase_id": null,
+    "tvdb_id": 400267,
+    "tvrage_id": null,
+    "wikidata_id": "Q107122133",
+    "facebook_id": "GhostsCBS",
+    "instagram_id": "ghostscbs",
+    "twitter_id": "GhostsCBS"
+  }
 }

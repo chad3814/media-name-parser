@@ -14,7 +14,7 @@ const SERIES: ResolvedMedia = {
   category: 'tv', kind: 'series', provider: 'tmdb', providerRef: 'tmdb:tv:t1',
   title: 'Test Show', sortTitle: 'test show', originalTitle: null,
   releaseDate: '2020-01-01', year: 2020, overview: null,
-  raw: { probe: true }, people: [], parent: null,
+  raw: { probe: true }, people: [], parent: null, externalIds: [],
   details: { movie: null, series: { firstAirDate: '2020-01-01', lastAirDate: null, status: 'Ended' }, season: null, episode: null, scene: null },
 };
 const SEASON: ResolvedMedia = {
@@ -130,7 +130,7 @@ test('a movie writes movie_details and no parent', opts, async () => {
     const id = await persistResolved(tx, {
       category: 'movies', kind: 'movie', provider: 'tmdb', providerRef: 'tmdb:movie:t9',
       title: 'Test Film', sortTitle: 'test film', originalTitle: null,
-      releaseDate: '1999-01-01', year: 1999, overview: null, raw: {}, people: [], parent: null,
+      releaseDate: '1999-01-01', year: 1999, overview: null, raw: {}, people: [], parent: null, externalIds: [],
       details: { movie: { runtimeMinutes: 100, imdbId: 'tt1', tagline: null, collectionName: null }, series: null, season: null, episode: null, scene: null },
     });
     const row = await tx.execute(sql`SELECT parent_id FROM media WHERE id = ${id}::uuid`);
@@ -150,6 +150,7 @@ test('a scene writes scene_details, its performers, and no parent', opts, async 
       category: 'xxx', kind: 'scene', provider: 'tpdb', providerRef: 'tpdb:scene:t7',
       title: 'Two Girl Knockout', sortTitle: 'two girl knockout', originalTitle: null,
       releaseDate: '2022-07-07', year: 2022, overview: 'A scene.', raw: { probe: true },
+      externalIds: [],
       parent: null,
       details: {
         movie: null, series: null, season: null, episode: null,
