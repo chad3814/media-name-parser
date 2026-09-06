@@ -3,6 +3,7 @@ import { tokenize } from './tokens';
 import { findMarker, type Marker } from './markers';
 import { findBoundary, findTitleRegion } from './boundary';
 import { extractQuality, collect, titleFrom } from './extract';
+import { extractExternalId } from './ids';
 import { parseScene } from './scene';
 import type { Category, ParseHints, ParseResult, Quality } from './types';
 
@@ -87,11 +88,20 @@ export function parseVideo(category: Category, input: string): ParseResult {
   // The gate above stays shared so `parseScene` never re-implements refusal
   // logic; everything below it is movies/tv-specific structure that a scene
   // name does not have (no marker grammar, no year-shaped release group).
-  if (category === 'xxx') return parseScene(split);
+  // Lifted before anything structural runs. Left in place it reads as
+  // ordinary text -- `{tmdb-603}` became the release group on a movies lookup
+  // -- and the stem is the only thing stripped, so `normalizeKey` keeps the
+  // token and two ids never share a cache key.
+  const named = extractExternalId(split.stem);
+  const stem = named === null ? split.stem : named.rest;
+  const externalId = named === null ? {} : { externalId: named.id };
+  const cleaned = named === null ? split : { ...split, stem };
 
-  const marker = findMarker(split.stem);
-  const head = marker === null ? split.stem : split.stem.slice(0, marker.start);
-  const tail = marker === null ? '' : split.stem.slice(marker.end);
+  if (category === 'xxx') return parseScene(cleaned, externalId);
+
+  const marker = findMarker(stem);
+  const head = marker === null ? stem : stem.slice(0, marker.start);
+  const tail = marker === null ? '' : stem.slice(marker.end);
 
   const headDisambiguator = DISAMBIGUATOR.exec(head.trim())?.[1] ?? null;
   const headClean = head.replace(DISAMBIGUATOR, ' ');
@@ -120,7 +130,7 @@ export function parseVideo(category: Category, input: string): ParseResult {
   // so only a stem that is *entirely* digits counts as titleless. That is the
   // `Movies/Interstellar (2014)/00136.m2ts` case, a raw Blu-ray stream whose
   // only identity lives in its parent directory.
-  const stemIsAllDigits = /^\d+$/.test(split.stem);
+  const stemIsAllDigits = /^\d+$/.test(stem);
   const basenameTitle = stemIsAllDigits ? '' : rawBasenameTitle;
   const usedDirectories = basenameTitle.length > 0 ? [] : dirs.used;
   const title = basenameTitle.length > 0 ? basenameTitle : dirs.title ?? '';
@@ -143,6 +153,7 @@ export function parseVideo(category: Category, input: string): ParseResult {
   };
 
   const common = {
+    ...externalId,
     title,
     year,
     quality,

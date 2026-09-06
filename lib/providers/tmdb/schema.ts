@@ -115,3 +115,12 @@ export type TmdbTvSearchResult = z.infer<typeof tmdbTvSearchResult>;
 export type TmdbTvDetails = z.infer<typeof tmdbTvDetails>;
 export type TmdbSeasonDetails = z.infer<typeof tmdbSeasonDetails>;
 export type TmdbEpisode = z.infer<typeof tmdbEpisode>;
+
+/**
+ * `/find/{id}` buckets its answer by kind. Only the two this provider serves
+ * are read; the response also carries person, season and episode buckets.
+ */
+export const tmdbFind = z.object({
+  movie_results: z.array(tmdbMovieSearchResult).default([]),
+  tv_results: z.array(tmdbTvSearchResult).default([]),
+});

@@ -50,3 +50,6 @@ export const sceneListSchema = z.object({
 });
 
 export type TpdbScene = z.infer<typeof sceneSchema>;
+
+/** `/scenes/{id}` answers with the scene alone, not a list. */
+export const sceneOneSchema = z.object({ data: sceneSchema });

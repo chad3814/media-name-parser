@@ -3,7 +3,7 @@ import type { Provider, ResolveContext, ResolveOutcome } from '../types';
 import { pickBest, scoreCandidate, type Candidate } from '../../resolve/confidence';
 import type { TmdbClient } from './client';
 import {
-  tmdbMovieDetails, tmdbMovieSearch, tmdbSeasonDetails, tmdbTvDetails, tmdbTvSearch,
+  tmdbFind, tmdbMovieDetails, tmdbMovieSearch, tmdbSeasonDetails, tmdbTvDetails, tmdbTvSearch,
   type TmdbMovieSearchResult, type TmdbTvDetails, type TmdbTvSearchResult,
 } from './schema';
 import { normalizeEpisode, normalizeMovie, normalizeSeason, normalizeSeries } from './normalize';
@@ -75,9 +75,57 @@ function yearReadAsTitle<T extends ParsedVideo>(parsed: T): T | null {
   return { ...parsed, title: `${parsed.title} ${parsed.year}`, year: null };
 }
 
+/** `/find`'s parameter name for each id source the filename can carry. */
+const EXTERNAL_SOURCE: Readonly<Record<string, string>> = {
+  imdb: 'imdb_id',
+  tvdb: 'tvdb_id',
+};
+
+/**
+ * The TMDB id a filename named, directly or by translation.
+ *
+ * `{tmdb-603}` is already a TMDB id. `{imdb-tt0133093}` and `{tvdb-368611}`
+ * are not, but `/find` translates both -- verified: tvdb 368611 comes back as
+ * TMDB 92749, Moon Knight. A `{tpdb-...}` id belongs to a provider this one
+ * does not serve and is ignored here rather than guessed at.
+ *
+ * Null means no usable id, which is not a failure: the caller falls through to
+ * searching by title.
+ */
+async function tmdbIdFor(
+  client: TmdbClient, parsed: ParsedVideo, wanted: 'movie' | 'tv', ctx: ResolveContext,
+): Promise<number | null> {
+  const named = parsed.externalId;
+  if (named === undefined) return null;
+  if (named.source === 'tmdb') {
+    const value = Number.parseInt(named.id, 10);
+    return Number.isNaN(value) ? null : value;
+  }
+  const source = EXTERNAL_SOURCE[named.source];
+  if (source === undefined) return null;
+  const found = await client.get(
+    `/find/${encodeURIComponent(named.id)}`, { external_source: source }, tmdbFind, ctx,
+  );
+  if (found === null) return null;
+  const hit = wanted === 'movie' ? found.movie_results[0] : found.tv_results[0];
+  return hit?.id ?? null;
+}
+
 async function resolveMovie(
   client: TmdbClient, parsed: ParsedVideo, ctx: ResolveContext,
 ): Promise<ResolveOutcome | null> {
+  // An id is an assertion, not a match: no search, no scoring, and a
+  // confidence of 1. A miss here -- a deleted or mistyped id -- falls through
+  // to the title search rather than failing the lookup, because a stale id
+  // beside a good title is the common shape in a hand-edited library.
+  const namedId = await tmdbIdFor(client, parsed, 'movie', ctx);
+  if (namedId !== null) {
+    const named = await client.get(
+      `/movie/${namedId}`, { append_to_response: 'credits' }, tmdbMovieDetails, ctx,
+    );
+    if (named !== null) return { media: normalizeMovie(named), confidence: 1 };
+  }
+
   const search = await client.get('/search/movie', {
     query: parsed.title,
     primary_release_year: searchYear(parsed),
@@ -130,33 +178,52 @@ async function resolveTv(
   // anyway, as a typed no-op, because the union now includes it. A TPDB
   // provider for scenes is a later task.
   if (parsed.kind === 'scene') return null;
-  const search = await client.get('/search/tv', {
+  // A `{tmdb-}` or `{tvdb-}` id on a tv name addresses the SERIES, not an
+  // episode: that is the Plex convention, and the season and episode still
+  // come from the name. So an id replaces the series hunt and nothing else --
+  // the season fetch, the episode match and the existence re-score below all
+  // run exactly as they do for a searched series.
+  const namedId = await tmdbIdFor(client, parsed, 'tv', ctx);
+  const namedDetails = namedId === null
+    ? null
+    : await client.get(`/tv/${namedId}`, {}, tmdbTvDetails, ctx);
+
+  const search = namedDetails !== null ? null : await client.get('/search/tv', {
     query: parsed.title,
     first_air_date_year: searchYear(parsed),
   }, tmdbTvSearch, ctx);
-  if (search === null) return null;
 
-  // The same reading applies to a series whose title ends in a number.
-  let effective = parsed;
-  let results = search.results;
-  const rejoined = results.length === 0 ? yearReadAsTitle(parsed) : null;
-  if (rejoined !== null) {
-    const retry = await client.get('/search/tv', { query: rejoined.title }, tmdbTvSearch, ctx);
-    if (retry !== null && retry.results.length > 0) {
-      effective = rejoined;
-      results = retry.results;
+  // Searched series. Skipped entirely when an id already named one.
+  let searched: { readonly id: number; readonly confidence: number; readonly candidate: Candidate } | null = null;
+  if (namedDetails === null) {
+    if (search === null) return null;
+    let effective = parsed;
+    let results = search.results;
+    const rejoined = results.length === 0 ? yearReadAsTitle(parsed) : null;
+    if (rejoined !== null) {
+      const retry = await client.get('/search/tv', { query: rejoined.title }, tmdbTvSearch, ctx);
+      if (retry !== null && retry.results.length > 0) {
+        effective = rejoined;
+        results = retry.results;
+      }
     }
+    const best = pickBest(effective, results, tvCandidate);
+    if (best === null) return null;
+    searched = { id: best.item.id, confidence: best.confidence, candidate: tvCandidate(best.item) };
   }
 
-  const best = pickBest(effective, results, tvCandidate);
-  if (best === null) return null;
-
-  const details = await client.get(`/tv/${best.item.id}`, {}, tmdbTvDetails, ctx);
+  const details = namedDetails ?? (searched === null
+    ? null
+    : await client.get(`/tv/${searched.id}`, {}, tmdbTvDetails, ctx));
   if (details === null) return null;
+  const seriesId = searched?.id ?? namedId;
+  if (seriesId === null) return null;
   const series = normalizeSeries(details);
-  const chosen = tvCandidate(best.item);
+  // An id needs no re-scoring: it is already certain. `chosen` exists only to
+  // feed the existence re-score, which is a search-path concern.
+  const chosen = searched?.candidate ?? null;
   if (parsed.kind === 'series' || parsed.kind === 'movie') {
-    return { media: series, confidence: best.confidence };
+    return { media: series, confidence: searched?.confidence ?? 1 };
   }
 
   // A year-season (`S2013`) does not name a TMDB season, so fall back to the
@@ -166,7 +233,7 @@ async function resolveTv(
   const seasonNumber = declared ?? seasonFromAirDate(details, airDate) ?? 1;
 
   const season = await client.get(
-    `/tv/${best.item.id}/season/${seasonNumber}`, {}, tmdbSeasonDetails, ctx,
+    `/tv/${seriesId}/season/${seasonNumber}`, {}, tmdbSeasonDetails, ctx,
   );
   // Re-score now that existence is known rather than null.
   //
@@ -182,11 +249,23 @@ async function resolveTv(
       ? e.episode_number === wantedEpisode
       : airDate !== null && e.air_date === airDate
   ));
-  const confidence = scoreCandidate(parsed, {
-    ...chosen,
-    seasonExists,
-    episodeExists: parsed.kind === 'episode' ? episode !== undefined : null,
-  });
+  // An id-named series is not re-scored. The re-score exists to recover a
+  // searched match whose title alone could not clear the floor, using season
+  // and episode existence as extra evidence; there is nothing to recover when
+  // the series was named outright. Scoring it anyway would compare the
+  // filename's title against the canonical one and could sink the very case an
+  // id is for -- a show the library has under a different name.
+  //
+  // The confidence describes whatever is returned below, which is the most
+  // specific record that could be confirmed: the episode if it exists, else
+  // the season, else the series. `media.kind` says which.
+  const confidence = chosen === null
+    ? 1
+    : scoreCandidate(parsed, {
+      ...chosen,
+      seasonExists,
+      episodeExists: parsed.kind === 'episode' ? episode !== undefined : null,
+    });
 
   if (season === null) return { media: series, confidence };
   const normalizedSeason = normalizeSeason(series, season);

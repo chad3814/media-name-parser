@@ -8,7 +8,7 @@ import { logFailure } from '../../http/log';
 import { withTransaction } from '../../db/client';
 import { sortTitleOf } from '../tmdb/normalize';
 import type { TpdbClient } from './client';
-import { sceneListSchema, type TpdbScene } from './schema';
+import { sceneListSchema, sceneOneSchema, type TpdbScene } from './schema';
 import { findSiteId, rememberSite, type RememberedSite } from './sites';
 
 /**
@@ -305,6 +305,25 @@ export function createTpdbProvider(
       // typed no-op rather than a throw, the way the TMDB provider handles the
       // scene arm it cannot serve.
       if (parsed.kind !== 'scene') return null;
+
+      // An id names the scene outright. `/scenes/{id}` accepts the numeric
+      // `_id`, the uuid, and the slug -- all three verified -- so whatever
+      // form the filename carries is passed through as written. A `{tmdb-}` or
+      // `{tvdb-}` id belongs to a provider this one does not serve and is
+      // ignored rather than guessed at.
+      //
+      // A miss falls through to the ordinary strategy rather than failing: a
+      // stale id beside a good site and date should still resolve.
+      const named = parsed.externalId;
+      if (named !== undefined && named.source === 'tpdb') {
+        const one = await client.get(
+          `/scenes/${encodeURIComponent(named.id)}`, {}, sceneOneSchema, ctx,
+        );
+        if (one !== null) {
+          await remember(sites, one.data);
+          return { media: normalizeScene(one.data), confidence: 1 };
+        }
+      }
 
       const { site, releasedOn, title } = parsed;
       // Folded at the seam, as `remember` folds on the way out: `findSiteId`

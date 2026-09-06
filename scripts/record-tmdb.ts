@@ -55,6 +55,12 @@ const PLAN: readonly (readonly [string, Record<string, string>])[] = [
   ['/search/movie', { query: 'Blade Runner', primary_release_year: '2049' }],
   ['/search/movie', { query: 'Blade Runner 2049' }],
 
+  // `{imdb-...}` and `{tvdb-...}` are translated through /find; `{tmdb-...}`
+  // needs no translation and goes straight to the details endpoint.
+  ['/find/tt0133093', { external_source: 'imdb_id' }],
+  ['/find/368611', { external_source: 'tvdb_id' }],
+  ['/movie/603', { append_to_response: 'credits' }],
+
   // Details. Ids read out of the recorded searches, not guessed:
   // Outbreak is 6950 (not the 8339 the plan supposed), and the two Ghosts are
   // 126027 (US, 2021) and 17174 (GB, 2019) -- genuinely different series.

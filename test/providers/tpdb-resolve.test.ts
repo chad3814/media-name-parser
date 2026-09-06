@@ -402,3 +402,35 @@ test('naming the exact site keeps the stronger band, brand or no brand', async (
   ).resolve(parsed('RKPrime.26.07.13.Hooking.Up.XXX.1080p.nzb'), ctx);
   assert.equal(out?.confidence, 0.85, 'a leaf match must not be demoted by the brand fallback');
 });
+
+test('a tpdb id names the scene outright, with no search at all', async () => {
+  // `/scenes/{id}` accepts the numeric `_id`, the uuid and the slug -- all
+  // three verified against the live API -- so the filename's form is passed
+  // through as written rather than normalised into one of them.
+  const calls: Call[] = [];
+  const client = {
+    get: async <T>(path: string, query: Record<string, string | number | undefined>,
+      schema: { parse: (v: unknown) => T }): Promise<T | null> => {
+      calls.push({ path, query });
+      return schema.parse({ data: scene({ title: 'Named By Id' }) });
+    },
+  } as unknown as TpdbClient;
+  const out = await createTpdbProvider(client, siteCache().cache)
+    .resolve(parsed('Whatever.Name {tpdb-2012507}.mp4'), ctx);
+
+  assert.equal(out?.confidence, 1, 'an id is an assertion, not a match');
+  assert.equal(out?.media.title, 'Named By Id');
+  assert.deepEqual(calls.map((c) => c.path), ['/scenes/2012507'],
+    'exactly one call, and no /scenes search');
+});
+
+test('an id belonging to another provider is ignored, not guessed at', async () => {
+  // A `{tmdb-}` token on an xxx name names a record in a catalogue this
+  // provider does not serve. It falls through to the ordinary strategy.
+  const calls: Call[] = [];
+  const client = stubClient(calls, [[scene({ date: '2022-07-07' })]]);
+  const out = await createTpdbProvider(client, siteCache(WARM).cache)
+    .resolve(parsed('SpankMonster.22.07.07.Ruby.Redbottom {tmdb-603}.mp4'), ctx);
+  assert.ok(calls.every((c) => c.path === '/scenes'), `no id fetch: ${calls.map((c) => c.path).join(',')}`);
+  assert.equal(out?.confidence, 0.98, 'the normal site-and-date path ran');
+});

@@ -1,3 +1,5 @@
+import type { ExternalId } from './ids';
+
 export type Category = 'tv' | 'movies' | 'books' | 'xxx';
 
 export const CATEGORIES: readonly Category[] = ['tv', 'movies', 'books', 'xxx'];
@@ -20,6 +22,15 @@ export interface ParseHints {
 }
 
 interface ParsedCommon {
+  /**
+   * A record the filename named outright, via `{tmdb-603}` or `{imdb-tt...}`.
+   *
+   * Optional rather than nullable so it is absent from a parse that has none.
+   * `exactOptionalPropertyTypes` is on, so an absent optional property does
+   * not serialise -- which keeps the 13,000 committed golden expectations
+   * unchanged, since none of those names carry a token.
+   */
+  readonly externalId?: ExternalId;
   readonly title: string;
   readonly year: number | null;
   readonly quality: Quality;

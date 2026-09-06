@@ -3,6 +3,7 @@ import { findBoundary, findTitleRegion } from './boundary';
 import { extractQuality, collect, titleFrom } from './extract';
 import type { ParseHints, ParseResult } from './types';
 import { normalizeSiteName, type SplitInput } from './normalize';
+import type { ExternalId } from './ids';
 
 const DATE = /^(\d{4}|\d{2})[.\-_](\d{2})[.\-_](\d{2})(?![\d])[.\-_ ]?/;
 
@@ -208,7 +209,15 @@ function splitLateSiteHead(
  * canonical performers anyway, so splitting here would be work the caller
  * throws away.
  */
-export function parseScene(split: SplitInput): ParseResult {
+export function parseScene(
+  split: SplitInput,
+  /**
+   * An id the filename named outright, already lifted out of the stem by
+   * `parseVideo`. Spread rather than passed as a nullable field so an absent
+   * id stays absent from the parse -- see `ParsedCommon.externalId`.
+   */
+  externalId: { readonly externalId?: ExternalId } = {},
+): ParseResult {
   const rawTokens = tokenize(split.stem);
   const { tokens, group: trailingGroup } = extractTrailingGroup(rawTokens);
   const located = locateSceneDate(tokens);
@@ -237,7 +246,8 @@ export function parseScene(split: SplitInput): ParseResult {
     return {
       ok: true,
       parsed: {
-        kind: 'scene',
+        ...externalId,
+      kind: 'scene',
         title,
         year: Number.parseInt(located.iso.slice(0, 4), 10),
         quality: extractQuality(junk),
@@ -264,7 +274,8 @@ export function parseScene(split: SplitInput): ParseResult {
     return {
       ok: true,
       parsed: {
-        kind: 'scene',
+        ...externalId,
+      kind: 'scene',
         title,
         year: Number.parseInt(located.iso.slice(0, 4), 10),
         quality: extractQuality(region.junkTokens),
@@ -306,6 +317,7 @@ export function parseScene(split: SplitInput): ParseResult {
   return {
     ok: true,
     parsed: {
+      ...externalId,
       kind: 'scene',
       title,
       year: boundary.year,

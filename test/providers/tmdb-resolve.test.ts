@@ -188,3 +188,63 @@ test('a search that finds something is never retried', async () => {
   assert.equal(out?.media.title, 'Outbreak');
   assert.equal(paths.filter((path) => path === '/search/movie').length, 1);
 });
+
+test('a tmdb id overrides the title entirely', async () => {
+  // The point of an id: the filename's title is wrong and it does not matter.
+  // No search happens at all -- an id is an assertion, not a match.
+  const { p, paths } = provider();
+  const out = await p.resolve(parsed('movies', 'Some Wrong Title (1999) {tmdb-603}.mkv'), ctx);
+  assert.equal(out?.media.title, 'The Matrix');
+  assert.equal(out?.confidence, 1);
+  assert.equal(paths.filter((path) => path.startsWith('/search')).length, 0,
+    'an id must not cost a search');
+});
+
+test('an imdb id is translated through /find', async () => {
+  const { p, paths } = provider();
+  const out = await p.resolve(parsed('movies', 'Wrong Name {imdb-tt0133093}.mkv'), ctx);
+  assert.equal(out?.media.title, 'The Matrix');
+  assert.equal(out?.confidence, 1);
+  assert.ok(paths.some((path) => path.startsWith('/find/')), 'it asked /find to translate');
+});
+
+test('a tvdb id names the series, and the name still supplies the episode', async () => {
+  // Verified against the live API: tvdb 368611 is TMDB 92749, Moon Knight. The
+  // id replaces the series hunt and nothing else -- season and episode come
+  // from the filename exactly as they do for a searched series.
+  const { p } = provider();
+  const out = await p.resolve(parsed('tv', 'Renamed Show - S01E01 {tvdb-368611}.mkv'), ctx);
+  assert.equal(out?.media.kind, 'episode');
+  assert.equal(out?.confidence, 1);
+});
+
+test('an id that resolves to nothing falls back to searching', async () => {
+  // A stale or mistyped id beside a good title is the common shape in a
+  // hand-edited library, and it should still resolve. The 404 is produced for
+  // real rather than recorded: the fixture recorder only keeps 200s, and a
+  // fallback that is never seen to fall back is not tested.
+  const paths: string[] = [];
+  const fixtures = fixtureFetch();
+  const notFound: typeof fetch = async (input, init) => {
+    const url = String(input instanceof Request ? input.url : input);
+    if (url.includes('/movie/99999999')) {
+      return new Response('{"status_message":"not found"}', {
+        status: 404, headers: { 'content-type': 'application/json' },
+      });
+    }
+    return fixtures(input, init);
+  };
+  const client = createTmdbClient({
+    token: 'fixture', fetchImpl: notFound, ratePerSecond: 1000,
+    recordCall: (row) => { paths.push(row.endpoint); },
+  });
+  const out = await createTmdbProvider(client)
+    .resolve(parsed('movies', 'Outbreak.1995.1080p.BluRay.x264-GRP {tmdb-99999999}.mkv'), ctx);
+
+  assert.ok(paths.some((path) => path.startsWith('/movie/99999999')), 'it tried the id first');
+  assert.ok(paths.some((path) => path.startsWith('/search')), 'then fell through to the search');
+  assert.equal(out?.media.title, 'Outbreak', 'the title carried it after the id missed');
+  // Deliberately not asserted on confidence: `Outbreak.1995` is an exact
+  // title with an exact year, so the scored path reaches 1.0 as well. The
+  // call sequence is the only thing that distinguishes the two here.
+});
