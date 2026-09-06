@@ -4,6 +4,7 @@ import { parseVideo } from '../parse/video';
 import type { Category, ParsedVideo } from '../parse/types';
 import type { JsonValue, Provider, ProviderCallRecord } from '../providers/types';
 import { ProviderAuthFailed } from '../providers/errors';
+import { providerForIdSource } from '../providers/routing';
 import { CONFIDENCE_FLOOR } from './confidence';
 import { persistResolved, recordProviderCalls } from './persist';
 import {
@@ -227,7 +228,19 @@ export async function resolveLookup(
     };
   }
 
-  const provider = deps.providers.find((p) => p.supports(category)) ?? null;
+  // An id in the filename outranks the declared category for choosing WHERE to
+  // look, because it names a catalogue outright while the category only says
+  // which shelf the caller keeps the file on. `Supervixens (1975)
+  // {tmdb-5725}` filed under `xxx` was searching TPDB and finding an unrelated
+  // 2013 scene; the filename had said all along which catalogue holds it.
+  //
+  // The category still decides the row's own `category`. This picks the
+  // provider, not the shelf.
+  const named = parsed.externalId;
+  const byId = named === undefined
+    ? null
+    : deps.providers.find((p) => p.name === providerForIdSource(named.source)) ?? null;
+  const provider = byId ?? deps.providers.find((p) => p.supports(category)) ?? null;
   if (provider === null) {
     const lookupId = await withTransaction(async (tx) => writeLookupOutcome(tx, {
       category, name, normalizedKey, mediaId: null, confidence: null, state: 'unresolved',

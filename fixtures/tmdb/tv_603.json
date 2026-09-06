@@ -1,0 +1,139 @@
+{
+  "adult": false,
+  "backdrop_path": "/khveUylm0fqlLGuUHLg74tKozdy.jpg",
+  "created_by": [
+    {
+      "id": 163461,
+      "credit_id": "525389de19c295794023a33a",
+      "name": "Marta Kauffman",
+      "original_name": "Marta Kauffman",
+      "gender": 1,
+      "profile_path": "/AsX4ZOoQP5oQVLiA51zdRiTNKTm.jpg"
+    },
+    {
+      "id": 1216352,
+      "credit_id": "525389de19c295794023a340",
+      "name": "David Crane",
+      "original_name": "David Crane",
+      "gender": 2,
+      "profile_path": "/1NYo5ZYCSqoxQ5sqXLMDm3cqvKp.jpg"
+    }
+  ],
+  "episode_run_time": [
+    24
+  ],
+  "first_air_date": "1997-09-25",
+  "genres": [
+    {
+      "id": 35,
+      "name": "Comedy"
+    }
+  ],
+  "homepage": "",
+  "id": 603,
+  "in_production": false,
+  "languages": [
+    "en"
+  ],
+  "last_air_date": "2000-12-07",
+  "last_episode_to_air": {
+    "id": 5525405,
+    "name": "Veronica Checks Out",
+    "overview": "Ronnie and Perry encounter trouble in their new romance.",
+    "vote_average": 0,
+    "vote_count": 0,
+    "air_date": "2000-12-07",
+    "episode_number": 22,
+    "episode_type": "finale",
+    "production_code": "",
+    "runtime": 24,
+    "season_number": 3,
+    "show_id": 603,
+    "still_path": null
+  },
+  "name": "Veronica's Closet",
+  "next_episode_to_air": null,
+  "networks": [
+    {
+      "id": 6,
+      "logo_path": "/cm111bsDVlYaC1foL0itvEI4yLG.png",
+      "name": "NBC",
+      "origin_country": "US"
+    }
+  ],
+  "number_of_episodes": 66,
+  "number_of_seasons": 3,
+  "origin_country": [
+    "US"
+  ],
+  "original_language": "en",
+  "original_name": "Veronica's Closet",
+  "overview": "Veronica 'Ronnie' Chase is the 'Queen of Romance.' Founder of a successful lingerie empire, and best-selling author of self-help romance books, Ronnie has it all ... money, success, sex appeal and a philandering husband. How she will find true happiness without jeopardizing her business will be her biggest challenge yet. ",
+  "popularity": 9.6569,
+  "poster_path": "/pORo0C7IFMiefK2dpgrSWpPSUha.jpg",
+  "production_companies": [
+    {
+      "id": 1957,
+      "logo_path": "/pJJw98MtNFC9cHn3o15G7vaUnnX.png",
+      "name": "Warner Bros. Television",
+      "origin_country": "US"
+    },
+    {
+      "id": 31810,
+      "logo_path": "/3oyBCnFO3tIRmny3yzYQpF5n2cS.png",
+      "name": "Bright/Kauffman/Crane Productions",
+      "origin_country": "US"
+    }
+  ],
+  "production_countries": [
+    {
+      "iso_3166_1": "US",
+      "name": "United States of America"
+    }
+  ],
+  "seasons": [
+    {
+      "air_date": "1997-09-25",
+      "episode_count": 22,
+      "id": 62731,
+      "name": "Season 1",
+      "overview": "",
+      "poster_path": null,
+      "season_number": 1,
+      "vote_average": 0
+    },
+    {
+      "air_date": "1998-09-24",
+      "episode_count": 22,
+      "id": 62732,
+      "name": "Season 2",
+      "overview": "",
+      "poster_path": null,
+      "season_number": 2,
+      "vote_average": 0
+    },
+    {
+      "air_date": "1999-09-20",
+      "episode_count": 22,
+      "id": 62733,
+      "name": "Season 3",
+      "overview": "",
+      "poster_path": null,
+      "season_number": 3,
+      "vote_average": 0
+    }
+  ],
+  "softcore": false,
+  "spoken_languages": [
+    {
+      "english_name": "English",
+      "iso_639_1": "en",
+      "name": "English"
+    }
+  ],
+  "status": "Ended",
+  "tagline": "",
+  "type": "Scripted",
+  "vote_average": 5.375,
+  "vote_count": 16
+}

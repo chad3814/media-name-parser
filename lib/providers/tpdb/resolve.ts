@@ -300,11 +300,20 @@ export function createTpdbProvider(
     },
     async resolve(parsed: ParsedVideo, ctx: ResolveContext): Promise<ResolveOutcome | null> {
       ctx.signal.throwIfAborted();
-      // The category fixes the namespace and `supports` already excludes every
-      // other one, so nothing but a scene parse can arrive here. Handled as a
-      // typed no-op rather than a throw, the way the TMDB provider handles the
-      // scene arm it cannot serve.
-      if (parsed.kind !== 'scene') return null;
+      // A non-scene parse means the caller filed this under `movies` or `tv`
+      // and the filename named a TPDB scene, so the pipeline routed it here.
+      // TPDB has one namespace, so unlike a bare TMDB id there is nothing
+      // ambiguous to corroborate: the id addresses exactly one record.
+      if (parsed.kind !== 'scene') {
+        const foreign = parsed.externalId;
+        if (foreign === undefined || foreign.source !== 'tpdb') return null;
+        const one = await client.get(
+          `/scenes/${encodeURIComponent(foreign.id)}`, {}, sceneOneSchema, ctx,
+        );
+        if (one === null) return null;
+        await remember(sites, one.data);
+        return { media: normalizeScene(one.data), confidence: 1 };
+      }
 
       // An id names the scene outright. `/scenes/{id}` accepts the numeric
       // `_id`, the uuid, and the slug -- all three verified -- so whatever

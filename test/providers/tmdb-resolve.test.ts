@@ -4,7 +4,7 @@ import { createTmdbClient } from '../../lib/providers/tmdb/client';
 import { createTmdbProvider } from '../../lib/providers/tmdb/resolve';
 import { parseVideo } from '../../lib/parse/video';
 import { fixtureFetch } from '../support/tmdb-fixtures';
-import type { ParsedVideo } from '../../lib/parse/types';
+import type { Category, ParsedVideo } from '../../lib/parse/types';
 
 function provider() {
   const paths: string[] = [];
@@ -17,7 +17,7 @@ function provider() {
   return { p: createTmdbProvider(client), count: () => paths.length, paths };
 }
 
-function parsed(category: 'tv' | 'movies', name: string): ParsedVideo {
+function parsed(category: Category, name: string): ParsedVideo {
   const r = parseVideo(category, name);
   if (!r.ok) throw new Error(`fixture refused: ${r.refusal}`);
   return r.parsed;
@@ -247,4 +247,43 @@ test('an id that resolves to nothing falls back to searching', async () => {
   // Deliberately not asserted on confidence: `Outbreak.1995` is an exact
   // title with an exact year, so the scored path reaches 1.0 as well. The
   // call sequence is the only thing that distinguishes the two here.
+});
+
+test('an id names the catalogue even when the category says otherwise', async () => {
+  // The reported case: `Supervixens (1975) {tmdb-5725}` filed under `xxx`.
+  // Routed to TPDB by category it found an unrelated 2013 scene called
+  // "Xxxtremecomixxx: Wondergirl Meets the Supervixens" at 0.70. The filename
+  // had said all along which catalogue holds it.
+  const { p } = provider();
+  const out = await p.resolve(
+    parsed('xxx', 'Supervixens (1975) {tmdb-5725} - [Remux-2160p][HDR10][HEVC]-UnKn0wn.nzb'), ctx,
+  );
+  assert.equal(out?.media.title, 'Supervixens');
+  assert.equal(out?.media.kind, 'movie');
+  assert.equal(out?.confidence, 1);
+});
+
+test('a bare tmdb id from another category must be corroborated by the title', async () => {
+  // TMDB numbers movies and series separately and both spaces are populated:
+  // 603 is `The Matrix` and also the series `Veronica's Closet`. Inside the
+  // declared category the namespace is known and the id is believed outright;
+  // arriving from elsewhere it is not, and guessing would be a coin flip
+  // reported at confidence 1.
+  const { p } = provider();
+  const agrees = await p.resolve(parsed('xxx', 'The Matrix {tmdb-603}.mkv'), ctx);
+  assert.equal(agrees?.media.title, 'The Matrix', 'the title agrees, so the id is evidence');
+  assert.equal(agrees?.confidence, 1);
+
+  const disagrees = await p.resolve(parsed('xxx', 'Totally Unrelated Name {tmdb-603}.mkv'), ctx);
+  assert.equal(disagrees, null,
+    'neither namespace agrees with the title, so the id is abandoned rather than guessed');
+});
+
+test('an imdb id needs no corroboration, because /find names the namespace', async () => {
+  // Its bucket in the response IS the namespace, so there is nothing to guess
+  // and the filename's title is free to be wrong.
+  const { p } = provider();
+  const out = await p.resolve(parsed('xxx', 'Wrong Name Entirely {imdb-tt0133093}.mkv'), ctx);
+  assert.equal(out?.media.title, 'The Matrix');
+  assert.equal(out?.confidence, 1);
 });

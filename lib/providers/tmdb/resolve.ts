@@ -1,6 +1,6 @@
 import type { Category, ParsedVideo } from '../../parse/types';
 import type { Provider, ResolveContext, ResolveOutcome } from '../types';
-import { pickBest, scoreCandidate, type Candidate } from '../../resolve/confidence';
+import { pickBest, scoreCandidate, titleSimilarity, type Candidate } from '../../resolve/confidence';
 import type { TmdbClient } from './client';
 import {
   tmdbFind, tmdbMovieDetails, tmdbMovieSearch, tmdbSeasonDetails, tmdbTvDetails, tmdbTvSearch,
@@ -274,6 +274,82 @@ async function resolveTv(
   return { media: normalizeEpisode(normalizedSeason, episode), confidence };
 }
 
+/**
+ * An id whose namespace the parse cannot tell us.
+ *
+ * TMDB numbers movies and series separately and both spaces are densely
+ * populated: 5725 is the film `Supervixens` AND the series `Project Catwalk`,
+ * 603 is `The Matrix` AND `Veronica's Closet`. Inside the declared category
+ * the namespace is known, so `{tmdb-603}` on a movies lookup is unambiguous
+ * and is believed outright even when the filename's title is wrong.
+ *
+ * Arriving here, it is not known -- the caller filed the name under a category
+ * this provider does not serve, so `kind` says `scene` and says nothing about
+ * movie versus series. Guessing would be a coin flip reported at confidence 1,
+ * which is the worst answer this system can give.
+ *
+ * So the title is required to corroborate. `/movie/5725` returns
+ * `Supervixens` and the filename says `Supervixens`: that is evidence. If
+ * neither namespace agrees with the title, the id is abandoned and the caller
+ * falls through to the category's own provider.
+ *
+ * `imdb` and `tvdb` ids never reach this path -- `/find` returns them in a
+ * typed bucket, so their namespace is self-describing.
+ */
+const CORROBORATION = 0.8;
+
+async function resolveAcrossNamespaces(
+  client: TmdbClient, parsed: ParsedVideo, ctx: ResolveContext,
+): Promise<ResolveOutcome | null> {
+  const named = parsed.externalId;
+  if (named === undefined) return null;
+
+  if (named.source === 'imdb' || named.source === 'tvdb') {
+    const source = EXTERNAL_SOURCE[named.source];
+    if (source === undefined) return null;
+    const found = await client.get(
+      `/find/${encodeURIComponent(named.id)}`, { external_source: source }, tmdbFind, ctx,
+    );
+    if (found === null) return null;
+    const movie = found.movie_results[0];
+    if (movie !== undefined) return detailsForMovie(client, movie.id, ctx);
+    const series = found.tv_results[0];
+    return series === undefined ? null : detailsForSeries(client, series.id, ctx);
+  }
+
+  if (named.source !== 'tmdb') return null;
+  const id = Number.parseInt(named.id, 10);
+  if (Number.isNaN(id)) return null;
+
+  const asMovie = await client.get(
+    `/movie/${id}`, { append_to_response: 'credits' }, tmdbMovieDetails, ctx,
+  );
+  if (asMovie !== null && titleSimilarity(parsed.title, asMovie.title) >= CORROBORATION) {
+    return { media: normalizeMovie(asMovie), confidence: 1 };
+  }
+  const asSeries = await client.get(`/tv/${id}`, {}, tmdbTvDetails, ctx);
+  if (asSeries !== null && titleSimilarity(parsed.title, asSeries.name) >= CORROBORATION) {
+    return { media: normalizeSeries(asSeries), confidence: 1 };
+  }
+  return null;
+}
+
+async function detailsForMovie(
+  client: TmdbClient, id: number, ctx: ResolveContext,
+): Promise<ResolveOutcome | null> {
+  const details = await client.get(
+    `/movie/${id}`, { append_to_response: 'credits' }, tmdbMovieDetails, ctx,
+  );
+  return details === null ? null : { media: normalizeMovie(details), confidence: 1 };
+}
+
+async function detailsForSeries(
+  client: TmdbClient, id: number, ctx: ResolveContext,
+): Promise<ResolveOutcome | null> {
+  const details = await client.get(`/tv/${id}`, {}, tmdbTvDetails, ctx);
+  return details === null ? null : { media: normalizeSeries(details), confidence: 1 };
+}
+
 export function createTmdbProvider(client: TmdbClient): Provider {
   return {
     name: 'tmdb',
@@ -282,8 +358,14 @@ export function createTmdbProvider(client: TmdbClient): Provider {
     },
     async resolve(parsed: ParsedVideo, ctx: ResolveContext): Promise<ResolveOutcome | null> {
       ctx.signal.throwIfAborted();
-      // The declared category fixes the namespace. `kind` says what shape the
-      // name had; it never redirects the search.
+      // A scene parse means the caller filed this under a category this
+      // provider does not serve, and the pipeline routed it here anyway
+      // because the filename named a TMDB record. There is no title search to
+      // fall back on in that case -- only the id.
+      if (parsed.kind === 'scene') return resolveAcrossNamespaces(client, parsed, ctx);
+
+      // Otherwise the declared category fixes the namespace. `kind` says what
+      // shape the name had; it never redirects the search.
       return parsed.kind === 'movie'
         ? resolveMovie(client, parsed, ctx)
         : resolveTv(client, parsed, ctx);

@@ -1,4 +1,5 @@
 import type { Category } from '../parse/types';
+import type { IdSource } from '../parse/ids';
 import type { ProviderName } from './types';
 
 /**
@@ -25,3 +26,22 @@ export function providerFor(category: Category): ProviderName | null {
     case 'books': return null;
   }
 }
+
+/**
+ * Which provider owns an id source a filename can name.
+ *
+ * `imdb` and `tvdb` are not catalogues this service talks to; TMDB translates
+ * both through `/find`, so an id from either is a TMDB lookup. Verified: tvdb
+ * 368611 comes back as TMDB 92749.
+ */
+export function providerForIdSource(source: IdSource): ProviderName {
+  switch (source) {
+    case 'tpdb': return 'tpdb';
+    case 'tmdb':
+    case 'imdb':
+    case 'tvdb': return 'tmdb';
+  }
+}
+
+/** Every provider this build can construct, primary first for a category. */
+export const PROVIDER_NAMES: readonly ProviderName[] = ['tmdb', 'tpdb'];

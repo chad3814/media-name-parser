@@ -2,12 +2,13 @@ import { createTmdbClient, tmdbTokenFromEnv } from '../providers/tmdb/client';
 import { createTmdbProvider } from '../providers/tmdb/resolve';
 import { createTpdbClient, tpdbTokenFromEnv } from '../providers/tpdb/client';
 import { createTpdbProvider } from '../providers/tpdb/resolve';
-import { providerFor } from '../providers/routing';
-import type { Provider, ProviderCallRecord } from '../providers/types';
+import { providerFor, PROVIDER_NAMES } from '../providers/routing';
+import type { Provider, ProviderName, ProviderCallRecord } from '../providers/types';
 import type { PipelineDeps, PipelineResult } from '../resolve/pipeline';
 import type { Category } from '../parse/types';
 import type { SceneSuggestions } from '../cache/suggest';
 import type { MediaView } from '../media/read';
+import { logFailure } from './log';
 
 export interface LookupEnvelope {
   readonly lookupId: string;
@@ -90,16 +91,32 @@ export function buildDeps(category: Category): PipelineDeps {
   let pending: ProviderCallRecord[] = [];
   const recordCall = (row: ProviderCallRecord): void => { pending.push(row); };
 
-  // Null means no provider exists for this category at all, which is not the
-  // same as a provider whose credential is missing. The first answers
-  // `unresolved`; the second must raise so the caller sees a 503 rather than a
-  // silent non-answer cached for the next twelve hours.
-  const name = providerFor(category);
-  const providers: readonly Provider[] = name === null
-    ? []
-    : name === 'tpdb'
-      ? [createTpdbProvider(createTpdbClient({ token: tpdbTokenFromEnv(), recordCall }))]
-      : [createTmdbProvider(createTmdbClient({ token: tmdbTokenFromEnv(), recordCall }))];
+  const build = (name: ProviderName): Provider => (name === 'tpdb'
+    ? createTpdbProvider(createTpdbClient({ token: tpdbTokenFromEnv(), recordCall }))
+    : createTmdbProvider(createTmdbClient({ token: tmdbTokenFromEnv(), recordCall })));
+
+  // The category's own provider is built strictly. Null means no provider
+  // exists for this category at all, which is not the same as a provider whose
+  // credential is missing: the first answers `unresolved`, the second must
+  // raise so the caller sees a 503 rather than a silent non-answer cached for
+  // the next twelve hours.
+  const primary = providerFor(category);
+  const providers: Provider[] = primary === null ? [] : [build(primary)];
+
+  // The others are built best-effort, and exist only so a filename that names
+  // a foreign catalogue can be honoured -- `{tmdb-5725}` on an `xxx` lookup.
+  // A missing credential here is not an outage: the id simply is not
+  // actionable on this deployment, and the category's own provider still
+  // answers. Logged rather than swallowed, because "not configured" and
+  // "configured wrongly" look identical from here.
+  for (const name of PROVIDER_NAMES) {
+    if (name === primary) continue;
+    try {
+      providers.push(build(name));
+    } catch (error) {
+      logFailure(`optional provider ${name} is unavailable; ids naming it will be ignored`, error);
+    }
+  }
 
   return {
     providers,

@@ -27,37 +27,39 @@ function withoutEnv(names: readonly string[], fn: () => void): void {
 
 const TMDB = ['TMDB_READ_ACCESS_TOKEN', 'TMDB_API_KEY'];
 
-test('books builds no provider, because ibdb.dev is not implemented', () => {
-  // A category nothing serves must answer `unresolved`. It must NOT be routed
-  // to a provider that does not support it, because then a deployment with no
-  // TMDB credential raises a 503 for a lookup nothing was going to answer.
+test('nothing serves books, whatever else is built', () => {
+  // `books` has no provider: ibdb.dev is not implemented. What matters is that
+  // nothing CLAIMS to serve it -- not that the list is empty. Other providers
+  // are built so a filename naming a foreign catalogue can be honoured, and
+  // they must not answer a books lookup by being present.
   withoutEnv(TMDB, () => {
-    assert.deepEqual(buildDeps('books').providers, []);
+    const providers = buildDeps('books').providers;
+    assert.deepEqual(providers.filter((p) => p.supports('books')), []);
   });
 });
 
-test('a missing credential for a category that HAS a provider still raises', () => {
-  // The other half, and the reason `books` cannot simply be lumped in with a
-  // catch-all: an absent TMDB credential is an outage for movies and tv, and
-  // must surface as one rather than as a cached non-answer.
+test('a missing credential for the category that HAS a provider still raises', () => {
+  // An absent TMDB credential is an outage for movies and tv, and must
+  // surface as one rather than as a cached non-answer. Only the category's own
+  // provider is strict; the optional ones are allowed to be unavailable.
   withoutEnv(TMDB, () => {
     assert.throws(() => buildDeps('movies'), /TMDB/);
     assert.throws(() => buildDeps('tv'), /TMDB/);
   });
 });
 
-test('xxx builds the tpdb provider, and only that one', () => {
-  const providers = buildDeps('xxx').providers;
-  assert.equal(providers.length, 1);
-  assert.equal(providers[0]?.name, 'tpdb');
-  assert.equal(providers[0]?.supports('xxx'), true);
-  assert.equal(providers[0]?.supports('movies'), false);
-});
-
-test('movies builds the tmdb provider, and only that one', () => {
-  const providers = buildDeps('movies').providers;
-  assert.equal(providers.length, 1);
-  assert.equal(providers[0]?.name, 'tmdb');
-  assert.equal(providers[0]?.supports('movies'), true);
-  assert.equal(providers[0]?.supports('xxx'), false);
+test('the category provider comes first, and it is the only one that serves it', () => {
+  for (const [category, name, other] of [
+    ['xxx', 'tpdb', 'movies'],
+    ['movies', 'tmdb', 'xxx'],
+  ] as const) {
+    const providers = buildDeps(category).providers;
+    assert.equal(providers[0]?.name, name, `${category} is served by ${name}`);
+    assert.deepEqual(
+      providers.filter((p) => p.supports(category)).map((p) => p.name), [name],
+      'exactly one provider claims the category',
+    );
+    assert.ok(providers.some((p) => p.supports(other)),
+      'the other provider is still built, so an id naming it can be honoured');
+  }
 });
