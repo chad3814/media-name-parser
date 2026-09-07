@@ -39,7 +39,7 @@ export async function AppShell({ children }: { readonly children: ReactNode }) {
       <header className="border-b">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
           <nav className="flex items-center gap-4 text-sm">
-            <Link href="/" className="font-semibold">media-name-parser</Link>
+            <Link href="/" className="font-semibold">OpenMetadata</Link>
             <Link href="/keys" className="text-muted-foreground hover:text-foreground">Keys</Link>
             <Link href="/corpus" className="text-muted-foreground hover:text-foreground">Corpus</Link>
             {user?.isAdmin === true ? (

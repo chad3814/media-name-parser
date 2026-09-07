@@ -172,7 +172,7 @@ export function buildSpec(): Readonly<Record<string, unknown>> {
   return {
     openapi: '3.1.0',
     info: {
-      title: 'media-name-parser',
+      title: 'OpenMetadata',
       version: '1',
       description: 'Turns a media filename into provider metadata, and caches the answer.\n\n'
         + 'Every route here authenticates with an API key as a Bearer token. Mint one from '

@@ -8,7 +8,7 @@ import { AppShell } from '../components/app-shell';
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata = {
-  title: 'media-name-parser',
+  title: 'OpenMetadata',
   description: 'Filename to media identity lookup',
 };
 
