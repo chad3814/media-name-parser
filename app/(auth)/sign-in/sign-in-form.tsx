@@ -16,6 +16,36 @@ export function SignInForm({ githubEnabled }: { readonly githubEnabled: boolean 
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
 
+  /**
+   * Starts the GitHub redirect, and reports it when it does not happen.
+   *
+   * This was `void signIn.social(...)`, which discarded the promise and every
+   * rejection with it: a failed request meant no navigation and no message,
+   * so the button looked inert. On a Vercel preview behind Deployment
+   * Protection that is the normal failure -- the request is redirected to
+   * vercel.com, which fails cross-origin -- and the page said nothing at all.
+   */
+  async function github(): Promise<void> {
+    setStatus({ kind: 'sending' });
+    try {
+      const result = await signIn.social({ provider: 'github', callbackURL: '/' });
+      if (result.error) {
+        setStatus({ kind: 'error', message: result.error.message ?? 'GitHub sign-in failed' });
+        return;
+      }
+      // Better Auth navigates on success, so reaching here without an error
+      // and without leaving the page means the redirect did not happen.
+      setStatus({ kind: 'idle' });
+    } catch (error) {
+      setStatus({
+        kind: 'error',
+        message: error instanceof Error
+          ? `GitHub sign-in could not start: ${error.message}`
+          : 'GitHub sign-in could not start',
+      });
+    }
+  }
+
   async function send(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setStatus({ kind: 'sending' });
@@ -68,7 +98,8 @@ export function SignInForm({ githubEnabled }: { readonly githubEnabled: boolean 
             type="button"
             variant="outline"
             className="w-full"
-            onClick={() => { void signIn.social({ provider: 'github' }); }}
+            disabled={status.kind === 'sending'}
+            onClick={() => { void github(); }}
           >
             Continue with GitHub
           </Button>
