@@ -7,7 +7,7 @@
 //
 // Environment:
 //   MNP_API_KEY    required. An API key minted from the signed-in UI.
-//   MNP_ORIGIN     default https://media-name-parser.vercel.app
+//   MNP_ORIGIN     default https://openmetadata.nexus
 //   MNP_BATCH      default 20. Items per request; the server caps it at 100.
 //   MNP_RESUME     default 1. Skip names recorded in <file>.done and append to it.
 //
@@ -28,7 +28,7 @@ import { readFile, appendFile } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 
 const CATEGORIES = ['tv', 'movies', 'books', 'xxx'];
-const ORIGIN = process.env.MNP_ORIGIN ?? 'https://media-name-parser.vercel.app';
+const ORIGIN = process.env.MNP_ORIGIN ?? 'https://openmetadata.nexus';
 const KEY = process.env.MNP_API_KEY ?? '';
 const BATCH = Math.max(1, Math.min(100, Number(process.env.MNP_BATCH ?? '20') || 20));
 const RESUME = process.env.MNP_RESUME !== '0';
