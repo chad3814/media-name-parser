@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { admin, magicLink } from 'better-auth/plugins';
+import { admin, magicLink, oAuthProxy } from 'better-auth/plugins';
 import { nextCookies } from 'better-auth/next-js';
 import { getDb } from '../db/client';
 import * as schema from '../db/schema';
@@ -24,6 +24,22 @@ export const magicLinkSink: MagicLinkDelivery[] = [];
 
 function env(name: string): string {
   return process.env[name] ?? '';
+}
+
+/**
+ * The origin the OAuth provider redirects to, in every environment.
+ *
+ * `oAuthProxy` defaults this to `BETTER_AUTH_URL`, which is correct on
+ * production and wrong everywhere else: a preview sets `BETTER_AUTH_URL` to
+ * its own origin, so the plugin would conclude it already *is* production and
+ * decline to proxy -- silently, with the provider then refusing an
+ * unregistered callback. Naming it separately keeps the two ideas apart.
+ *
+ * Undefined on production, where the plugin's own default is right.
+ */
+function proxyProductionURL(): string | undefined {
+  const explicit = env('BETTER_AUTH_PRODUCTION_URL');
+  return explicit.length > 0 ? explicit : undefined;
 }
 
 export function githubConfigured(): boolean {
@@ -59,6 +75,20 @@ function secret(): string {
 export function baseURL(): string {
   const value = env('BETTER_AUTH_URL');
   if (value.length > 0) return value;
+
+  // A Vercel preview gets a fresh hostname on every deployment, so its own
+  // origin cannot be configured ahead of time; `VERCEL_URL` is that hostname.
+  //
+  // Gated on `VERCEL_ENV === 'preview'` deliberately. `VERCEL_URL` is set on
+  // production too -- to the `.vercel.app` deployment URL rather than the
+  // custom domain -- so an ungated fallback would quietly serve auth from the
+  // wrong origin on production instead of raising below. A missing
+  // `BETTER_AUTH_URL` in production stays loud.
+  if (env('VERCEL_ENV') === 'preview') {
+    const host = env('VERCEL_URL');
+    if (host.length > 0) return `https://${host}`;
+  }
+
   if (env('NODE_ENV') === 'production') {
     throw new Error(
       'BETTER_AUTH_URL is not set. Set it to this deployment\'s own origin, ' +
@@ -114,6 +144,27 @@ function buildAuth() {
             `no mailer is configured, so no link was delivered to ${email}`,
           ));
         },
+      }),
+      // Preview deployments cannot register their own OAuth callback: the
+      // hostname changes every deployment, and GitHub's wildcard matching is
+      // over subdomains of a host you control -- which `*.vercel.app` is not.
+      //
+      // So the provider always redirects to production, and production hands
+      // the handshake onward to whichever preview started it, carrying the
+      // `set-cookie` across. One registered callback covers every preview.
+      //
+      // The proxy secret is deliberately separate from `secret()`. It has to
+      // be shared by every environment taking part, and sharing the main
+      // secret would let a leak from a preview forge production sessions.
+      // Falls back to the main secret when unset, which is the plugin's own
+      // default and fine for a single-environment deployment.
+      oAuthProxy({
+        ...(env('BETTER_AUTH_PROXY_SECRET').length > 0
+          ? { secret: env('BETTER_AUTH_PROXY_SECRET') }
+          : {}),
+        ...(proxyProductionURL() === undefined
+          ? {}
+          : { productionURL: proxyProductionURL() as string }),
       }),
       // Must be last: it lets Better Auth set cookies through Next's cookie API.
       nextCookies(),

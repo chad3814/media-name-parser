@@ -138,3 +138,74 @@ test('the module imports with no DATABASE_URL and no secret', async () => {
   );
   assert.equal(stdout.trim(), 'ok');
 });
+
+/**
+ * Sets several env vars and restores exactly what was there.
+ *
+ * `NODE_ENV` is declared readonly by Next's own ProcessEnv types, which is a
+ * type-level guarantee only -- the object is a plain mutable process.env -- so
+ * this narrows to a writable index type rather than reaching for `any`.
+ */
+function withEnv(values: Readonly<Record<string, string | undefined>>, fn: () => void): void {
+  const mutable = process.env as Record<string, string | undefined>;
+  const previous = new Map(Object.keys(values).map((k) => [k, mutable[k]]));
+  try {
+    for (const [key, value] of Object.entries(values)) {
+      if (value === undefined) delete mutable[key];
+      else mutable[key] = value;
+    }
+    fn();
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete mutable[key];
+      else mutable[key] = value;
+    }
+  }
+}
+
+test('a preview infers its own origin, which cannot be configured ahead of time', () => {
+  // Every preview deployment gets a fresh hostname, so no value set at
+  // configure time can name it. `VERCEL_URL` is that hostname.
+  withEnv({
+    BETTER_AUTH_URL: undefined,
+    VERCEL_ENV: 'preview',
+    VERCEL_URL: 'mnp-git-some-branch-chad3814.vercel.app',
+  }, () => {
+    assert.equal(baseURL(), 'https://mnp-git-some-branch-chad3814.vercel.app');
+  });
+});
+
+test('production without BETTER_AUTH_URL still raises, though VERCEL_URL is set there too', () => {
+  // On production `VERCEL_URL` holds the `.vercel.app` deployment URL, not the
+  // custom domain. An ungated fallback would quietly serve auth from the wrong
+  // origin instead of failing, so it is gated on VERCEL_ENV and this stays loud.
+  withEnv({
+    BETTER_AUTH_URL: undefined,
+    NODE_ENV: 'production',
+    VERCEL_ENV: 'production',
+    VERCEL_URL: 'mnp-abc123def-chad3814.vercel.app',
+  }, () => {
+    assert.throws(() => baseURL(), /BETTER_AUTH_URL is not set/);
+  });
+});
+
+test('an explicit BETTER_AUTH_URL wins over the inferred one', () => {
+  withEnv({
+    BETTER_AUTH_URL: 'https://openmetadata.nexus',
+    VERCEL_ENV: 'preview',
+    VERCEL_URL: 'mnp-git-branch-chad3814.vercel.app',
+  }, () => {
+    assert.equal(baseURL(), 'https://openmetadata.nexus');
+  });
+});
+
+test('the auth instance builds with the proxy configured', () => {
+  // The plugin's endpoint is the observable evidence it is registered: without
+  // it the provider would redirect to a preview URL no callback matches.
+  withEnv({
+    BETTER_AUTH_PROXY_SECRET: 'placeholder-proxy-secret',
+    BETTER_AUTH_PRODUCTION_URL: 'https://openmetadata.nexus',
+  }, () => {
+    assert.ok('oAuthProxy' in getAuth().api, 'the oauth-proxy endpoint should be registered');
+  });
+});
