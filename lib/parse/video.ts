@@ -1,4 +1,4 @@
-import { splitInput, SIDECAR_EXTENSIONS } from './normalize';
+import { splitInput } from './normalize';
 import { tokenize } from './tokens';
 import { findMarker, type Marker } from './markers';
 import { findBoundary, findTitleRegion } from './boundary';
@@ -71,17 +71,21 @@ function markerSuggestsSeries(marker: Marker | null): boolean {
 
 export function parseVideo(category: Category, input: string): ParseResult {
   const split = splitInput(input);
-  if (!split.isMedia) {
+
+  // Only a sidecar refuses now. An absent or unrecognised extension is not
+  // evidence of anything -- a caller may legitimately hold nothing but a
+  // title -- whereas `.srt`, `.jpg` and a leading-dot name are each positive
+  // evidence that the thing named is *about* media rather than media, and a
+  // clean refusal is a more useful answer than a parse of a subtitle.
+  if (split.extensionKind === 'sidecar') {
     // The extension is quoted because it is untrusted text that may contain a
     // character with no width. A zero-width space is category Cf rather than
     // whitespace, so trimming does not remove it, and interpolated bare it
     // produced `unknown extension .mkv` -- a refusal that reads as a bug in
     // MEDIA_EXTENSIONS instead of a bad byte in the input.
     const which = split.extension === null
-      ? 'no extension'
-      : SIDECAR_EXTENSIONS.has(split.extension)
-        ? `sidecar ".${split.extension}"`
-        : `unknown extension ".${split.extension}"`;
+      ? 'a dotfile'
+      : `sidecar ".${split.extension}"`;
     return { ok: false, refusal: `not a media file (${which})` };
   }
 

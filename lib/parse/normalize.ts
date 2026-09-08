@@ -1,6 +1,10 @@
 export const MEDIA_EXTENSIONS: ReadonlySet<string> = new Set([
   'mkv', 'mp4', 'avi', 'wmv', 'mov', 'm4v', 'mpg', 'mpeg', 'flv', 'ts',
-  'webm', 'iso', 'm2ts', 'nzb',
+  // `nzb` and `torrent` are metafiles rather than media, but each names a
+  // release and neither belongs in a title, so both are stripped like any
+  // container. `nzb` covers the indexer corpora; `torrent` is its
+  // BitTorrent counterpart.
+  'webm', 'iso', 'm2ts', 'nzb', 'torrent',
 ]);
 
 /**
@@ -13,14 +17,44 @@ export const SIDECAR_EXTENSIONS: ReadonlySet<string> = new Set([
   'png', 'webp', 'plexmatch', 'md5', 'sfv', 'par2',
 ]);
 
+/**
+ * What the name's trailing segment turned out to be.
+ *
+ * `none` covers both an absent extension and an unrecognised trailing
+ * segment, because those are the same situation: nothing was stripped and the
+ * whole basename is the name.
+ */
+export type ExtensionKind = 'media' | 'sidecar' | 'none';
+
 export interface SplitInput {
   readonly stem: string;
+  /** The recognised extension, lowercased. Null when nothing was stripped. */
   readonly extension: string | null;
   /** Nearest directory first, so `ancestors[0]` is the containing folder. */
   readonly ancestors: readonly string[];
-  readonly isMedia: boolean;
+  readonly extensionKind: ExtensionKind;
 }
 
+/**
+ * Splits a name into the parts the parser needs, stripping only an extension
+ * it recognises.
+ *
+ * An extension is optional. A caller may have nothing but a title -- another
+ * service handing over a name it never had a file for -- and requiring one
+ * was an arbitrary gate.
+ *
+ * But an unrecognised trailing segment must not be stripped on the assumption
+ * that it is an extension, because `lastIndexOf('.')` cannot tell one from the
+ * last segment of a dotted release name.
+ * `The.Matrix.1999.1080p.BluRay.x264-GRP` would surrender its release group,
+ * and `Movie.Part.2` its `2`. So an extension is stripped only when it is one
+ * we know, and otherwise the basename is left whole.
+ *
+ * A leading-dot basename is reported as a sidecar rather than as a name.
+ * `.plexmatch` is a file about media, not a media file, and it was previously
+ * refused for having "no extension" -- a reason that no longer refuses
+ * anything.
+ */
 export function splitInput(input: string): SplitInput {
   // Trimmed because a name pasted from a shell or a spreadsheet arrives with a
   // trailing space, and that space lands in the extension rather than the
@@ -29,18 +63,29 @@ export function splitInput(input: string): SplitInput {
   const segments = input.trim().split('/').filter((segment) => segment.length > 0);
   const basename = segments.at(-1) ?? '';
   const ancestors = segments.slice(0, -1).reverse();
+
   const dot = basename.lastIndexOf('.');
-  // A dot at index 0 is a dotfile, not an extension.
-  if (dot <= 0) {
-    return { stem: basename, extension: null, ancestors, isMedia: false };
+  if (dot === 0) {
+    return { stem: basename, extension: null, ancestors, extensionKind: 'sidecar' };
   }
-  const extension = basename.slice(dot + 1).toLowerCase();
-  return {
-    stem: basename.slice(0, dot),
-    extension,
-    ancestors,
-    isMedia: MEDIA_EXTENSIONS.has(extension),
-  };
+  if (dot < 0) {
+    return { stem: basename, extension: null, ancestors, extensionKind: 'none' };
+  }
+
+  const candidate = basename.slice(dot + 1).toLowerCase();
+  if (MEDIA_EXTENSIONS.has(candidate)) {
+    return {
+      stem: basename.slice(0, dot), extension: candidate, ancestors, extensionKind: 'media',
+    };
+  }
+  if (SIDECAR_EXTENSIONS.has(candidate)) {
+    return {
+      stem: basename.slice(0, dot), extension: candidate, ancestors, extensionKind: 'sidecar',
+    };
+  }
+  // Unrecognised: not an extension as far as we can tell, so nothing is
+  // stripped and the trailing segment stays part of the name.
+  return { stem: basename, extension: null, ancestors, extensionKind: 'none' };
 }
 
 const BRACKETS = /[[\](){}]/g;

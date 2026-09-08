@@ -1,4 +1,6 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+
+const BASELINE = 'fixtures/corpus/baseline.json';
 import { parseVideo } from '../lib/parse/video';
 import { isJunk, tokenize } from '../lib/parse/tokens';
 import type { Category } from '../lib/parse/types';
@@ -236,6 +238,16 @@ async function main(): Promise<void> {
   }
 
   if (write) {
+    // `resolveRate` is only measured under `--resolve`, and measuring it costs
+    // thousands of live provider calls. A `--write` without it must therefore
+    // carry the previous numbers forward rather than replace them with
+    // nothing: writing the parse metrics used to silently erase the expensive
+    // ones, which is a bad trade to make by accident.
+    const previous = existsSync(BASELINE)
+      ? (JSON.parse(readFileSync(BASELINE, 'utf8')) as { readonly resolveRate?: unknown })
+      : {};
+    const carried = wantResolve ? resolveRate : previous.resolveRate ?? resolveRate;
+
     const baseline = {
       parseRate: Object.fromEntries(rates.map((r) => [r.file, Number(r.rate.toFixed(4))])),
       // Ceilings, not floors: these may go down but must never go up.
@@ -243,9 +255,9 @@ async function main(): Promise<void> {
       // Without this, `rate` cannot detect a parser that refuses everything:
       // refusals count toward the rate, so refuse-all scores 100%.
       refused: Object.fromEntries(rates.map((r) => [r.file, r.refused])),
-      resolveRate,
+      resolveRate: carried,
     };
-    writeFileSync('fixtures/corpus/baseline.json', `${JSON.stringify(baseline, null, 2)}\n`);
+    writeFileSync(BASELINE, `${JSON.stringify(baseline, null, 2)}\n`);
     console.log('\nwrote fixtures/corpus/baseline.json');
   }
 }

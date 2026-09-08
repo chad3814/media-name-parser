@@ -7,7 +7,7 @@ test('splitInput separates stem, extension, and ancestors nearest-first', () => 
   assert.equal(got.stem, '00136');
   assert.equal(got.extension, 'm2ts');
   assert.deepEqual(got.ancestors, ['Interstellar (2014)', 'Movies']);
-  assert.equal(got.isMedia, true);
+  assert.equal(got.extensionKind, 'media');
 });
 
 test('splitInput handles a bare release name with no directories', () => {
@@ -15,26 +15,58 @@ test('splitInput handles a bare release name with no directories', () => {
   assert.equal(got.stem, 'Outbreak.1995.1080p.BluRay.REMUX.AVC.DTS-HD-MA.5.1-UnKn0wn');
   assert.equal(got.extension, 'nzb');
   assert.deepEqual(got.ancestors, []);
-  assert.equal(got.isMedia, true);
+  assert.equal(got.extensionKind, 'media');
 });
 
-test('a dotfile is not an extension and is not media', () => {
+test('a dotfile is a sidecar, not a name with no extension', () => {
+  // It used to be refused for having "no extension", a reason that no longer
+  // refuses anything now that an extension is optional. A leading-dot name is
+  // a file *about* media, so it is classified for what it is.
   const got = splitInput('TV Shows/Moon Knight/.plexmatch');
   assert.equal(got.stem, '.plexmatch');
   assert.equal(got.extension, null);
-  assert.equal(got.isMedia, false);
+  assert.equal(got.extensionKind, 'sidecar');
 });
 
-test('a sidecar file is recognised but is not media', () => {
+test('a sidecar file is recognised as one', () => {
   const got = splitInput('TV Shows/Moon Knight/Season 1/Moon Knight - S01E01.srt');
   assert.equal(got.extension, 'srt');
-  assert.equal(got.isMedia, false);
+  assert.equal(got.extensionKind, 'sidecar');
 });
 
-test('iso, m2ts and nzb all count as media', () => {
-  for (const ext of ['iso', 'm2ts', 'nzb', 'mkv', 'mp4']) {
-    assert.equal(splitInput(`Something.2020.${ext}`).isMedia, true, ext);
+test('iso, m2ts, nzb and torrent all count as media', () => {
+  // `nzb` and `torrent` are metafiles rather than media, but each names a
+  // release and neither belongs in a title, so both are stripped.
+  for (const ext of ['iso', 'm2ts', 'nzb', 'torrent', 'mkv', 'mp4']) {
+    assert.equal(splitInput(`Something.2020.${ext}`).extensionKind, 'media', ext);
   }
+});
+
+test('an extension is optional, and an unknown one is not stripped', () => {
+  // `lastIndexOf('.')` cannot tell an extension from the last segment of a
+  // dotted release name, so stripping an unrecognised one would surrender a
+  // release group. Both of these used to be refused outright.
+  const grouped = splitInput('The.Matrix.1999.1080p.BluRay.x264-GRP');
+  assert.equal(grouped.stem, 'The.Matrix.1999.1080p.BluRay.x264-GRP', 'the group survives');
+  assert.equal(grouped.extension, null);
+  assert.equal(grouped.extensionKind, 'none');
+
+  const bare = splitInput('Some Movie Name');
+  assert.equal(bare.stem, 'Some Movie Name');
+  assert.equal(bare.extensionKind, 'none');
+
+  const numbered = splitInput('Movie.Part.2');
+  assert.equal(numbered.stem, 'Movie.Part.2', 'a trailing number is not an extension');
+});
+
+test('a known extension is still stripped, so nothing cached changes', () => {
+  // The property that makes this change safe: a name with a recognised
+  // extension splits exactly as it did, so its stem and therefore its
+  // `normalized_key` are untouched.
+  const got = splitInput('The.Matrix.1999.1080p.BluRay.x264-GRP.mkv');
+  assert.equal(got.stem, 'The.Matrix.1999.1080p.BluRay.x264-GRP');
+  assert.equal(got.extension, 'mkv');
+  assert.equal(got.extensionKind, 'media');
 });
 
 test('surrounding whitespace does not make a media file unrecognisable', () => {
@@ -51,7 +83,7 @@ test('surrounding whitespace does not make a media file unrecognisable', () => {
   ] as const) {
     const got = splitInput(padded);
     assert.equal(got.extension, 'mkv', label);
-    assert.equal(got.isMedia, true, label);
+    assert.equal(got.extensionKind, 'media', label);
   }
 });
 

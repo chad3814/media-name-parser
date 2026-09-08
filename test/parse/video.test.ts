@@ -118,16 +118,32 @@ test('a Plex sidecar is refused, not parsed', () => {
 });
 
 test('a refusal quotes the extension, so an invisible character is visible', () => {
-  // A zero-width space is category Cf, not whitespace, so trimming does not
-  // remove it. Interpolated bare, its refusal read `unknown extension .mkv` --
-  // indistinguishable from a clean name, and it sent a real debugging session
-  // looking for a bug in MEDIA_EXTENSIONS.
-  const result = parseVideo('movies', 'Something.2020.mkv\u200B');
+  // The quoting exists because the extension is untrusted text that may carry
+  // a character with no width, and interpolated bare it produced `sidecar
+  // .srt` -- indistinguishable from a clean one.
+  //
+  // This used to be asserted through an unknown extension, which no longer
+  // refuses anything: an unrecognised trailing segment is now left in the name
+  // rather than treated as a bad extension. A recognised sidecar is the case
+  // that still refuses, so it is the case that still needs the quoting.
+  const result = parseVideo('tv', 'Moon Knight - S01E01.srt');
   assert.equal(result.ok, false);
   if (result.ok) throw new Error('unreachable');
-  assert.match(result.refusal, /unknown extension/);
-  assert.ok(result.refusal.includes('".mkv\u200B"'),
-    `the extension must be quoted so the stray character shows: ${result.refusal}`);
+  assert.ok(result.refusal.includes('".srt"'),
+    `the extension must be quoted: ${result.refusal}`);
+});
+
+test('an unrecognised trailing segment stays in the name rather than refusing', () => {
+  // The cost of making the extension optional, recorded rather than hidden.
+  // `Something.2020.mkv` with a zero-width space after `mkv` is not a known
+  // extension, so nothing is stripped and the stray token lands in the group.
+  // Garbage in, garbage adjacent -- but the title and year are still right,
+  // which is what a caller came for.
+  const result = parseVideo('movies', 'Something.2020.mkv\u200B');
+  assert.ok(result.ok);
+  if (!result.ok) throw new Error('unreachable');
+  assert.equal(result.parsed.title, 'Something');
+  assert.equal(result.parsed.year, 2020);
 });
 
 test('a subtitle is refused', () => {
@@ -140,4 +156,70 @@ test('a name with no title left after junk removal is refused', () => {
   assert.equal(result.ok, false);
   if (result.ok) throw new Error('unreachable');
   assert.match(result.refusal, /no title/);
+});
+
+// --- the extension is optional -------------------------------------------
+
+test('a name with no extension parses, group and all', () => {
+  // A caller may hold nothing but a name -- another service handing over
+  // something it never had a file for -- and requiring an extension was an
+  // arbitrary gate. The group is the part at risk: an unrecognised trailing
+  // segment must not be stripped on the assumption that it is an extension.
+  const result = parseVideo('movies', 'The.Matrix.1999.1080p.BluRay.x264-GRP');
+  assert.ok(result.ok);
+  if (!result.ok) throw new Error('unreachable');
+  assert.equal(result.parsed.title, 'The Matrix');
+  assert.equal(result.parsed.year, 1999);
+  assert.equal(result.parsed.group, 'GRP', 'the group must survive having no extension');
+});
+
+test('a bare title parses', () => {
+  const result = parseVideo('movies', 'Some Movie Name');
+  assert.ok(result.ok);
+  if (!result.ok) throw new Error('unreachable');
+  assert.equal(result.parsed.title, 'Some Movie Name');
+});
+
+test('a trailing number is not mistaken for an extension', () => {
+  const result = parseVideo('movies', 'Movie.Part.2');
+  assert.ok(result.ok);
+  if (!result.ok) throw new Error('unreachable');
+  assert.equal(result.parsed.title, 'Movie Part 2');
+});
+
+test('a known extension still splits exactly as before', () => {
+  // The property that makes the loosening safe: a recognised extension is
+  // stripped as it always was, so the stem -- and therefore the
+  // `normalized_key` of every already-cached name -- is untouched.
+  const withExt = parseVideo('movies', 'The.Matrix.1999.1080p.BluRay.x264-GRP.mkv');
+  const without = parseVideo('movies', 'The.Matrix.1999.1080p.BluRay.x264-GRP');
+  assert.ok(withExt.ok && without.ok);
+  if (!withExt.ok || !without.ok) throw new Error('unreachable');
+  assert.deepEqual(withExt.parsed, without.parsed,
+    'with and without the extension must parse identically');
+});
+
+test('a sidecar and a dotfile are still refused', () => {
+  // Loosening the requirement is not removing it. An absent extension says
+  // nothing, but `.srt` and a leading-dot name each say the thing named is
+  // *about* media rather than media, and a clean refusal is the useful answer.
+  for (const [name, pattern] of [
+    ['TV Shows/Moon Knight/Season 1/Moon Knight - S01E01.srt', /sidecar/],
+    ['TV Shows/Moon Knight/.plexmatch', /dotfile/],
+    ['Movies/Poster.jpg', /sidecar/],
+  ] as const) {
+    const result = parseVideo('tv', name);
+    assert.equal(result.ok, false, name);
+    if (result.ok) throw new Error('unreachable');
+    assert.match(result.refusal, pattern, name);
+  }
+});
+
+test('a torrent is stripped like an nzb, being the same kind of metafile', () => {
+  const result = parseVideo('movies', 'Movie.2020.torrent');
+  assert.ok(result.ok);
+  if (!result.ok) throw new Error('unreachable');
+  assert.equal(result.parsed.title, 'Movie');
+  assert.equal(result.parsed.year, 2020);
+  assert.ok(!/torrent/i.test(result.parsed.title), 'it must not reach the title');
 });
