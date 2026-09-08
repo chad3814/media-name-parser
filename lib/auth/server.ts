@@ -158,6 +158,19 @@ function buildAuth() {
       // secret would let a leak from a preview forge production sessions.
       // Falls back to the main secret when unset, which is the plugin's own
       // default and fine for a single-environment deployment.
+      // The last hop is production redirecting into the preview that began the
+      // handshake, and Better Auth's `originCheck` validates that
+      // `callbackURL` against its trusted origins. Production trusts only its
+      // own `baseURL` by default and this plugin does not widen it, so
+      // without `BETTER_AUTH_TRUSTED_ORIGINS` the handshake reaches GitHub and
+      // is refused 403 on the way home.
+      //
+      // That variable is read by Better Auth itself, so there is nothing to
+      // wire here -- only to set. Scope it to the project and the team,
+      // `https://open-metadata-*-chad3814.vercel.app`; a bare
+      // `https://*.vercel.app` would trust every deployment on the platform,
+      // strangers' included, which is the same mistake as a wildcard OAuth
+      // callback and defeats the reason this proxy exists.
       oAuthProxy({
         ...(env('BETTER_AUTH_PROXY_SECRET').length > 0
           ? { secret: env('BETTER_AUTH_PROXY_SECRET') }
