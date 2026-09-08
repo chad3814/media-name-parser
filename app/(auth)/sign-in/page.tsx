@@ -12,9 +12,16 @@ export const dynamic = 'force-dynamic';
 // crosses the boundary to the client; neither credential does.
 export default function SignInPage() {
   return (
-    <main>
-      <h1>Sign in</h1>
-      <SignInForm githubEnabled={githubConfigured()} />
+    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-12">
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
+          <p className="text-sm text-muted-foreground">
+            We will email you a link. No password to remember.
+          </p>
+        </div>
+        <SignInForm githubEnabled={githubConfigured()} />
+      </div>
     </main>
   );
 }

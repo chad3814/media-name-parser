@@ -209,3 +209,54 @@ test('the auth instance builds with the proxy configured', () => {
     assert.ok('oAuthProxy' in getAuth().api, 'the oauth-proxy endpoint should be registered');
   });
 });
+
+/** The proxy's last hop, as production receives it. */
+async function proxyHop(trusted: string, callbackURL: string): Promise<number> {
+  const mutable = process.env as Record<string, string | undefined>;
+  const previous = mutable.BETTER_AUTH_TRUSTED_ORIGINS;
+  mutable.BETTER_AUTH_TRUSTED_ORIGINS = trusted;
+  try {
+    // A fresh module per pattern, because getAuth() memoizes its config. The
+    // handler must be invoked while the variable is still set: the config is
+    // built on the first getAuth() call, not at import.
+    const mod = await import(`../../lib/auth/server?trusted=${encodeURIComponent(trusted)}`);
+    const url = 'https://openmetadata.nexus/api/auth/oauth-proxy-callback'
+      + `?callbackURL=${encodeURIComponent(callbackURL)}`;
+    const response = await mod.getAuth().handler(new Request(url, {
+      headers: { origin: 'https://openmetadata.nexus' },
+    }));
+    return response.status;
+  } finally {
+    if (previous === undefined) delete mutable.BETTER_AUTH_TRUSTED_ORIGINS;
+    else mutable.BETTER_AUTH_TRUSTED_ORIGINS = previous;
+  }
+}
+
+const PREVIEW_ORIGIN = 'https://open-metadata-git-a-branch-chad3814.vercel.app';
+const SCOPED_PATTERN = 'https://open-metadata-*-chad3814.vercel.app';
+
+test('production refuses the proxy hop home unless the preview is trusted', async () => {
+  // The last hop is production redirecting into the preview that began the
+  // handshake, and `originCheck` validates that callbackURL against
+  // trustedOrigins. Production trusts only its own baseURL by default and
+  // `oAuthProxy` does not widen it, so unconfigured the proxy gets as far as
+  // GitHub and is refused on the way home.
+  assert.equal(await proxyHop('', `${PREVIEW_ORIGIN}/`), 403,
+    'an untrusted preview must be refused');
+  assert.notEqual(await proxyHop(SCOPED_PATTERN, `${PREVIEW_ORIGIN}/`), 403,
+    'a trusted preview must get past originCheck');
+});
+
+test('the trusted pattern is scoped to one project and one team', async () => {
+  // A bare `https://*.vercel.app` would trust every deployment on the
+  // platform, strangers' included, which is the same mistake as a wildcard
+  // OAuth callback and defeats the reason the proxy exists.
+  for (const foreign of [
+    'https://someone-elses-app-chad3814.vercel.app/',
+    'https://open-metadata-git-a-branch-someoneelse.vercel.app/',
+    'https://open-metadata-x-chad3814.vercel.app.evil.example/',
+    'https://evil.example/',
+  ]) {
+    assert.equal(await proxyHop(SCOPED_PATTERN, foreign), 403, foreign);
+  }
+});
