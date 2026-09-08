@@ -14,7 +14,7 @@
     "fixtures/corpus/tv.releases.raw.txt": 0,
     "fixtures/corpus/tv.library.raw.txt": 0,
     "fixtures/corpus/tv.sport.raw.txt": 41,
-    "fixtures/corpus/xxx.releases.raw.txt": 414,
+    "fixtures/corpus/xxx.releases.raw.txt": 415,
     "fixtures/corpus/xxx.library.raw.txt": 248
   },
   "refused": {
@@ -23,8 +23,8 @@
     "fixtures/corpus/tv.releases.raw.txt": 0,
     "fixtures/corpus/tv.library.raw.txt": 71,
     "fixtures/corpus/tv.sport.raw.txt": 0,
-    "fixtures/corpus/xxx.releases.raw.txt": 50,
-    "fixtures/corpus/xxx.library.raw.txt": 9
+    "fixtures/corpus/xxx.releases.raw.txt": 0,
+    "fixtures/corpus/xxx.library.raw.txt": 8
   },
   "resolveRate": {
     "fixtures/corpus/movies.releases.raw.txt": 0.75,
