@@ -3,7 +3,7 @@ import type {
   JsonValue, Provider, ResolveContext, ResolveOutcome, ResolvedMedia, ResolvedPerson,
 } from '../types';
 import { titleSimilarity } from '../../resolve/confidence';
-import { normalizeSiteName } from '../../parse/normalize';
+import { foldForMatch, normalizeSiteName } from '../../parse/normalize';
 import { logFailure } from '../../http/log';
 import { withTransaction } from '../../db/client';
 import { sortTitleOf } from '../tmdb/normalize';
@@ -32,6 +32,26 @@ const TEXT_WITH_SITE = 0.85;
  * 0.70 for failing to match a name it was never going to match.
  */
 const TEXT_WITH_PARENT = 0.80;
+/**
+ * A title that came back all but identical to the parsed one, with no site to
+ * corroborate it.
+ *
+ * Banded with `TEXT_WITH_SITE` because it is the same strength of evidence
+ * arriving by a different route. The bands below assume a `q` search tells
+ * you nothing about identity, and for a loose match that is true -- but the
+ * reported failure parsed a 118-character title that came back at 0.99
+ * similarity, and was still filed `unresolved` because the filename happened
+ * not to name its site. Agreement that close, over that many characters, is a
+ * stronger statement about identity than a six-character short name matching.
+ *
+ * The guards are what keep that honest, and both are load-bearing. `Anal`
+ * matches a great many scenes exactly, so an exact match on a short title
+ * says nothing at all; 36.6% of corpus titles fall under the length floor,
+ * but only 19.7% of the site-less names this band actually serves do.
+ */
+const TEXT_EXACT_TITLE = 0.85;
+const EXACT_TITLE_SIMILARITY = 0.95;
+const EXACT_TITLE_MIN_LENGTH = 20;
 const TEXT_SINGLE = 0.70;
 const TEXT_BEST_OF_MANY = 0.60;
 
@@ -189,6 +209,72 @@ async function searchScenes(
 }
 
 /**
+ * The spellings of one free-text query to try, in order, stopping at the
+ * first that answers.
+ *
+ * `q` is a strict AND over whole terms with no prefix matching -- verified
+ * live: appending a single nonsense term to a query that returns the right
+ * scene returns zero rows instead. So one term the index does not hold costs
+ * the entire search, and the term filenames most often disagree about is a
+ * digit run beside letters. The corpus has it in both directions: `LTP145`
+ * in the filename is `Ltp 145` upstream, and `2.chicks` is `2Chicks`.
+ *
+ * The two glue directions are separate variants rather than one pass because
+ * applying both at once fuses `Kline 2 chicks` into `Kline2chicks`, which
+ * matches nothing either -- it was written that way first and found neither
+ * scene. A title needing glue at one boundary and not another is still a
+ * miss here; that is a known gap, and the term ladder below is what catches
+ * it.
+ */
+function queryVariants(q: string): readonly string[] {
+  const variants = [q];
+  const add = (candidate: string): void => {
+    if (!variants.includes(candidate)) variants.push(candidate);
+  };
+  add(q.replace(/([A-Za-z])(\d)/g, '$1 $2').replace(/(\d)([A-Za-z])/g, '$1 $2'));
+  add(q.replace(/(\d) +([A-Za-z])/g, '$1$2'));
+  add(q.replace(/([A-Za-z]) +(\d)/g, '$1$2'));
+  return variants;
+}
+
+/**
+ * Term counts to retry at once no spelling answers. Dropping terms can only
+ * widen a strict AND, so this is the general fallback for a term the index
+ * does not hold at all -- a release group, a scrape artefact, a typo.
+ *
+ * Coarse on purpose. Dropping one term at a time costs a call per term and
+ * measured no better on a corpus sample than these three cuts, because what
+ * rescues a name is usually reaching the handful of leading terms that are
+ * the real title. Trailing terms go first: a scene name puts its title at
+ * the front and its catalogue noise at the back.
+ */
+const LADDER_CUTS: readonly number[] = [8, 5, 3];
+
+/**
+ * One free-text search, spelled every way worth trying.
+ *
+ * The extra calls are paid only by names that currently find nothing at all,
+ * so the common case still costs exactly one call. On a corpus sample of 30
+ * dated, sited names this took the on-site hit rate from 20/30 to 24/30 with
+ * no result lost, at an average 1.6 calls per name.
+ */
+async function searchText(
+  client: TpdbClient, q: string, ctx: ResolveContext,
+): Promise<readonly TpdbScene[]> {
+  for (const variant of queryVariants(q)) {
+    const scenes = await searchScenes(client, { q: variant }, ctx);
+    if (scenes.length > 0) return scenes;
+  }
+  const terms = q.split(' ').filter((term) => term.length > 0);
+  for (const cut of LADDER_CUTS) {
+    if (cut >= terms.length) continue;
+    const scenes = await searchScenes(client, { q: terms.slice(0, cut).join(' ') }, ctx);
+    if (scenes.length > 0) return scenes;
+  }
+  return [];
+}
+
+/**
  * One `site_id` + `date` query. Exact dates only: `dateOperation` was tested
  * live with `>=`, `<=`, `gte`, `greater` and `after`, and every one of them
  * returned zero rows, so there is no range query and a day of tolerance costs
@@ -231,7 +317,7 @@ async function byText(
 ): Promise<Match | null> {
   const q = [site ?? '', title].filter((part) => part.length > 0).join(' ');
   if (q.length === 0) return null;
-  const scenes = await searchScenes(client, { q }, ctx);
+  const scenes = await searchText(client, q, ctx);
 
   if (site !== null && title.length > 0) {
     const wanted = foldSite(site);
@@ -246,6 +332,16 @@ async function byText(
       || foldSite(s.site?.network?.short_name ?? '') === wanted);
     const brand = bestByTitle(underBrand, title);
     if (brand !== null) return { scene: brand, confidence: TEXT_WITH_PARENT };
+  }
+
+  // Checked after the site bands so a filename naming its site never loses
+  // the corroborated reading, and before the two below because a title this
+  // close is not the uncorroborated guess they describe.
+  const closest = bestByTitle(scenes, title);
+  if (closest !== null
+    && foldForMatch(title).length >= EXACT_TITLE_MIN_LENGTH
+    && titleSimilarity(title, closest.title) >= EXACT_TITLE_SIMILARITY) {
+    return { scene: closest, confidence: TEXT_EXACT_TITLE };
   }
 
   const only = scenes.length === 1 ? scenes[0] : undefined;
