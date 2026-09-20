@@ -192,7 +192,11 @@ test('a q result whose site matches the parsed site clears the floor', async () 
 
   assert.equal(calls.length, 1);
   assert.equal(calls[0]?.query.q, 'SpankMonster Ruby Redbottom And Octavia Red');
-  assert.equal(out?.confidence, 0.85);
+  // The corroborating row also carries the parsed date, so it earns the date
+  // band rather than the bare site one -- the same two fields `byDate` asks
+  // for, checked on the row instead. `a parse with no date at all is scored
+  // exactly as before` pins the site-only band.
+  assert.equal(out?.confidence, 0.98);
   assert.equal(out?.media.providerRef, 'adf4b545-8b59-4bad-a935-4f5ec83a16db',
     'the corroborated result wins over the first one returned');
 });
@@ -312,7 +316,9 @@ test('among same-site results the closest title wins, not the first returned', a
   );
   const out = await provider.resolve(parsed(ANCHORED), ctx);
 
-  assert.equal(out?.confidence, 0.85);
+  // Both rows carry the parsed date, so the date narrows nothing here and
+  // the title is still what separates them -- which is the point of the test.
+  assert.equal(out?.confidence, 0.98);
   assert.equal(out?.media.providerRef, 'same-site-better',
     'the best title among the corroborated rows, not the first one the API listed');
 });
@@ -521,7 +527,8 @@ test('a q that matches nothing is retried with a spaced number glued on', async 
   assert.ok(calls.every((c) => c.query.q !== 'TeensWantOrgies Kelly Kline2chicks and a cock'),
     'the two glue directions are never applied together');
   assert.equal(out?.media.title, '2Chicks and a Cock');
-  assert.equal(out?.confidence, 0.85, 'the site corroborates it from outside the search');
+  assert.equal(out?.confidence, 0.98,
+    'the site and the parsed date both corroborate it from outside the search');
 });
 
 test('a q no respelling rescues drops trailing terms until something answers', async () => {
@@ -572,4 +579,112 @@ test('a short title matching exactly does not earn the near-exact band', async (
 
   assert.equal(out?.confidence, 0.70, 'still the uncorroborated single-result band');
   assert.ok((out?.confidence ?? 1) < 0.75);
+});
+
+/**
+ * Two scenes of one performer on one site, told apart only by their date --
+ * the shape that resolved both filenames onto a single scene.
+ */
+const LHB = { id: 6883, name: 'Love Her Boobs', short_name: 'loveherboobs' };
+const LHB_18 = scene({
+  id: 'lhb-18', title: 'JOI Boob Tease With Gigi Lysette', date: '2026-06-18',
+  site_id: 6883, site: LHB,
+});
+const LHB_29 = scene({
+  id: 'lhb-29', title: 'Making Her Feel Special', date: '2026-06-29',
+  site_id: 6883, site: LHB,
+});
+
+test('a cold site uses the parsed date to choose among the rows it got back', async () => {
+  // Both scenes come back from the one text search, and the parsed title is
+  // just the performer's name, so title similarity prefers the longer title
+  // containing it (0.375) over the right scene (0.261) -- for both
+  // filenames. The date is in the parse and on every row, and was discarded.
+  const provider = createTpdbProvider(
+    spellingClient([], { 'LoveHerBoobs Gigi Lysette': [LHB_18, LHB_29] }),
+    siteCache().cache,
+  );
+
+  const later = await provider.resolve(parsed('LoveHerBoobs.26.06.29.Gigi.Lysette.2160p'), ctx);
+  assert.equal(later?.media.title, 'Making Her Feel Special');
+  assert.equal(later?.media.releaseDate, '2026-06-29');
+
+  const earlier = await provider.resolve(parsed('LoveHerBoobs.26.06.18.Gigi.Lysette.2160p'), ctx);
+  assert.equal(earlier?.media.title, 'JOI Boob Tease With Gigi Lysette');
+  assert.equal(earlier?.media.releaseDate, '2026-06-18');
+});
+
+test('a site and an exact date agreeing on the row earns the same band as querying them', async () => {
+  // `byDate` earns 0.98 because site_id plus an exact date is nearly a
+  // primary key. Checking those same two fields on a row the text search
+  // returned is the same assertion, so it is the same band -- a cold site
+  // now scores what a warm one would.
+  const provider = createTpdbProvider(
+    spellingClient([], { 'LoveHerBoobs Gigi Lysette': [LHB_18, LHB_29] }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed('LoveHerBoobs.26.06.29.Gigi.Lysette.2160p'), ctx);
+  assert.equal(out?.confidence, 0.98);
+});
+
+test('a date a day out on the row earns the day-out band, not the exact one', async () => {
+  const provider = createTpdbProvider(
+    spellingClient([], { 'LoveHerBoobs Gigi Lysette': [LHB_18] }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed('LoveHerBoobs.26.06.19.Gigi.Lysette.2160p'), ctx);
+  assert.equal(out?.confidence, 0.90);
+  assert.equal(out?.media.title, 'JOI Boob Tease With Gigi Lysette');
+});
+
+test('a contradicted date with a title that carries itself keeps the site band', async () => {
+  // Measured: dates can be a couple of days out and still be the same scene.
+  // This one is two days out with a 0.83 title similarity -- demoting it
+  // would turn a correct resolution into a suggestion.
+  const provider = createTpdbProvider(
+    spellingClient([], {
+      'SweetieFox Passionate Spider Woman vs Anal Fuck Lover Black Spider Girl': [
+        scene({
+          title: 'Passionate Spider Woman vs Anal Fuck Lover Black Spider-Girl',
+          date: '2023-06-16', site_id: 91, site: { id: 91, name: 'Sweetie Fox', short_name: 'sweetiefox' },
+        }),
+      ],
+    }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(
+    parsed('SweetieFox.23.06.18.Passionate.Spider.Woman.vs.Anal.Fuck.Lover.Black.Spider.Girl.2160p'), ctx,
+  );
+  assert.equal(out?.confidence, 0.85, 'the title alone is enough to keep the site band');
+});
+
+test('a contradicted date with a weak title drops below the floor', async () => {
+  // A year out, and the parsed title is only the performer's name, so
+  // nothing corroborates the row: 0.85 here is a confidently wrong answer
+  // recorded as `resolved`, which is worse than a suggestion.
+  const provider = createTpdbProvider(
+    spellingClient([], {
+      'Milflicious London River': [
+        scene({
+          title: 'Naughty Games W/ My Stepmom London River', date: '2025-09-04',
+          site_id: 55, site: { id: 55, name: 'Milflicious', short_name: 'milflicious' },
+        }),
+      ],
+    }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed('Milflicious.26.08.20.London.River.2160p'), ctx);
+  assert.ok((out?.confidence ?? 1) < 0.75,
+    `a contradicted date and a weak title is a suggestion, got ${out?.confidence}`);
+});
+
+test('a parse with no date at all is scored exactly as before', async () => {
+  // The demotion keys off a date the filename actually asserted. A name that
+  // never named one cannot have it contradicted.
+  const provider = createTpdbProvider(
+    spellingClient([], { 'SpankMonster Ruby Redbottom And Octavia Red': [scene()] }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed(LIBRARY_UNDATED), ctx);
+  assert.equal(out?.confidence, 0.85);
 });
