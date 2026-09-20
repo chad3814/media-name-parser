@@ -835,3 +835,86 @@ test('a record sharing only a couple of words does not earn the coverage band', 
   const out = await provider.resolve(parsed(AMPERSAND), ctx);
   assert.ok((out?.confidence ?? 1) < 0.75, `sharing three words is not a match, got ${out?.confidence}`);
 });
+
+/**
+ * A scene the site published the day before the filename's date, with
+ * nothing else in common -- what a warm site returns for a release TPDB has
+ * not indexed yet.
+ */
+const NEIGHBOUR = scene({
+  id: 'get-comfy', title: 'Get Comfy', date: '2026-09-19',
+  site_id: 127, site: { id: 127, name: 'Nubiles', short_name: 'nubiles' },
+  performers: [{ id: 'kris', name: 'Kris Sunshine' }],
+});
+
+test('a day-out row sharing nothing with the filename is not the scene', async () => {
+  // 2026-09-20 is the day the filename names and TPDB has nothing for it --
+  // the likelier reading is that the scene is not indexed yet, not that it
+  // is an unrelated scene from the day before. `bestByTitle` has no floor,
+  // so a single neighbouring row was returned whatever its title, and two
+  // different filenames both resolved to `Get Comfy` at 0.90.
+  const calls: Call[] = [];
+  const provider = createTpdbProvider(
+    stubClient(calls, [[], [NEIGHBOUR], []]), siteCache({ nubiles: '127' }).cache,
+  );
+  const out = await provider.resolve(parsed('Nubiles.26.09.20.Gracey.Snow.Play.Me.XXX.MP4-P0RNL0V3RSD'), ctx);
+
+  assert.notEqual(out?.media.title, 'Get Comfy');
+  assert.ok(out === null || out.confidence < 0.75,
+    `an unrelated neighbour is not a resolution, got ${out?.confidence}`);
+});
+
+test('the guard reads performers, not just the title', async () => {
+  // The commonest shape on this API is a filename whose title is only a
+  // performer's name against a record titled something else entirely --
+  // `Gigi Lysette` against `Making Her Feel Special`. Judged on titles alone
+  // that scores zero and the guard would throw away 27% of correct
+  // exact-date matches. The performer list is in the same response.
+  const provider = createTpdbProvider(
+    stubClient([], [[scene({
+      title: 'Making Her Feel Special', date: '2026-06-29',
+      site_id: 6883, site: { id: 6883, name: 'Love Her Boobs', short_name: 'loveherboobs' },
+      performers: [{ id: 'gigi', name: 'Gigi Lysette' }],
+    })]]),
+    siteCache({ loveherboobs: '6883' }).cache,
+  );
+  const out = await provider.resolve(parsed('LoveHerBoobs.26.06.29.Gigi.Lysette.2160p'), ctx);
+  assert.equal(out?.confidence, 0.98, 'the performer carries it where the title cannot');
+  assert.equal(out?.media.title, 'Making Her Feel Special');
+});
+
+test('a day-out row that does share the filename still earns its band', async () => {
+  // The tolerance exists for filenames that are genuinely a day out, and
+  // those agree: the corpus example scores 1.00 against title-plus-
+  // performers. Only rows sharing nothing at all are refused.
+  const provider = createTpdbProvider(
+    stubClient([], [[], [scene({
+      title: 'Fire Blonde', date: '2025-05-22',
+      site_id: 300, site: { id: 300, name: 'Wow Girls', short_name: 'wowgirls' },
+      performers: [{ id: 'ariela', name: 'Ariela Donovan' }],
+    })]]),
+    siteCache({ wowgirls: '300' }).cache,
+  );
+  const out = await provider.resolve(parsed('WowGirls.25.05.23.Ariela.Donovan.Fire.Blonde.2160p'), ctx);
+  assert.equal(out?.confidence, 0.90);
+  assert.equal(out?.media.title, 'Fire Blonde');
+});
+
+test('an exact-date row sharing nothing is refused too', async () => {
+  // Same hole, one band up. `site_id` plus an exact date is very nearly a
+  // primary key, but only when the scene is actually indexed -- a site that
+  // published something else that day otherwise supplies a confident wrong
+  // answer. `Elle La Ware 24454` resolved to a scene whose performers are
+  // Paige Turner and Tony Marzo.
+  const provider = createTpdbProvider(
+    stubClient([], [[scene({
+      title: 'Hard Times For Masseurs With Paige', date: '2022-07-07',
+      site_id: 4347, site: SPANKMONSTER,
+      performers: [{ id: 'paige', name: 'Paige Turner' }, { id: 'tony', name: 'Tony Marzo' }],
+    })]]),
+    siteCache(WARM).cache,
+  );
+  const out = await provider.resolve(parsed('SpankMonster.22.07.07.Elle.La.Ware.24454.XXX.2160p.MP4-WRB.nzb'), ctx);
+  assert.ok(out === null || out.confidence < 0.75,
+    `nothing in common is not a resolution, got ${out?.confidence} "${out?.media.title}"`);
+});

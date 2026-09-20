@@ -301,6 +301,32 @@ function titleCoverage(a: string, b: string): number {
   return shared / Math.min(left.size, right.size);
 }
 
+/**
+ * Whether a row has anything at all in common with what the filename said,
+ * comparing against the title *and* the credited performers.
+ *
+ * Performers are read because the commonest scene filename is a performer's
+ * name and little else, while the record is titled something unrelated --
+ * `Gigi Lysette` against `Making Her Feel Special`. Judged on titles alone
+ * that scores zero, and 27% of correct exact-date matches in a corpus
+ * sample would have been thrown away. The performer list rides in the same
+ * response, and including it cut the sample's no-agreement cases from 7 in
+ * 26 to 2 -- one of which turned out to be a genuinely wrong match.
+ *
+ * The bar is deliberately on the floor. This is not "is this the right
+ * scene", which is what the confidence bands are for; it is "is there any
+ * reason to think these are related at all". Correct day-out matches in the
+ * corpus score 1.00 here and the wrong ones score 0.00, so anything in
+ * between is untested and treated as good enough.
+ */
+const DATE_ROW_MIN_OVERLAP = 0.30;
+
+function sharesSomething(title: string, scene: TpdbScene): boolean {
+  if (foldForMatch(title).length === 0) return true;
+  const described = `${scene.title} ${scene.performers.map((p) => p.name).join(' ')}`;
+  return titleCoverage(title, described) >= DATE_ROW_MIN_OVERLAP;
+}
+
 /** The closest title among several results. Ties keep the API's own order. */
 function bestByTitle(scenes: readonly TpdbScene[], title: string): TpdbScene | null {
   let best: TpdbScene | null = null;
@@ -427,7 +453,11 @@ async function byDate(
 ): Promise<Match | null> {
   const scenes = await searchScenes(client, { site_id: siteId, date }, ctx);
   const scene = bestByTitle(scenes, title);
-  return scene === null ? null : { scene, confidence };
+  if (scene === null) return null;
+  // `bestByTitle` ranks; it does not judge. Handed a single row it returns
+  // that row whatever it is called, so a date query the scene is simply
+  // absent from used to answer with whatever else the site published.
+  return sharesSomething(title, scene) ? { scene, confidence } : null;
 }
 
 /**
