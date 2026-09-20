@@ -86,6 +86,15 @@ export interface ResolveContext {
   readonly signal: AbortSignal;
   /** For `provider_calls.lookup_id`; null when resolving outside a lookup. */
   readonly lookupId: string | null;
+  /**
+   * A series id in this provider's own namespace, handed over by a provider
+   * that resolved the series but not the episode.
+   *
+   * Optional, and absent for every provider but TheTVDB. The alternative was
+   * a second `resolve` signature; one optional field on the context both
+   * providers already take is the smaller seam.
+   */
+  readonly seriesRef?: string;
 }
 
 /**
