@@ -277,6 +277,26 @@ async function searchScenes(
 }
 
 /**
+ * Words a filename spells out that the record may punctuate instead.
+ *
+ * `and` is an ordinary indexed term on this API, not a stopword: a query
+ * carrying it against a record that writes `&` returns zero rows, verified
+ * live. It is a whole term in 16.2% of corpus titles (2,071 names), and on a
+ * 30-name sample of those only 7 matched as parsed while 20 more answered
+ * the moment it was dropped -- most with a single row, so this buys
+ * precision rather than noise.
+ *
+ * Dropped rather than rewritten to `&`. Both spellings were tried live and
+ * both find the reported scene, but dropping a term is the safe operation:
+ * it can only widen a strict AND, so it cannot lose a result, while `&` is a
+ * guess about how this particular record is punctuated. Only `and` is listed
+ * because it is the only one of `and`/`&`/`+` the tokenizer ever emits as a
+ * term -- the symbols never survive parsing, so the mismatch only runs in
+ * this direction.
+ */
+const DROPPABLE_TERMS: ReadonlySet<string> = new Set(['and']);
+
+/**
  * The spellings of one free-text query to try, in order, stopping at the
  * first that answers.
  *
@@ -297,8 +317,13 @@ async function searchScenes(
 function queryVariants(q: string): readonly string[] {
   const variants = [q];
   const add = (candidate: string): void => {
-    if (!variants.includes(candidate)) variants.push(candidate);
+    if (candidate.length > 0 && !variants.includes(candidate)) variants.push(candidate);
   };
+  // First, because dropping a term can only widen a strict AND: this variant
+  // can never lose a result the parsed spelling would have found, while the
+  // re-spellings below are guesses that can miss. On the reported name the
+  // split spelling actively breaks `GIO2248`, which the record writes glued.
+  add(q.split(' ').filter((term) => !DROPPABLE_TERMS.has(term.toLowerCase())).join(' '));
   add(q.replace(/([A-Za-z])(\d)/g, '$1 $2').replace(/(\d)([A-Za-z])/g, '$1 $2'));
   add(q.replace(/(\d) +([A-Za-z])/g, '$1$2'));
   add(q.replace(/([A-Za-z]) +(\d)/g, '$1$2'));
