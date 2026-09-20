@@ -294,10 +294,11 @@ test('nothing matched returns null rather than a low-confidence guess', async ()
     [
       undefined, undefined, undefined,
       'SpankMonster Ruby Redbottom And Octavia Red',
+      'SpankMonster Ruby Redbottom Octavia Red',
       'SpankMonster Ruby Redbottom And Octavia',
       'SpankMonster Ruby Redbottom',
     ],
-    'three dates, the full text query, then the ladder',
+    'three dates, the full text query, the conjunction dropped, then the ladder',
   );
 });
 
@@ -502,8 +503,15 @@ test('a q that matches nothing is retried with the digit boundary split apart', 
   );
   const out = await provider.resolve(parsed(GLUED_CODE), ctx);
 
-  assert.deepEqual(calls.map((c) => c.query.q), [asParsed, respelled],
-    'as parsed first, then the split spelling');
+  // This title also carries an `AND`, so the safe term-dropping variant runs
+  // between the two. It still finds nothing here: the record spells the
+  // conjunction out, so dropping it changes nothing that mattered, and
+  // `LTP145` is still the term the index does not hold.
+  assert.deepEqual(
+    calls.map((c) => c.query.q),
+    [asParsed, asParsed.replace(' AND ', ' '), respelled],
+    'as parsed, the conjunction dropped, then the split spelling',
+  );
   assert.equal(out?.media.title, GLUED_CODE_TITLE);
 });
 
@@ -687,4 +695,59 @@ test('a parse with no date at all is scored exactly as before', async () => {
   );
   const out = await provider.resolve(parsed(LIBRARY_UNDATED), ctx);
   assert.equal(out?.confidence, 0.85);
+});
+
+/** The reported failure: the filename spells `and` where the record has `&`. */
+const AMPERSAND =
+  'Emily.Pink.and.Kaira.Love.ATOGM.DAP.Rough.Gapes.Pee.Drink.Cum.in.Mouth.Swallow.GIO2248.2160p';
+const AMPERSAND_TITLE =
+  'The Dark Room Wet #2 Wet, 6On2 Emily Pink & Kaira Love , Atogm, Dap, Rough, Gapes, '
+  + 'Pee Drink, Cum in Mouth, Swallow Gio2248';
+
+test('a q that matches nothing is retried without the conjunction', async () => {
+  // `and` is an ordinary indexed term on this API, not a stopword -- verified
+  // live, a query carrying it against a record spelling it `&` returns zero
+  // rows. It is a whole term in 16.2% of corpus titles, and on a 30-name
+  // sample of those only 7 matched as parsed while 20 more came back the
+  // moment it was dropped, most of them a single row.
+  const calls: Call[] = [];
+  const asParsed = 'Emily Pink and Kaira Love ATOGM DAP Rough Gapes Pee Drink Cum in Mouth Swallow GIO2248';
+  const dropped = asParsed.replace(' and ', ' ');
+  const provider = createTpdbProvider(
+    spellingClient(calls, {
+      [dropped]: [scene({ title: AMPERSAND_TITLE, date: null, site: null, site_id: null })],
+    }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed(AMPERSAND), ctx);
+
+  assert.deepEqual(calls.map((c) => c.query.q), [asParsed, dropped],
+    'as parsed first, then the same query without the conjunction');
+  assert.equal(out?.media.title, AMPERSAND_TITLE);
+});
+
+test('the conjunction retry is tried before the digit respellings', async () => {
+  // Dropping a term can only widen a strict AND, so it can never lose a
+  // result the parsed spelling would have found. Re-spelling a digit
+  // boundary is a guess and can miss, so the safe variant goes first -- and
+  // for this name the split spelling actively breaks `GIO2248`, which the
+  // record writes glued.
+  const calls: Call[] = [];
+  const provider = createTpdbProvider(spellingClient(calls, {}), siteCache().cache);
+  await provider.resolve(parsed(AMPERSAND), ctx);
+
+  const queries = calls.map((c) => String(c.query.q));
+  const withoutAnd = queries.findIndex((q) => !q.includes(' and ') && q.includes('GIO2248'));
+  const split = queries.findIndex((q) => q.includes('GIO 2248'));
+  assert.ok(withoutAnd !== -1, `the conjunction variant ran: ${queries.join(' | ')}`);
+  assert.ok(split !== -1, 'the split variant still runs');
+  assert.ok(withoutAnd < split, 'the term-dropping variant comes before the respellings');
+});
+
+test('a title that is nothing but a conjunction does not search for an empty string', async () => {
+  const calls: Call[] = [];
+  const provider = createTpdbProvider(spellingClient(calls, {}), siteCache().cache);
+  await provider.resolve(parsed('And.mp4'), ctx);
+  assert.ok(calls.every((c) => String(c.query.q).length > 0),
+    `no empty query: ${JSON.stringify(calls.map((c) => c.query.q))}`);
 });
