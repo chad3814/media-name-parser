@@ -95,6 +95,16 @@ export interface ResolveContext {
    * providers already take is the smaller seam.
    */
   readonly seriesRef?: string;
+  /**
+   * The title the handing-over provider knows that series by.
+   *
+   * Travels with `seriesRef` because identity and the evidence for it cannot
+   * be separated. TheTVDB answers in a series' primary language -- One Piece
+   * is `ワンピース` -- so scoring a handed-over match against the
+   * *receiving* catalogue's title measures translation rather than identity,
+   * and sinks every correct non-English match to zero.
+   */
+  readonly seriesTitle?: string;
 }
 
 /**

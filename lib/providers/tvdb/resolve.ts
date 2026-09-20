@@ -18,6 +18,13 @@ import { normalizeEpisode, normalizeSeason, normalizeSeries, yearOf } from './no
  * filename. This is not "is it the right series" -- `scoreCandidate` decides
  * that, and its answer is the confidence -- only "is there any reason to
  * think these two are related".
+ *
+ * Compared against `ctx.seriesTitle` when a primary provider handed one over,
+ * and only otherwise against TheTVDB's own name. TheTVDB answers in a series'
+ * primary language, so One Piece is `\u30ef\u30f3\u30d4\u30fc\u30b9`: judging a handed-over
+ * match on that name scores 0.000 and throws away a correct episode. The
+ * provider that established identity is the one whose title identity is
+ * judged against.
  */
 const MIN_SERIES_AGREEMENT = 0.30;
 
@@ -86,11 +93,11 @@ function searchCandidate(hit: TvdbSearchResult): Candidate {
  * the same.
  */
 function scoreSeries(
-  parsed: ParsedVideo, series: TvdbSeries, seasonExists: boolean | null,
-  episodeExists: boolean | null,
+  parsed: ParsedVideo, series: TvdbSeries, knownAs: string,
+  seasonExists: boolean | null, episodeExists: boolean | null,
 ): number {
   const best = pickBest(parsed, [series], (s) =>
-    candidateOf(s.name, yearOf(s), seasonExists, episodeExists));
+    candidateOf(knownAs, yearOf(s), seasonExists, episodeExists));
   return best?.confidence ?? 0;
 }
 
@@ -143,13 +150,21 @@ export function createTvdbProvider(client: TvdbClient): Provider {
         // the episode is this provider's entire purpose, and returning its
         // parent would be the very shortfall it exists to repair.
         if (found === undefined) return null;
-        if (!agrees(parsed.title, body.data.series.name)) return null;
+        // The title identity is judged against, which is not always this
+        // catalogue's own: see `knownAs`.
+        const knownAs = ctx.seriesTitle ?? body.data.series.name;
+        if (!agrees(parsed.title, knownAs)) return null;
+        // Language-independent integrity check, and the only one available
+        // on a handed-over id: confirm the row really belongs to the series
+        // that was asked about rather than trusting the URL round-tripped.
+        const belongs = found.seriesId ?? body.data.series.id;
+        if (String(belongs) !== ref) return null;
 
         const series = normalizeSeries(body.data.series);
         const season = normalizeSeason(series, found.seasonNumber ?? wantedSeason);
         return {
           media: normalizeEpisode(season, found),
-          confidence: scoreSeries(parsed, body.data.series, true, true),
+          confidence: scoreSeries(parsed, body.data.series, knownAs, true, true),
         };
       }
 
@@ -157,7 +172,8 @@ export function createTvdbProvider(client: TvdbClient): Provider {
         `/series/${encodeURIComponent(ref)}`, {}, seriesResponseSchema, ctx,
       );
       if (body === null) return null;
-      if (!agrees(parsed.title, body.data.name)) return null;
+      const knownAs = ctx.seriesTitle ?? body.data.name;
+      if (!agrees(parsed.title, knownAs)) return null;
 
       const series = normalizeSeries(body.data);
       const media: ResolvedMedia = parsed.kind === 'season'
@@ -168,7 +184,7 @@ export function createTvdbProvider(client: TvdbClient): Provider {
         // `/series/{id}` does not enumerate seasons, so a season this call
         // returned is asserted rather than confirmed -- hence `null`, not
         // `true`. Neither parse names an episode, so that stays `null` too.
-        confidence: scoreSeries(parsed, body.data, null, null),
+        confidence: scoreSeries(parsed, body.data, knownAs, null, null),
       };
     },
   };

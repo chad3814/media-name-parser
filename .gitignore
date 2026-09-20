@@ -151,3 +151,6 @@ next-env.d.ts
 
 # Local API key minted by npm run seed:key
 .api-key.local
+
+# Scratch space for one-off probes. Never part of a commit.
+.tmp/

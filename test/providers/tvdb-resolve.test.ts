@@ -181,3 +181,68 @@ test('a movie parse is refused outright, with no call', async () => {
   assert.equal(await provider.resolve(movie.parsed, ctx), null);
   assert.deepEqual(calls, [], 'nothing is asked of an API that cannot answer');
 });
+
+/**
+ * TheTVDB answers in a series' primary language. One Piece really does come
+ * back as `ワンピース`, with Japanese episode titles, from an id TMDB itself
+ * published -- so this is the ordinary case for any non-English series, not
+ * an edge one.
+ */
+const ONE_PIECE_JA = {
+  id: 81797, name: 'ワンピース', firstAired: '1999-10-20', year: '1999',
+};
+const ONE_PIECE_EPISODE = {
+  id: 1, seriesId: 81797, name: '正義のうそつき？キャプテンウソップ',
+  aired: '1999-11-17', number: 1, seasonNumber: 2,
+};
+
+test('a handed-over match is judged on the handing provider title', async () => {
+  // Judging `One Piece` against `ワンピース` scores 0.000, which both fails
+  // the guard and sinks the confidence -- discarding a correct episode that
+  // TMDB does not have and TheTVDB does.
+  const provider = createTvdbProvider(stubClient([], {
+    '/series/81797/episodes/default': {
+      data: { series: ONE_PIECE_JA, episodes: [ONE_PIECE_EPISODE] },
+    },
+  }));
+  const out = await provider.resolve(
+    parsed('One.Piece.S02E01.1080p.WEB.h264-GRP.mkv'),
+    { ...ctx, seriesRef: '81797', seriesTitle: 'One Piece' },
+  );
+  assert.equal(out?.media.kind, 'episode');
+  assert.equal(out?.media.title, '正義のうそつき？キャプテンウソップ');
+  assert.ok((out?.confidence ?? 0) >= 0.75,
+    `the episode TMDB lacks should resolve, got ${out?.confidence}`);
+});
+
+test('without a handed-over title a localised name is still refused', async () => {
+  // The guard is not weakened in general: it is only that a title supplied
+  // by the provider which established identity outranks this one's.
+  const provider = createTvdbProvider(stubClient([], {
+    '/series/81797/episodes/default': {
+      data: { series: ONE_PIECE_JA, episodes: [ONE_PIECE_EPISODE] },
+    },
+  }));
+  const out = await provider.resolve(
+    parsed('One.Piece.S02E01.1080p.WEB.h264-GRP.mkv'), { ...ctx, seriesRef: '81797' },
+  );
+  assert.equal(out, null);
+});
+
+test('an episode belonging to another series is refused', async () => {
+  // A language-independent integrity check on the handed-over path, where
+  // the title guard is judging someone else's title.
+  const provider = createTvdbProvider(stubClient([], {
+    '/series/81797/episodes/default': {
+      data: {
+        series: ONE_PIECE_JA,
+        episodes: [{ ...ONE_PIECE_EPISODE, seriesId: 999999 }],
+      },
+    },
+  }));
+  const out = await provider.resolve(
+    parsed('One.Piece.S02E01.1080p.WEB.h264-GRP.mkv'),
+    { ...ctx, seriesRef: '81797', seriesTitle: 'One Piece' },
+  );
+  assert.equal(out, null);
+});

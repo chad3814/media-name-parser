@@ -36,17 +36,30 @@ export function needsFallback(parsed: ParsedVideo, outcome: ResolveOutcome | nul
   return got < asked;
 }
 
+/** What the primary already established about the series, if anything. */
+interface Handover {
+  readonly seriesRef: string;
+  readonly seriesTitle: string;
+}
+
 /**
- * The TVDB series id the primary already published, if it did.
+ * The TVDB series id the primary already published, with the title it knows
+ * that series by.
  *
- * TMDB records it on the *series* node (`tmdb/normalize.ts`), and the
+ * TMDB records the id on the *series* node (`tmdb/normalize.ts`), and the
  * shortfall case returns a season, so the chain is walked upward rather than
  * only the returned node inspected.
+ *
+ * The title travels with the id because the two are one piece of evidence.
+ * TheTVDB answers in a series' primary language -- One Piece comes back as
+ * `ワンピース` -- so a receiver scoring the handover against its own
+ * title would be measuring translation, not identity, and would reject every
+ * correct match on a non-English series.
  */
-function inheritedSeriesRef(media: ResolvedMedia | null): string | undefined {
+function handoverFrom(media: ResolvedMedia | null): Handover | undefined {
   for (let node = media; node !== null; node = node.parent) {
     const found = node.externalIds.find((id) => id.source === 'tvdb');
-    if (found !== undefined) return found.id;
+    if (found !== undefined) return { seriesRef: found.id, seriesTitle: node.title };
   }
   return undefined;
 }
@@ -82,8 +95,8 @@ export function createFallbackProvider(primary: Provider, secondary: Provider | 
       // provider* failure. Reading our own primary's answer is not that, and
       // folding it in would report a bug here as "TheTVDB is down" while
       // silently skipping the fallback altogether.
-      const seriesRef = inheritedSeriesRef(first?.media ?? null);
-      const handover = seriesRef === undefined ? ctx : { ...ctx, seriesRef };
+      const inherited = handoverFrom(first?.media ?? null);
+      const handover = inherited === undefined ? ctx : { ...ctx, ...inherited };
 
       try {
         // `?? first`, not a bare return: the fallback may only improve an
