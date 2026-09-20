@@ -1,0 +1,175 @@
+import type { Category, ParsedVideo } from '../../parse/types';
+import type { Provider, ResolveContext, ResolveOutcome, ResolvedMedia } from '../types';
+import { pickBest, titleSimilarity, type Candidate } from '../../resolve/confidence';
+import { foldForMatch } from '../../parse/normalize';
+import type { TvdbClient } from './client';
+import {
+  episodesResponseSchema, searchResponseSchema, seriesResponseSchema,
+  type TvdbSearchResult, type TvdbSeries,
+} from './schema';
+import { normalizeEpisode, normalizeSeason, normalizeSeries, yearOf } from './normalize';
+
+/**
+ * How alike the parsed title and the series TheTVDB returned must be for the
+ * row to be believed at all.
+ *
+ * The same sanity guard the TPDB provider grew: a record reached by an
+ * inherited id or a fuzzy search still has to have some bearing on the
+ * filename. This is not "is it the right series" -- `scoreCandidate` decides
+ * that, and its answer is the confidence -- only "is there any reason to
+ * think these two are related".
+ */
+const MIN_SERIES_AGREEMENT = 0.30;
+
+/** The aired order, which is what `SxxExx` in a filename means. */
+const SEASON_TYPE = 'default';
+
+function agrees(parsedTitle: string, name: string): boolean {
+  if (foldForMatch(parsedTitle).length === 0) return false;
+  return titleSimilarity(parsedTitle, name) >= MIN_SERIES_AGREEMENT;
+}
+
+/**
+ * A TheTVDB record as the shared scorer sees it.
+ *
+ * `originCountries` is deliberately empty. TheTVDB reports a three-letter
+ * lowercase code (`usa`) while `assertedCountry` produces two-letter
+ * uppercase, so passing it through would score an encoding difference as a
+ * mismatch and dock 0.08 from a correct answer.
+ *
+ * `popularity` and `voteCount` are zero, contributing under 0.002 between
+ * them: they are a tiebreak this API does not offer, and the score is
+ * explicitly designed so they cannot lift a wrong title over a right one.
+ */
+function candidateOf(
+  title: string,
+  year: number | null,
+  seasonExists: boolean | null,
+  episodeExists: boolean | null,
+): Candidate {
+  return {
+    title,
+    originalTitle: null,
+    year,
+    originCountries: [],
+    popularity: 0,
+    voteCount: 0,
+    seasonExists,
+    episodeExists,
+  };
+}
+
+function searchCandidate(hit: TvdbSearchResult): Candidate {
+  const stated = hit.year === null || hit.year === undefined
+    ? Number.NaN
+    : Number.parseInt(hit.year, 10);
+  const aired = hit.first_air_time === null || hit.first_air_time === undefined
+    ? Number.NaN
+    : Number.parseInt(hit.first_air_time.slice(0, 4), 10);
+  const year = Number.isNaN(stated) ? aired : stated;
+  return candidateOf(hit.name, Number.isNaN(year) ? null : year, null, null);
+}
+
+/**
+ * The series' score once the season and episode are known to exist.
+ *
+ * This is the whole reason the shared scorer is reused rather than replaced
+ * by bands of this provider's own: `scoreCandidate` already pays +0.12 when a
+ * season *and* an episode are both confirmed, and that confirmation is
+ * precisely what this provider produces. It also means a TheTVDB answer and a
+ * TMDB answer are directly comparable, which is what lets the composite
+ * substitute one for the other honestly.
+ *
+ * A flag the filename never asserted is passed as `null`, not `false`: a
+ * series parse names no episode, and scoring it as a *missing* episode would
+ * dock 0.4 for a question nobody asked. `lib/providers/tmdb/resolve.ts` does
+ * the same.
+ */
+function scoreSeries(
+  parsed: ParsedVideo, series: TvdbSeries, seasonExists: boolean | null,
+  episodeExists: boolean | null,
+): number {
+  const best = pickBest(parsed, [series], (s) =>
+    candidateOf(s.name, yearOf(s), seasonExists, episodeExists));
+  return best?.confidence ?? 0;
+}
+
+async function findSeriesRef(
+  client: TvdbClient, parsed: ParsedVideo, ctx: ResolveContext,
+): Promise<string | null> {
+  const list = await client.get(
+    '/search', { query: parsed.title, type: 'series' }, searchResponseSchema, ctx,
+  );
+  if (list === null || list.data.length === 0) return null;
+  const best = pickBest(parsed, list.data, searchCandidate);
+  if (best === null) return null;
+  return agrees(parsed.title, best.item.name) ? best.item.tvdb_id : null;
+}
+
+export function createTvdbProvider(client: TvdbClient): Provider {
+  return {
+    name: 'tvdb',
+    supports(category: Category): boolean {
+      return category === 'tv';
+    },
+    async resolve(parsed: ParsedVideo, ctx: ResolveContext): Promise<ResolveOutcome | null> {
+      ctx.signal.throwIfAborted();
+      if (parsed.kind !== 'series' && parsed.kind !== 'season' && parsed.kind !== 'episode') {
+        return null;
+      }
+
+      // The id a primary provider already established, else our own search.
+      // TMDB publishes the TVDB series id for every series it knows
+      // (`tmdb/normalize.ts`), so the common path costs one call and guesses
+      // at nothing at all.
+      const ref = ctx.seriesRef ?? await findSeriesRef(client, parsed, ctx);
+      if (ref === null) return null;
+
+      if (parsed.kind === 'episode') {
+        const wantedSeason = parsed.seasonNumber;
+        // The first of several, as the TMDB path does for a multi-episode
+        // file: one row is returned and it is the one the name leads with.
+        const wantedEpisode = parsed.episodeNumbers[0];
+        if (wantedSeason === null || wantedEpisode === undefined) return null;
+
+        const body = await client.get(
+          `/series/${encodeURIComponent(ref)}/episodes/${SEASON_TYPE}`,
+          { season: wantedSeason, episodeNumber: wantedEpisode },
+          episodesResponseSchema, ctx,
+        );
+        if (body === null) return null;
+        const found = body.data.episodes[0];
+        // No episode is a null answer, never the season instead. Supplying
+        // the episode is this provider's entire purpose, and returning its
+        // parent would be the very shortfall it exists to repair.
+        if (found === undefined) return null;
+        if (!agrees(parsed.title, body.data.series.name)) return null;
+
+        const series = normalizeSeries(body.data.series);
+        const season = normalizeSeason(series, found.seasonNumber ?? wantedSeason);
+        return {
+          media: normalizeEpisode(season, found),
+          confidence: scoreSeries(parsed, body.data.series, true, true),
+        };
+      }
+
+      const body = await client.get(
+        `/series/${encodeURIComponent(ref)}`, {}, seriesResponseSchema, ctx,
+      );
+      if (body === null) return null;
+      if (!agrees(parsed.title, body.data.name)) return null;
+
+      const series = normalizeSeries(body.data);
+      const media: ResolvedMedia = parsed.kind === 'season'
+        ? normalizeSeason(series, parsed.seasonNumber)
+        : series;
+      return {
+        media,
+        // `/series/{id}` does not enumerate seasons, so a season this call
+        // returned is asserted rather than confirmed -- hence `null`, not
+        // `true`. Neither parse names an episode, so that stays `null` too.
+        confidence: scoreSeries(parsed, body.data, null, null),
+      };
+    },
+  };
+}
