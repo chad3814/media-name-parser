@@ -54,6 +54,18 @@ const EXACT_TITLE_SIMILARITY = 0.95;
 const EXACT_TITLE_MIN_LENGTH = 20;
 const TEXT_SINGLE = 0.70;
 const TEXT_BEST_OF_MANY = 0.60;
+/**
+ * A site match whose date the filename contradicts, and whose title is too
+ * weak to stand without it. Below the floor: the row is worth keeping and
+ * inspecting, but not worth asserting. See `bandWhenDateMissing`.
+ */
+const DATE_CONTRADICTED = 0.65;
+/**
+ * How alike a title must be to carry an identification with no date backing
+ * it. The corpus splits cleanly either side: the correct two-days-out match
+ * scores 0.83, the wrong year-out one 0.31.
+ */
+const TITLE_CARRIES_ALONE = 0.60;
 
 /**
  * A day either side of the parsed date, in UTC.
@@ -185,6 +197,62 @@ interface Match {
   readonly confidence: number;
 }
 
+/**
+ * Narrows candidates to those whose own `date` agrees with the one the
+ * filename asserted -- exact first, then a day either side, the same
+ * tolerance `byDate` queries with.
+ *
+ * The date used to be used only to *build* the `byDate` queries, which need
+ * a warm `site_id`. On a cold site those steps are skipped and the date was
+ * dropped on the floor, leaving `bestByTitle` to choose on title alone. That
+ * is how two filenames 11 days apart resolved onto one scene: both titles
+ * were just the performer's name, so the longer TPDB title *containing* that
+ * name scored higher (0.375) than the right scene (0.261) for both of them.
+ * The date was in the parse and on every row returned.
+ *
+ * Measured across a 40-name corpus sample: of 33 on-site result sets, 29
+ * held a row with the exact parsed date and 2 more came within a day, and
+ * choosing on title alone took the wrong scene in 4 of those 29.
+ *
+ * Returns the list untouched when the filename named no date, or when
+ * nothing agrees -- a disagreement is priced by `bandWhenDateMissing`, not
+ * settled by discarding rows that may still be right.
+ */
+function narrowToDate(
+  scenes: readonly TpdbScene[], releasedOn: string | null,
+): { readonly scenes: readonly TpdbScene[]; readonly agreement: 'exact' | 'nearby' | 'none' } {
+  if (releasedOn === null) return { scenes, agreement: 'none' };
+  const exact = scenes.filter((s) => s.date === releasedOn);
+  if (exact.length > 0) return { scenes: exact, agreement: 'exact' };
+  const back = shiftDay(releasedOn, -1);
+  const forward = shiftDay(releasedOn, 1);
+  const nearby = scenes.filter((s) => s.date === back || s.date === forward);
+  if (nearby.length > 0) return { scenes: nearby, agreement: 'nearby' };
+  return { scenes, agreement: 'none' };
+}
+
+/**
+ * The band a site-corroborated row earns when the filename asserted a date
+ * and nothing came within a day of it.
+ *
+ * A contradicted date is evidence against, but weak evidence. The corpus has
+ * a scene two days out from its filename whose title still matches at 0.83;
+ * demoting that would turn a correct resolution into a suggestion. It also
+ * has a row a *year* out whose title matches at 0.31 -- the parsed title was
+ * only a performer's name -- and that one resolves today at 0.85, a
+ * confidently wrong answer written as `resolved`, which is worse than
+ * offering it as a suggestion.
+ *
+ * So a contradicted date only demotes a row whose title cannot carry the
+ * identification by itself.
+ */
+function bandWhenDateMissing(
+  title: string, scene: TpdbScene, releasedOn: string | null, band: number,
+): number {
+  if (releasedOn === null) return band;
+  return titleSimilarity(title, scene.title) >= TITLE_CARRIES_ALONE ? band : DATE_CONTRADICTED;
+}
+
 /** The closest title among several results. Ties keep the API's own order. */
 function bestByTitle(scenes: readonly TpdbScene[], title: string): TpdbScene | null {
   let best: TpdbScene | null = null;
@@ -313,7 +381,8 @@ async function byDate(
  * below -- both under the floor -- are the honest answer.
  */
 async function byText(
-  client: TpdbClient, site: string | null, title: string, ctx: ResolveContext,
+  client: TpdbClient, site: string | null, title: string,
+  releasedOn: string | null, ctx: ResolveContext,
 ): Promise<Match | null> {
   const q = [site ?? '', title].filter((part) => part.length > 0).join(' ');
   if (q.length === 0) return null;
@@ -322,32 +391,55 @@ async function byText(
   if (site !== null && title.length > 0) {
     const wanted = foldSite(site);
     const onSite = scenes.filter((s) => foldSite(s.site?.short_name ?? '') === wanted);
-    const exact = bestByTitle(onSite, title);
-    if (exact !== null) return { scene: exact, confidence: TEXT_WITH_SITE };
+    const dated = narrowToDate(onSite, releasedOn);
+    const exact = bestByTitle(dated.scenes, title);
+    if (exact !== null) {
+      // The site and the date both agreeing on the row is the same assertion
+      // `byDate` queries for, so it earns the same bands -- which is what
+      // makes a cold site score what a warm one would.
+      if (dated.agreement === 'exact') return { scene: exact, confidence: EXACT_DATE };
+      if (dated.agreement === 'nearby') return { scene: exact, confidence: DATE_ONE_DAY_OUT };
+      return { scene: exact, confidence: bandWhenDateMissing(title, exact, releasedOn, TEXT_WITH_SITE) };
+    }
 
     // Fall back to the brand above the site. Checked only after the leaf, so a
     // filename naming the exact site never loses its stronger band.
+    //
+    // The date narrows the candidates here too, but it does not lift the
+    // band: `byDate`'s 0.98 is earned by a *leaf* site plus a date being
+    // nearly a primary key, and a brand is not a leaf -- Reality Kings spans
+    // 56 sites, so brand-plus-date does not identify one row the way
+    // site-plus-date does.
     const underBrand = scenes.filter((s) =>
       foldSite(s.site?.parent?.short_name ?? '') === wanted
       || foldSite(s.site?.network?.short_name ?? '') === wanted);
-    const brand = bestByTitle(underBrand, title);
-    if (brand !== null) return { scene: brand, confidence: TEXT_WITH_PARENT };
+    const brandDated = narrowToDate(underBrand, releasedOn);
+    const brand = bestByTitle(brandDated.scenes, title);
+    if (brand !== null) {
+      return { scene: brand, confidence: brandDated.agreement === 'none'
+        ? bandWhenDateMissing(title, brand, releasedOn, TEXT_WITH_PARENT)
+        : TEXT_WITH_PARENT };
+    }
   }
+
+  // No site to corroborate, so the date can still choose between rows even
+  // though there is no band here for it to lift.
+  const undated = narrowToDate(scenes, releasedOn).scenes;
 
   // Checked after the site bands so a filename naming its site never loses
   // the corroborated reading, and before the two below because a title this
   // close is not the uncorroborated guess they describe.
-  const closest = bestByTitle(scenes, title);
+  const closest = bestByTitle(undated, title);
   if (closest !== null
     && foldForMatch(title).length >= EXACT_TITLE_MIN_LENGTH
     && titleSimilarity(title, closest.title) >= EXACT_TITLE_SIMILARITY) {
     return { scene: closest, confidence: TEXT_EXACT_TITLE };
   }
 
-  const only = scenes.length === 1 ? scenes[0] : undefined;
+  const only = undated.length === 1 ? undated[0] : undefined;
   if (only !== undefined) return { scene: only, confidence: TEXT_SINGLE };
 
-  const best = bestByTitle(scenes, title);
+  const best = bestByTitle(undated, title);
   return best === null ? null : { scene: best, confidence: TEXT_BEST_OF_MANY };
 }
 
@@ -458,7 +550,7 @@ export function createTpdbProvider(
         match ??= await byDate(client, siteId, shiftDay(releasedOn, 1), title,
           DATE_ONE_DAY_OUT, ctx);
       }
-      match ??= await byText(client, site, title, ctx);
+      match ??= await byText(client, site, title, releasedOn, ctx);
 
       // Null, not a manufactured low-confidence guess: the pipeline records
       // that as `unresolved`, which is the honest outcome.
