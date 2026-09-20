@@ -52,6 +52,35 @@ const TEXT_WITH_PARENT = 0.80;
 const TEXT_EXACT_TITLE = 0.85;
 const EXACT_TITLE_SIMILARITY = 0.95;
 const EXACT_TITLE_MIN_LENGTH = 20;
+/**
+ * One title's words are almost all present in the other's, in either
+ * direction, with no site to corroborate it.
+ *
+ * Edit distance is the wrong instrument for the two shapes a scene filename
+ * actually takes. A filename commonly *adds* what the record's title leaves
+ * out -- `Brazzers Lia Lin Giving Her All She Can Handle` against `Giving
+ * Her All She Can Handle` -- and sometimes drops a prefix the record keeps,
+ * as the reported name did against `The Dark Room Wet #2 Wet, 6On2 ...`.
+ * Both are near-certain matches, and Levenshtein charges for every
+ * character of the difference: those two score 0.63 and 0.70, well under
+ * `EXACT_TITLE_SIMILARITY`, so both were offered as suggestions.
+ *
+ * Measured on a corpus sample, every below-floor single-row result was in
+ * fact the right scene, and four of six ran the first way round.
+ *
+ * Banded under `TEXT_EXACT_TITLE` and `TEXT_WITH_SITE` because it is the
+ * weaker claim: coverage ignores word order and repetition, so it says the
+ * two titles are about the same thing, not that they are the same string.
+ *
+ * `EXACT_TITLE_MIN_LENGTH` guards this too, and here it is doing more work
+ * than anywhere else. `London River` is *completely* covered by `Naughty
+ * Games W/ My Stepmom London River`, a pair a year apart and wrong; so is
+ * `Gigi Lysette` by any of her scenes. Coverage alone would resolve every
+ * performer-name-only filename to the first thing it found. The length
+ * floor is the only thing preventing that.
+ */
+const TEXT_TITLE_COVERED = 0.80;
+const TITLE_COVERAGE = 0.60;
 const TEXT_SINGLE = 0.70;
 const TEXT_BEST_OF_MANY = 0.60;
 /**
@@ -251,6 +280,25 @@ function bandWhenDateMissing(
 ): number {
   if (releasedOn === null) return band;
   return titleSimilarity(title, scene.title) >= TITLE_CARRIES_ALONE ? band : DATE_CONTRADICTED;
+}
+
+/**
+ * The share of the shorter title's distinct words that the longer one also
+ * has, ignoring order and repetition.
+ *
+ * Divided by the smaller of the two word counts on purpose: that is what
+ * makes it symmetric, so it reads a filename that padded the record's title
+ * and one that truncated it the same way. Dividing by the longer count
+ * would score every padded filename down for words the record was never
+ * going to carry.
+ */
+function titleCoverage(a: string, b: string): number {
+  const left = new Set(foldForMatch(a).split(' ').filter((word) => word.length > 0));
+  const right = new Set(foldForMatch(b).split(' ').filter((word) => word.length > 0));
+  if (left.size === 0 || right.size === 0) return 0;
+  let shared = 0;
+  for (const word of left) if (right.has(word)) shared += 1;
+  return shared / Math.min(left.size, right.size);
 }
 
 /** The closest title among several results. Ties keep the API's own order. */
@@ -455,10 +503,14 @@ async function byText(
   // the corroborated reading, and before the two below because a title this
   // close is not the uncorroborated guess they describe.
   const closest = bestByTitle(undated, title);
-  if (closest !== null
-    && foldForMatch(title).length >= EXACT_TITLE_MIN_LENGTH
-    && titleSimilarity(title, closest.title) >= EXACT_TITLE_SIMILARITY) {
-    return { scene: closest, confidence: TEXT_EXACT_TITLE };
+  if (closest !== null && foldForMatch(title).length >= EXACT_TITLE_MIN_LENGTH) {
+    if (titleSimilarity(title, closest.title) >= EXACT_TITLE_SIMILARITY) {
+      return { scene: closest, confidence: TEXT_EXACT_TITLE };
+    }
+    // Checked second so a near-exact title keeps the stronger band.
+    if (titleCoverage(title, closest.title) >= TITLE_COVERAGE) {
+      return { scene: closest, confidence: TEXT_TITLE_COVERED };
+    }
   }
 
   const only = undated.length === 1 ? undated[0] : undefined;

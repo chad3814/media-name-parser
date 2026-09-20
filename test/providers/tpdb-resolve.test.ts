@@ -751,3 +751,87 @@ test('a title that is nothing but a conjunction does not search for an empty str
   assert.ok(calls.every((c) => String(c.query.q).length > 0),
     `no empty query: ${JSON.stringify(calls.map((c) => c.query.q))}`);
 });
+
+test('a title whose terms the record covers clears the floor without a site', async () => {
+  // The reported name is a truncation of the record's title: the record
+  // carries a `The Dark Room Wet #2 Wet, 6On2` prefix the filename never
+  // had. Levenshtein charges for those 30 missing characters and scores the
+  // pair 0.70, under the near-exact threshold, so a single unambiguous match
+  // was offered as a suggestion. Term coverage reads the same pair at 0.94.
+  const provider = createTpdbProvider(
+    spellingClient([], {
+      'Emily Pink Kaira Love ATOGM DAP Rough Gapes Pee Drink Cum in Mouth Swallow GIO2248':
+        [scene({ title: AMPERSAND_TITLE, date: null, site: null, site_id: null })],
+    }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed(AMPERSAND), ctx);
+  assert.equal(out?.media.title, AMPERSAND_TITLE);
+  assert.equal(out?.confidence, 0.80);
+  assert.ok((out?.confidence ?? 0) >= 0.75, 'this is the band that makes it resolved');
+});
+
+test('coverage reads a record title the filename wraps in site and performer names', async () => {
+  // The commoner direction: the filename adds a site and a performer the
+  // record's title does not carry, so the record is the *shorter* side.
+  // Measured on a corpus sample, every below-floor single-row result was
+  // correct and four of six ran this way round.
+  const provider = createTpdbProvider(
+    spellingClient([], {
+      'Brazzers Lia Lin Giving Her All She Can Handle':
+        [scene({ title: 'Giving Her All She Can Handle', date: null, site: null, site_id: null })],
+    }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed('Brazzers.Lia.Lin.Giving.Her.All.She.Can.Handle.2160p'), ctx);
+  assert.equal(out?.confidence, 0.80);
+});
+
+test('a near-exact title still earns the stronger band, not the coverage one', async () => {
+  const provider = createTpdbProvider(
+    spellingClient([], {
+      'Merry Christmas EMILY PINK Alicia Trece Valentina Milan celebrate Christmas with 6 studs with huge cocks PD LTP145':
+        [scene({ title: GLUED_CODE_TITLE, date: null, site: null, site_id: null })],
+    }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed(GLUED_CODE), ctx);
+  assert.equal(out?.confidence, 0.85, 'near-exact outranks merely covered');
+});
+
+test('a short title the record happens to contain does not earn the coverage band', async () => {
+  // `London River` is covered completely by `Naughty Games W/ My Stepmom
+  // London River`, and that pair is a wrong match a year apart. The length
+  // floor is the only thing standing between coverage and a confident
+  // mistake on every performer-name-only filename.
+  const provider = createTpdbProvider(
+    spellingClient([], {
+      'London River': [scene({
+        title: 'Naughty Games W/ My Stepmom London River', date: null, site: null, site_id: null,
+      })],
+    }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed('London.River.2160p'), ctx);
+  assert.equal(out?.confidence, 0.70, 'still the uncorroborated single-result band');
+  assert.ok((out?.confidence ?? 1) < 0.75);
+});
+
+test('a record sharing only a couple of words does not earn the coverage band', async () => {
+  // The wrong suggestion the ladder used to offer for the reported name:
+  // it shares `and`, `love` and `gapes` and nothing else, reading 0.19.
+  const provider = createTpdbProvider(
+    spellingClient([], {
+      'Emily Pink Kaira Love ATOGM DAP Rough Gapes Pee Drink Cum in Mouth Swallow GIO2248': [
+        scene({
+          title: 'Only Gapes Compilation #1 with Jolee Love, Anna De Ville, Alicia Trece, '
+            + 'Monika Fox and Other 22 Girl. 60+ Gapes Clips Xf 254',
+          date: null, site: null, site_id: null,
+        }),
+      ],
+    }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed(AMPERSAND), ctx);
+  assert.ok((out?.confidence ?? 1) < 0.75, `sharing three words is not a match, got ${out?.confidence}`);
+});
