@@ -278,7 +278,23 @@ test('nothing matched returns null rather than a low-confidence guess', async ()
   const out = await provider.resolve(parsed(ANCHORED), ctx);
 
   assert.equal(out, null, 'the pipeline records null as unresolved, which is the honest answer');
-  assert.equal(calls.length, 4, 'three dates and then the text fallback, and no more');
+  // Three dates, then the text fallback spelled every way worth trying. This
+  // name has no digits, so the three re-spellings collapse onto the parsed
+  // one and only the term ladder adds calls: 6 rather than the 4 this cost
+  // before the ladder existed. The extra two are paid only by a name that
+  // finds nothing at all -- a name that hits still costs exactly one text
+  // call -- and buying them is what takes a corpus sample from 20/30 to
+  // 24/30.
+  assert.deepEqual(
+    calls.map((call) => call.query.q),
+    [
+      undefined, undefined, undefined,
+      'SpankMonster Ruby Redbottom And Octavia Red',
+      'SpankMonster Ruby Redbottom And Octavia',
+      'SpankMonster Ruby Redbottom',
+    ],
+    'three dates, the full text query, then the ladder',
+  );
 });
 
 test('among same-site results the closest title wins, not the first returned', async () => {
@@ -433,4 +449,127 @@ test('an id belonging to another provider is ignored, not guessed at', async () 
     .resolve(parsed('SpankMonster.22.07.07.Ruby.Redbottom {tmdb-603}.mp4'), ctx);
   assert.ok(calls.every((c) => c.path === '/scenes'), `no id fetch: ${calls.map((c) => c.path).join(',')}`);
   assert.equal(out?.confidence, 0.98, 'the normal site-and-date path ran');
+});
+
+/**
+ * A client that answers by query rather than by call order, so a test can say
+ * "only this spelling is indexed" -- which is precisely the condition the
+ * variant ladder exists to survive.
+ */
+function spellingClient(calls: Call[], indexed: Readonly<Record<string, readonly SceneInput[]>>): TpdbClient {
+  return {
+    async get<T>(
+      path: string,
+      query: Record<string, string | number | undefined>,
+      schema: { parse: (value: unknown) => T },
+    ): Promise<T | null> {
+      calls.push({ path, query });
+      const data = indexed[String(query.q ?? '')] ?? [];
+      return schema.parse({ data, meta: { total: data.length } });
+    },
+  };
+}
+
+/** The reported failure: a catalogue code the filename glues and TPDB spaces. */
+const GLUED_CODE =
+  'Merry.Christmas.EMILY.PINK.Alicia.Trece.AND.Valentina.Milan.celebrate.Christmas.with.6.studs.with.huge.cocks.PD.LTP145.1080p';
+const GLUED_CODE_TITLE =
+  'Merry Christmas. Emily Pink. Alicia Trece and Valentina Milan Celebrate. Christmas with 6 Studs with Huge Cocks. Pd. Ltp 145';
+
+/** The inverse: a title the filename spaces and TPDB glues. */
+const SPACED_NUMBER = 'TeensWantOrgies.19.07.26.Kelly.Kline.2.chicks.and.a.cock.1080p';
+
+test('a q that matches nothing is retried with the digit boundary split apart', async () => {
+  // TPDB's `q` is a strict AND over whole terms -- verified live, a single
+  // unindexed term returns zero rows -- and it does no prefix matching. The
+  // filename's `LTP145` is `Ltp 145` upstream, so the one call the provider
+  // used to make found nothing at all for a name that is otherwise the exact
+  // title.
+  const calls: Call[] = [];
+  const asParsed = 'Merry Christmas EMILY PINK Alicia Trece AND Valentina Milan celebrate Christmas with 6 studs with huge cocks PD LTP145';
+  const respelled = asParsed.replace('LTP145', 'LTP 145');
+  const provider = createTpdbProvider(
+    spellingClient(calls, {
+      [respelled]: [scene({ title: GLUED_CODE_TITLE, site: null, site_id: null })],
+    }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed(GLUED_CODE), ctx);
+
+  assert.deepEqual(calls.map((c) => c.query.q), [asParsed, respelled],
+    'as parsed first, then the split spelling');
+  assert.equal(out?.media.title, GLUED_CODE_TITLE);
+});
+
+test('a q that matches nothing is retried with a spaced number glued on', async () => {
+  // The inverse spelling disagreement: the filename has `2.chicks` and the
+  // scene is titled `2Chicks and a Cock`. The two glue directions are
+  // separate variants on purpose -- applying both at once fuses
+  // `Kline 2 chicks` into `Kline2chicks`, which matches nothing either.
+  const calls: Call[] = [];
+  const glued = 'TeensWantOrgies Kelly Kline 2chicks and a cock';
+  const provider = createTpdbProvider(
+    spellingClient(calls, {
+      [glued]: [scene({ title: '2Chicks and a Cock', date: '2019-07-26',
+        site: { id: 77, name: 'Teens Want Orgies', short_name: 'teenswantorgies' } })],
+    }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed(SPACED_NUMBER), ctx);
+
+  assert.ok(calls.some((c) => c.query.q === glued), 'the glued spelling is tried');
+  assert.ok(calls.every((c) => c.query.q !== 'TeensWantOrgies Kelly Kline2chicks and a cock'),
+    'the two glue directions are never applied together');
+  assert.equal(out?.media.title, '2Chicks and a Cock');
+  assert.equal(out?.confidence, 0.85, 'the site corroborates it from outside the search');
+});
+
+test('a q no respelling rescues drops trailing terms until something answers', async () => {
+  // Fewer terms can only widen a strict AND, so the ladder is the general
+  // fallback for a term TPDB simply does not index.
+  const calls: Call[] = [];
+  const provider = createTpdbProvider(
+    spellingClient(calls, {
+      'Ruby Redbottom And': [scene({ site: null, site_id: null })],
+    }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed(BARE), ctx);
+
+  assert.ok(calls.length > 1, 'the first spelling found nothing and the ladder ran');
+  assert.equal(calls[calls.length - 1]?.query.q, 'Ruby Redbottom And');
+  assert.equal(out?.media.title, 'Two Girl Knockout');
+});
+
+test('a near-exact long title clears the floor with no site to corroborate it', async () => {
+  // The reported failure resolved its search and was still recorded
+  // `unresolved`: with `site` null the two corroborated bands are skipped and
+  // the ceiling was TEXT_SINGLE, under the floor. A 0.99 similarity across
+  // 118 characters is evidence about identity in its own right -- stronger,
+  // not weaker, than a six-character site name agreeing.
+  const provider = createTpdbProvider(
+    spellingClient([], {
+      'Merry Christmas EMILY PINK Alicia Trece AND Valentina Milan celebrate Christmas with 6 studs with huge cocks PD LTP 145':
+        [scene({ title: GLUED_CODE_TITLE, site: null, site_id: null })],
+    }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed(GLUED_CODE), ctx);
+
+  assert.equal(out?.confidence, 0.85);
+  assert.ok((out?.confidence ?? 0) >= 0.75, 'this is the band that makes it resolved');
+});
+
+test('a short title matching exactly does not earn the near-exact band', async () => {
+  // `Anal` is an exact match against a great many scenes, so an exact match
+  // on a short title says nothing about identity. The length guard is what
+  // keeps the band honest; 36.6% of corpus titles fall under it.
+  const provider = createTpdbProvider(
+    spellingClient([], { Anal: [scene({ title: 'Anal', site: null, site_id: null })] }),
+    siteCache().cache,
+  );
+  const out = await provider.resolve(parsed('Anal.mp4'), ctx);
+
+  assert.equal(out?.confidence, 0.70, 'still the uncorroborated single-result band');
+  assert.ok((out?.confidence ?? 1) < 0.75);
 });
