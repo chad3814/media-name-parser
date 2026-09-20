@@ -12,7 +12,7 @@ export type PersonRole =
   | 'author' | 'illustrator' | 'narrator';
 
 export type MediaKind = 'movie' | 'series' | 'season' | 'episode' | 'book' | 'scene';
-export type ProviderName = 'tmdb' | 'ibdb' | 'tpdb';
+export type ProviderName = 'tmdb' | 'ibdb' | 'tpdb' | 'tvdb';
 
 export interface ResolvedPerson {
   readonly providerRef: string;

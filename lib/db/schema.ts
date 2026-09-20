@@ -7,7 +7,7 @@ export const categoryEnum = pgEnum('category', ['tv', 'movies', 'books', 'xxx'])
 export const mediaKindEnum = pgEnum('media_kind', [
   'movie', 'series', 'season', 'episode', 'book', 'scene',
 ]);
-export const providerEnum = pgEnum('provider', ['tmdb', 'ibdb', 'tpdb']);
+export const providerEnum = pgEnum('provider', ['tmdb', 'ibdb', 'tpdb', 'tvdb']);
 /**
  * Where an id a filename can carry comes from. Wider than `provider`: imdb and
  * tvdb are catalogues this service never calls, but whose ids appear in

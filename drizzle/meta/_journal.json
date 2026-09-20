@@ -29,6 +29,13 @@
       "when": 1788732129490,
       "tag": "0003_massive_sugar_man",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789915572694,
+      "tag": "0004_fine_cable",
+      "breakpoints": true
     }
   ]
 }
