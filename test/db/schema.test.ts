@@ -4,6 +4,7 @@ import { getTableConfig } from 'drizzle-orm/pg-core';
 import { getAuthTables } from 'better-auth/db';
 import { admin } from 'better-auth/plugins';
 import * as schema from '../../lib/db/schema';
+import type { ProviderName } from '../../lib/providers/types';
 
 test('every table named in the spec exists', () => {
   const expected = [
@@ -86,4 +87,12 @@ test('parses is keyed on category and normalized_key together', () => {
   assert.ok(pk !== undefined, 'parses has no composite primary key');
   const cols = pk.columns.map((c) => c.name).sort().join(',');
   assert.equal(cols, 'category,normalized_key');
+});
+
+test('the provider enum carries every provider the code can name', () => {
+  // `ProviderName` and the Postgres enum have to agree: a provider the code
+  // can construct but the column cannot store fails at write time, deep
+  // inside a transaction, rather than at build time.
+  const names: readonly ProviderName[] = ['tmdb', 'ibdb', 'tpdb', 'tvdb'];
+  assert.deepEqual([...schema.providerEnum.enumValues].toSorted(), [...names].toSorted());
 });

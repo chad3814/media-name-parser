@@ -12,7 +12,7 @@ export type PersonRole =
   | 'author' | 'illustrator' | 'narrator';
 
 export type MediaKind = 'movie' | 'series' | 'season' | 'episode' | 'book' | 'scene';
-export type ProviderName = 'tmdb' | 'ibdb' | 'tpdb';
+export type ProviderName = 'tmdb' | 'ibdb' | 'tpdb' | 'tvdb';
 
 export interface ResolvedPerson {
   readonly providerRef: string;
@@ -86,6 +86,25 @@ export interface ResolveContext {
   readonly signal: AbortSignal;
   /** For `provider_calls.lookup_id`; null when resolving outside a lookup. */
   readonly lookupId: string | null;
+  /**
+   * A series id in this provider's own namespace, handed over by a provider
+   * that resolved the series but not the episode.
+   *
+   * Optional, and absent for every provider but TheTVDB. The alternative was
+   * a second `resolve` signature; one optional field on the context both
+   * providers already take is the smaller seam.
+   */
+  readonly seriesRef?: string;
+  /**
+   * The title the handing-over provider knows that series by.
+   *
+   * Travels with `seriesRef` because identity and the evidence for it cannot
+   * be separated. TheTVDB answers in a series' primary language -- One Piece
+   * is `ワンピース` -- so scoring a handed-over match against the
+   * *receiving* catalogue's title measures translation rather than identity,
+   * and sinks every correct non-English match to zero.
+   */
+  readonly seriesTitle?: string;
 }
 
 /**

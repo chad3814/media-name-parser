@@ -1,7 +1,4 @@
-import { createTmdbClient, tmdbTokenFromEnv } from '../providers/tmdb/client';
-import { createTmdbProvider } from '../providers/tmdb/resolve';
-import { createTpdbClient, tpdbTokenFromEnv } from '../providers/tpdb/client';
-import { createTpdbProvider } from '../providers/tpdb/resolve';
+import { buildProvider } from '../providers/build';
 import { providerFor, PROVIDER_NAMES } from '../providers/routing';
 import type { Provider, ProviderName, ProviderCallRecord } from '../providers/types';
 import type { PipelineDeps, PipelineResult } from '../resolve/pipeline';
@@ -91,9 +88,7 @@ export function buildDeps(category: Category): PipelineDeps {
   let pending: ProviderCallRecord[] = [];
   const recordCall = (row: ProviderCallRecord): void => { pending.push(row); };
 
-  const build = (name: ProviderName): Provider => (name === 'tpdb'
-    ? createTpdbProvider(createTpdbClient({ token: tpdbTokenFromEnv(), recordCall }))
-    : createTmdbProvider(createTmdbClient({ token: tmdbTokenFromEnv(), recordCall })));
+  const build = (name: ProviderName): Provider => buildProvider(name, recordCall);
 
   // The category's own provider is built strictly. Null means no provider
   // exists for this category at all, which is not the same as a provider whose
