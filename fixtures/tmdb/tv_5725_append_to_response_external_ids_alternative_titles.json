@@ -52,7 +52,7 @@
   "original_language": "en",
   "original_name": "Project Catwalk",
   "overview": "Project Catwalk is a competitive reality television series focusing on fashion design. In the UK it is shown on the digital station Sky One. The show follows a group of fashion designers as they compete against each other to avoid being \"the next fashion victim\" and win the competition. The programme is based upon the US reality show Project Runway.",
-  "popularity": 2.9388,
+  "popularity": 1.7968,
   "poster_path": null,
   "production_companies": [],
   "production_countries": [],
@@ -111,5 +111,8 @@
     "facebook_id": null,
     "instagram_id": null,
     "twitter_id": null
+  },
+  "alternative_titles": {
+    "results": []
   }
 }

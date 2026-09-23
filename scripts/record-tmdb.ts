@@ -59,29 +59,29 @@ const PLAN: readonly (readonly [string, Record<string, string>])[] = [
   // needs no translation and goes straight to the details endpoint.
   ['/find/tt0133093', { external_source: 'imdb_id' }],
   ['/find/368611', { external_source: 'tvdb_id' }],
-  ['/movie/603', { append_to_response: 'credits' }],
+  ['/movie/603', { append_to_response: 'credits,alternative_titles' }],
 
   // A bare `{tmdb-N}` is ambiguous across TMDB's two id spaces, and both are
   // densely populated: 5725 is the film `Supervixens` and the series `Project
   // Catwalk`; 603 is `The Matrix` and `Veronica's Closet`. Both sides of both
   // ids are recorded so the corroboration guard can be tested offline.
-  ['/movie/5725', { append_to_response: 'credits' }],
-  ['/tv/5725', { append_to_response: 'external_ids' }],
-  ['/tv/603', { append_to_response: 'external_ids' }],
+  ['/movie/5725', { append_to_response: 'credits,alternative_titles' }],
+  ['/tv/5725', { append_to_response: 'external_ids,alternative_titles' }],
+  ['/tv/603', { append_to_response: 'external_ids,alternative_titles' }],
 
   // Details. Ids read out of the recorded searches, not guessed:
   // Outbreak is 6950 (not the 8339 the plan supposed), and the two Ghosts are
   // 126027 (US, 2021) and 17174 (GB, 2019) -- genuinely different series.
-  ['/movie/6950', { append_to_response: 'credits' }],
-  ['/movie/157336', { append_to_response: 'credits' }],
-  ['/movie/335984', { append_to_response: 'credits' }],
-  ['/tv/92749', { append_to_response: 'external_ids' }],
+  ['/movie/6950', { append_to_response: 'credits,alternative_titles' }],
+  ['/movie/157336', { append_to_response: 'credits,alternative_titles' }],
+  ['/movie/335984', { append_to_response: 'credits,alternative_titles' }],
+  ['/tv/92749', { append_to_response: 'external_ids,alternative_titles' }],
   ['/tv/92749/season/1', {}],
-  ['/tv/126027', { append_to_response: 'external_ids' }],
+  ['/tv/126027', { append_to_response: 'external_ids,alternative_titles' }],
   ['/tv/126027/season/5', {}],
-  ['/tv/17174', { append_to_response: 'external_ids' }],
+  ['/tv/17174', { append_to_response: 'external_ids,alternative_titles' }],
   ['/tv/17174/season/1', {}],
-  ['/tv/2778', { append_to_response: 'external_ids' }],
+  ['/tv/2778', { append_to_response: 'external_ids,alternative_titles' }],
   ['/tv/2778/season/43', {}],
 ];
 

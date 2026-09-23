@@ -16,7 +16,73 @@
       "still_path": "/9wOj4mqCJu6MZ2bFzc9ylN43Sf6.jpg",
       "vote_average": 6.4,
       "vote_count": 12,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "615e82c7d144430043677363",
+          "adult": false,
+          "gender": 2,
+          "id": 1590723,
+          "known_for_department": "Writing",
+          "name": "John Blickstead",
+          "original_name": "John Blickstead",
+          "popularity": 0.4406,
+          "profile_path": null
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "615e82cd67e0f70043883882",
+          "adult": false,
+          "gender": 2,
+          "id": 1590724,
+          "known_for_department": "Writing",
+          "name": "Trey Kollmer",
+          "original_name": "Trey Kollmer",
+          "popularity": 0.4337,
+          "profile_path": null
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "63ebbe0f813cb600794218e6",
+          "adult": false,
+          "gender": 2,
+          "id": 169448,
+          "known_for_department": "Directing",
+          "name": "Richie Keen",
+          "original_name": "Richie Keen",
+          "popularity": 0.9754,
+          "profile_path": "/7dILc8lBE0v6vqfVv3pmkQTUx2c.jpg"
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf21306d1ef146cd3920a6",
+          "adult": false,
+          "gender": 2,
+          "id": 1331892,
+          "known_for_department": "Editing",
+          "name": "Simon Webb",
+          "original_name": "Simon Webb",
+          "popularity": 0.4432,
+          "profile_path": null
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Elias Woodstone",
@@ -28,7 +94,7 @@
           "known_for_department": "Acting",
           "name": "Matt Walsh",
           "original_name": "Matt Walsh",
-          "popularity": 3.9507,
+          "popularity": 1.9141,
           "profile_path": "/fp1JsNbZyhJ3PHpwZJVDYRz1RGF.jpg"
         },
         {
@@ -41,7 +107,7 @@
           "known_for_department": "Acting",
           "name": "Caroline Aaron",
           "original_name": "Caroline Aaron",
-          "popularity": 2.1753,
+          "popularity": 1.5709,
           "profile_path": "/7nnic1Dao3XoScrwX7Ac39N2BC1.jpg"
         },
         {
@@ -54,7 +120,7 @@
           "known_for_department": "Acting",
           "name": "Betsy Sodaro",
           "original_name": "Betsy Sodaro",
-          "popularity": 1.7018,
+          "popularity": 1.6788,
           "profile_path": "/mia2ZT1kMUnKUdT2Q9QZ7u80HJJ.jpg"
         },
         {
@@ -67,7 +133,7 @@
           "known_for_department": "Acting",
           "name": "Mary Holland",
           "original_name": "Mary Holland",
-          "popularity": 2.3254,
+          "popularity": 1.8902,
           "profile_path": "/iwEK2fIrU1q7aijjD8FI9hCUMEL.jpg"
         }
       ]
@@ -86,7 +152,73 @@
       "still_path": "/lD2Jl5PljSy0YxSIQcAqJGHrxkG.jpg",
       "vote_average": 6.2,
       "vote_count": 11,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "60a710c28dbc33005994a806",
+          "adult": false,
+          "gender": 2,
+          "id": 1220717,
+          "known_for_department": "Writing",
+          "name": "Joe Port",
+          "original_name": "Joe Port",
+          "popularity": 0.8102,
+          "profile_path": null
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "60a710b74b0c63002a8a9a7a",
+          "adult": false,
+          "gender": 2,
+          "id": 1220718,
+          "known_for_department": "Writing",
+          "name": "Joe Wiseman",
+          "original_name": "Joe Wiseman",
+          "popularity": 0.5354,
+          "profile_path": null
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "63ebbe0f813cb600794218e6",
+          "adult": false,
+          "gender": 2,
+          "id": 169448,
+          "known_for_department": "Directing",
+          "name": "Richie Keen",
+          "original_name": "Richie Keen",
+          "popularity": 0.9754,
+          "profile_path": "/7dILc8lBE0v6vqfVv3pmkQTUx2c.jpg"
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf216f2eee23d19f49ab72",
+          "adult": false,
+          "gender": 0,
+          "id": 3314642,
+          "known_for_department": "Editing",
+          "name": "Kenneth LaMere",
+          "original_name": "Kenneth LaMere",
+          "popularity": 0.3013,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Margaret Farnsby",
@@ -98,7 +230,7 @@
           "known_for_department": "Acting",
           "name": "Kathryn Greenwood",
           "original_name": "Kathryn Greenwood",
-          "popularity": 1.0788,
+          "popularity": 1.0608,
           "profile_path": "/zVKcvl2SSFRBjKNK7ArJ9WEAQa8.jpg"
         },
         {
@@ -111,7 +243,7 @@
           "known_for_department": "Acting",
           "name": "Mark Linn-Baker",
           "original_name": "Mark Linn-Baker",
-          "popularity": 1.4124,
+          "popularity": 1.7091,
           "profile_path": "/pUNprACr5X9v8xZPLerV4QMqRfL.jpg"
         },
         {
@@ -124,7 +256,7 @@
           "known_for_department": "Acting",
           "name": "Lindsey Broad",
           "original_name": "Lindsey Broad",
-          "popularity": 1.4214,
+          "popularity": 1.3764,
           "profile_path": "/pYAwb4RjSQnxkvqdJr51rhHXh02.jpg"
         },
         {
@@ -137,7 +269,7 @@
           "known_for_department": "Acting",
           "name": "Chris Eckert",
           "original_name": "Chris Eckert",
-          "popularity": 0.5588,
+          "popularity": 0.7439,
           "profile_path": "/jz8QLozJICn9MG0gsA6TpEKKABu.jpg"
         },
         {
@@ -150,7 +282,7 @@
           "known_for_department": "Acting",
           "name": "Christian Jadah",
           "original_name": "Christian Jadah",
-          "popularity": 0.6848,
+          "popularity": 0.7229,
           "profile_path": "/mIyyQ8maFwGv4s4can7c0mwN9UX.jpg"
         },
         {
@@ -163,7 +295,7 @@
           "known_for_department": "Acting",
           "name": "Yassir Lester",
           "original_name": "Yassir Lester",
-          "popularity": 0.8012,
+          "popularity": 1.0192,
           "profile_path": "/cxQk4vTeBnFPgTvmVpYtkmTKVTf.jpg"
         },
         {
@@ -176,7 +308,7 @@
           "known_for_department": "Acting",
           "name": "Sasheer Zamata",
           "original_name": "Sasheer Zamata",
-          "popularity": 1.147,
+          "popularity": 2.091,
           "profile_path": "/cI5jWRJNGuECiATsSBGGb5B9VRg.jpg"
         }
       ]
@@ -195,7 +327,60 @@
       "still_path": "/uXHIq1Js6iGsh58HBKlLVR0IhWa.jpg",
       "vote_average": 6.2,
       "vote_count": 11,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "614d0ccc982f74008c602c54",
+          "adult": false,
+          "gender": 2,
+          "id": 1605873,
+          "known_for_department": "Writing",
+          "name": "Josh Malmuth",
+          "original_name": "Josh Malmuth",
+          "popularity": 0.5329,
+          "profile_path": null
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "65cb938c12970c017bc689ed",
+          "adult": false,
+          "gender": 2,
+          "id": 566964,
+          "known_for_department": "Directing",
+          "name": "Pete Chatmon",
+          "original_name": "Pete Chatmon",
+          "popularity": 0.966,
+          "profile_path": "/aUGfTu2Pf1Dvbo1CDWQLecCccIe.jpg"
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf21306d1ef146cd3920a6",
+          "adult": false,
+          "gender": 2,
+          "id": 1331892,
+          "known_for_department": "Editing",
+          "name": "Simon Webb",
+          "original_name": "Simon Webb",
+          "popularity": 0.4432,
+          "profile_path": null
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Bela",
@@ -207,7 +392,7 @@
           "known_for_department": "Acting",
           "name": "Punam Patel",
           "original_name": "Punam Patel",
-          "popularity": 1.0266,
+          "popularity": 0.8308,
           "profile_path": "/3SjcFZXnHRMS9ZixWKRGlQX3mVJ.jpg"
         },
         {
@@ -220,7 +405,7 @@
           "known_for_department": "Acting",
           "name": "Arthur Holden",
           "original_name": "Arthur Holden",
-          "popularity": 1.7717,
+          "popularity": 1.2,
           "profile_path": "/c8FXyHhiVXCsjvwxXOzuVi28z3i.jpg"
         },
         {
@@ -233,7 +418,7 @@
           "known_for_department": "Acting",
           "name": "John Hartman",
           "original_name": "John Hartman",
-          "popularity": 0.6742,
+          "popularity": 0.8043,
           "profile_path": "/wVs9ncZ28tEIURhPLaXbOq53F4Q.jpg"
         },
         {
@@ -246,7 +431,7 @@
           "known_for_department": "Acting",
           "name": "Betsy Sodaro",
           "original_name": "Betsy Sodaro",
-          "popularity": 1.7018,
+          "popularity": 1.6788,
           "profile_path": "/mia2ZT1kMUnKUdT2Q9QZ7u80HJJ.jpg"
         },
         {
@@ -259,7 +444,7 @@
           "known_for_department": "Acting",
           "name": "Nigel Downer",
           "original_name": "Nigel Downer",
-          "popularity": 0.5755,
+          "popularity": 0.525,
           "profile_path": "/evIxywR2os9C1hQCqRveKpQnSj9.jpg"
         },
         {
@@ -272,7 +457,7 @@
           "known_for_department": "Acting",
           "name": "Joshua Peace",
           "original_name": "Joshua Peace",
-          "popularity": 1.7674,
+          "popularity": 1.2505,
           "profile_path": "/hzBO3jGfWLUwvcolw2zFxHlaRvO.jpg"
         },
         {
@@ -285,7 +470,7 @@
           "known_for_department": "Acting",
           "name": "Al Mukadam",
           "original_name": "Al Mukadam",
-          "popularity": 1.2829,
+          "popularity": 1.4176,
           "profile_path": "/vbLQYlJKh0mrZn15rYgc5wChpRh.jpg"
         },
         {
@@ -298,7 +483,7 @@
           "known_for_department": "Acting",
           "name": "Dustin Ybarra",
           "original_name": "Dustin Ybarra",
-          "popularity": 0.8528,
+          "popularity": 1.0069,
           "profile_path": "/bYMFFOlVotAJ4wtNS1Nyove9Ej7.jpg"
         },
         {
@@ -311,7 +496,7 @@
           "known_for_department": "Acting",
           "name": "Farhang Ghajar",
           "original_name": "Farhang Ghajar",
-          "popularity": 0.4793,
+          "popularity": 0.5635,
           "profile_path": "/cD30jbhwFPetyaeOAgNVmRE4S9H.jpg"
         },
         {
@@ -324,7 +509,7 @@
           "known_for_department": "Acting",
           "name": "Basel Daoud",
           "original_name": "Basel Daoud",
-          "popularity": 0.607,
+          "popularity": 0.8589,
           "profile_path": "/eJdTeSwPx6FIBcWUoAZxVv4sKrD.jpg"
         },
         {
@@ -337,7 +522,7 @@
           "known_for_department": "Acting",
           "name": "William Jordan",
           "original_name": "William Jordan",
-          "popularity": 0.3483,
+          "popularity": 0.4152,
           "profile_path": null
         },
         {
@@ -350,7 +535,7 @@
           "known_for_department": "Acting",
           "name": "Samantha Bitonti",
           "original_name": "Samantha Bitonti",
-          "popularity": 0.3841,
+          "popularity": 0.4888,
           "profile_path": "/68eTpAGinj0XLZtgvnVEwvCSPkC.jpg"
         }
       ]
@@ -369,7 +554,60 @@
       "still_path": "/aTcreY7kunUcNcyAESsikXD8tJd.jpg",
       "vote_average": 6.4,
       "vote_count": 12,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "633f76441a32480090a292df",
+          "adult": false,
+          "gender": 2,
+          "id": 2755901,
+          "known_for_department": "Writing",
+          "name": "Guy Endore-Kaiser",
+          "original_name": "Guy Endore-Kaiser",
+          "popularity": 0.3962,
+          "profile_path": null
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "65cb938c12970c017bc689ed",
+          "adult": false,
+          "gender": 2,
+          "id": 566964,
+          "known_for_department": "Directing",
+          "name": "Pete Chatmon",
+          "original_name": "Pete Chatmon",
+          "popularity": 0.966,
+          "profile_path": "/aUGfTu2Pf1Dvbo1CDWQLecCccIe.jpg"
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf216f2eee23d19f49ab72",
+          "adult": false,
+          "gender": 0,
+          "id": 3314642,
+          "known_for_department": "Editing",
+          "name": "Kenneth LaMere",
+          "original_name": "Kenneth LaMere",
+          "popularity": 0.3013,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Bela",
@@ -381,7 +619,7 @@
           "known_for_department": "Acting",
           "name": "Punam Patel",
           "original_name": "Punam Patel",
-          "popularity": 1.0266,
+          "popularity": 0.8308,
           "profile_path": "/3SjcFZXnHRMS9ZixWKRGlQX3mVJ.jpg"
         },
         {
@@ -394,7 +632,7 @@
           "known_for_department": "Acting",
           "name": "Tristan D. Lalla",
           "original_name": "Tristan D. Lalla",
-          "popularity": 1.0114,
+          "popularity": 0.8468,
           "profile_path": "/yyrn7MeftoEpTVidzCbaazoCvNp.jpg"
         },
         {
@@ -407,7 +645,7 @@
           "known_for_department": "Acting",
           "name": "Cat Lemieux",
           "original_name": "Cat Lemieux",
-          "popularity": 0.8079,
+          "popularity": 0.6509,
           "profile_path": "/b1k7V5G2ji8Yl5mP66bA9OWZ7Nu.jpg"
         },
         {
@@ -420,7 +658,7 @@
           "known_for_department": "Acting",
           "name": "Arthur Holden",
           "original_name": "Arthur Holden",
-          "popularity": 1.7717,
+          "popularity": 1.2,
           "profile_path": "/c8FXyHhiVXCsjvwxXOzuVi28z3i.jpg"
         },
         {
@@ -433,7 +671,7 @@
           "known_for_department": "Acting",
           "name": "Betsy Sodaro",
           "original_name": "Betsy Sodaro",
-          "popularity": 1.7018,
+          "popularity": 1.6788,
           "profile_path": "/mia2ZT1kMUnKUdT2Q9QZ7u80HJJ.jpg"
         },
         {
@@ -446,7 +684,7 @@
           "known_for_department": "Acting",
           "name": "Joshua Peace",
           "original_name": "Joshua Peace",
-          "popularity": 1.7674,
+          "popularity": 1.2505,
           "profile_path": "/hzBO3jGfWLUwvcolw2zFxHlaRvO.jpg"
         },
         {
@@ -459,7 +697,7 @@
           "known_for_department": "Acting",
           "name": "Al Mukadam",
           "original_name": "Al Mukadam",
-          "popularity": 1.2829,
+          "popularity": 1.4176,
           "profile_path": "/vbLQYlJKh0mrZn15rYgc5wChpRh.jpg"
         },
         {
@@ -472,7 +710,7 @@
           "known_for_department": "Acting",
           "name": "Dustin Ybarra",
           "original_name": "Dustin Ybarra",
-          "popularity": 0.8528,
+          "popularity": 1.0069,
           "profile_path": "/bYMFFOlVotAJ4wtNS1Nyove9Ej7.jpg"
         },
         {
@@ -485,7 +723,7 @@
           "known_for_department": "Acting",
           "name": "Sinem Gulturk",
           "original_name": "Sinem Gulturk",
-          "popularity": 0.453,
+          "popularity": 0.762,
           "profile_path": "/4I6SxKaUxLeGUA1rzBjoZG6bzKR.jpg"
         },
         {
@@ -498,7 +736,7 @@
           "known_for_department": "Acting",
           "name": "Gideon Adlon",
           "original_name": "Gideon Adlon",
-          "popularity": 2.6395,
+          "popularity": 2.0649,
           "profile_path": "/2z8IfO0ccm932usPJUEcR1u6Oma.jpg"
         }
       ]
@@ -517,7 +755,60 @@
       "still_path": "/rvU3UJYMQP63tEOHStCT45VVD1a.jpg",
       "vote_average": 6,
       "vote_count": 10,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "69331b084cd69a528370a403",
+          "adult": false,
+          "gender": 1,
+          "id": 1438581,
+          "known_for_department": "Directing",
+          "name": "Heather Jack",
+          "original_name": "Heather Jack",
+          "popularity": 0.7675,
+          "profile_path": "/rxzkFuuNG37AAy4W57eWinNY1zZ.jpg"
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf21306d1ef146cd3920a6",
+          "adult": false,
+          "gender": 2,
+          "id": 1331892,
+          "known_for_department": "Editing",
+          "name": "Simon Webb",
+          "original_name": "Simon Webb",
+          "popularity": 0.4432,
+          "profile_path": null
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "6aaf21cd5df2ae4872f66938",
+          "adult": false,
+          "gender": 1,
+          "id": 2185584,
+          "known_for_department": "Writing",
+          "name": "Rupinder Gill",
+          "original_name": "Rupinder Gill",
+          "popularity": 0.6693,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Bela",
@@ -529,7 +820,7 @@
           "known_for_department": "Acting",
           "name": "Punam Patel",
           "original_name": "Punam Patel",
-          "popularity": 1.0266,
+          "popularity": 0.8308,
           "profile_path": "/3SjcFZXnHRMS9ZixWKRGlQX3mVJ.jpg"
         },
         {
@@ -542,7 +833,7 @@
           "known_for_department": "Acting",
           "name": "Cat Lemieux",
           "original_name": "Cat Lemieux",
-          "popularity": 0.8079,
+          "popularity": 0.6509,
           "profile_path": "/b1k7V5G2ji8Yl5mP66bA9OWZ7Nu.jpg"
         },
         {
@@ -555,7 +846,7 @@
           "known_for_department": "Acting",
           "name": "Arthur Holden",
           "original_name": "Arthur Holden",
-          "popularity": 1.7717,
+          "popularity": 1.2,
           "profile_path": "/c8FXyHhiVXCsjvwxXOzuVi28z3i.jpg"
         },
         {
@@ -568,7 +859,7 @@
           "known_for_department": "Acting",
           "name": "Nigel Downer",
           "original_name": "Nigel Downer",
-          "popularity": 0.5755,
+          "popularity": 0.525,
           "profile_path": "/evIxywR2os9C1hQCqRveKpQnSj9.jpg"
         },
         {
@@ -581,7 +872,7 @@
           "known_for_department": "Acting",
           "name": "Joshua Peace",
           "original_name": "Joshua Peace",
-          "popularity": 1.7674,
+          "popularity": 1.2505,
           "profile_path": "/hzBO3jGfWLUwvcolw2zFxHlaRvO.jpg"
         },
         {
@@ -594,7 +885,7 @@
           "known_for_department": "Acting",
           "name": "Al Mukadam",
           "original_name": "Al Mukadam",
-          "popularity": 1.2829,
+          "popularity": 1.4176,
           "profile_path": "/vbLQYlJKh0mrZn15rYgc5wChpRh.jpg"
         },
         {
@@ -607,7 +898,7 @@
           "known_for_department": "Acting",
           "name": "Dustin Ybarra",
           "original_name": "Dustin Ybarra",
-          "popularity": 0.8528,
+          "popularity": 1.0069,
           "profile_path": "/bYMFFOlVotAJ4wtNS1Nyove9Ej7.jpg"
         },
         {
@@ -620,7 +911,7 @@
           "known_for_department": "Acting",
           "name": "Sinem Gulturk",
           "original_name": "Sinem Gulturk",
-          "popularity": 0.453,
+          "popularity": 0.762,
           "profile_path": "/4I6SxKaUxLeGUA1rzBjoZG6bzKR.jpg"
         },
         {
@@ -633,7 +924,7 @@
           "known_for_department": "Acting",
           "name": "Gideon Adlon",
           "original_name": "Gideon Adlon",
-          "popularity": 2.6395,
+          "popularity": 2.0649,
           "profile_path": "/2z8IfO0ccm932usPJUEcR1u6Oma.jpg"
         },
         {
@@ -646,7 +937,7 @@
           "known_for_department": "Acting",
           "name": "Lincoln MacNeil",
           "original_name": "Lincoln MacNeil",
-          "popularity": 0.5383,
+          "popularity": 0.4503,
           "profile_path": "/uhQQvOgHtLARRtDpS5MHYgRbOz4.jpg"
         },
         {
@@ -659,7 +950,7 @@
           "known_for_department": "Acting",
           "name": "Logan Mendes",
           "original_name": "Logan Mendes",
-          "popularity": 0.3979,
+          "popularity": 0.4248,
           "profile_path": null
         }
       ]
@@ -689,7 +980,7 @@
           "known_for_department": "Writing",
           "name": "Akilah Green",
           "original_name": "Akilah Green",
-          "popularity": 0.4985,
+          "popularity": 0.7171,
           "profile_path": "/v1MCEDq3UzEXizuMJGRoI81bfGN.jpg"
         },
         {
@@ -702,8 +993,34 @@
           "known_for_department": "Directing",
           "name": "Heather Jack",
           "original_name": "Heather Jack",
-          "popularity": 0.4004,
+          "popularity": 0.7675,
           "profile_path": "/rxzkFuuNG37AAy4W57eWinNY1zZ.jpg"
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf216f2eee23d19f49ab72",
+          "adult": false,
+          "gender": 0,
+          "id": 3314642,
+          "known_for_department": "Editing",
+          "name": "Kenneth LaMere",
+          "original_name": "Kenneth LaMere",
+          "popularity": 0.3013,
+          "profile_path": null
         }
       ],
       "guest_stars": [
@@ -717,7 +1034,7 @@
           "known_for_department": "Acting",
           "name": "Ben Feldman",
           "original_name": "Ben Feldman",
-          "popularity": 2.4242,
+          "popularity": 1.9947,
           "profile_path": "/neArGlsh50NtcGzUM99Puz6TrFX.jpg"
         },
         {
@@ -730,7 +1047,7 @@
           "known_for_department": "Acting",
           "name": "Eduard Witzke",
           "original_name": "Eduard Witzke",
-          "popularity": 0.4978,
+          "popularity": 0.5541,
           "profile_path": "/cFF2byvzsTZxozr09ILZt4jiYjW.jpg"
         }
       ]
@@ -749,7 +1066,60 @@
       "still_path": "/jzkfwb3yJyjIkqQ02ITqSuJ3DaE.jpg",
       "vote_average": 6.2,
       "vote_count": 11,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "61bf9860f29d660067bb9729",
+          "adult": false,
+          "gender": 1,
+          "id": 1224743,
+          "known_for_department": "Directing",
+          "name": "Christine Gernon",
+          "original_name": "Christine Gernon",
+          "popularity": 1.1733,
+          "profile_path": "/vfDCWgvPg2U4zHzqlGgeuxkGpiC.jpg"
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "637158bc798e06007fe63702",
+          "adult": false,
+          "gender": 1,
+          "id": 2046285,
+          "known_for_department": "Writing",
+          "name": "Sophia Lear",
+          "original_name": "Sophia Lear",
+          "popularity": 0.5834,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf21306d1ef146cd3920a6",
+          "adult": false,
+          "gender": 2,
+          "id": 1331892,
+          "known_for_department": "Editing",
+          "name": "Simon Webb",
+          "original_name": "Simon Webb",
+          "popularity": 0.4432,
+          "profile_path": null
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Bela",
@@ -761,7 +1131,7 @@
           "known_for_department": "Acting",
           "name": "Punam Patel",
           "original_name": "Punam Patel",
-          "popularity": 1.0266,
+          "popularity": 0.8308,
           "profile_path": "/3SjcFZXnHRMS9ZixWKRGlQX3mVJ.jpg"
         },
         {
@@ -774,7 +1144,7 @@
           "known_for_department": "Acting",
           "name": "Cat Lemieux",
           "original_name": "Cat Lemieux",
-          "popularity": 0.8079,
+          "popularity": 0.6509,
           "profile_path": "/b1k7V5G2ji8Yl5mP66bA9OWZ7Nu.jpg"
         },
         {
@@ -787,7 +1157,7 @@
           "known_for_department": "Acting",
           "name": "Arthur Holden",
           "original_name": "Arthur Holden",
-          "popularity": 1.7717,
+          "popularity": 1.2,
           "profile_path": "/c8FXyHhiVXCsjvwxXOzuVi28z3i.jpg"
         },
         {
@@ -800,7 +1170,7 @@
           "known_for_department": "Acting",
           "name": "Betsy Sodaro",
           "original_name": "Betsy Sodaro",
-          "popularity": 1.7018,
+          "popularity": 1.6788,
           "profile_path": "/mia2ZT1kMUnKUdT2Q9QZ7u80HJJ.jpg"
         },
         {
@@ -813,7 +1183,7 @@
           "known_for_department": "Acting",
           "name": "Cody Crain",
           "original_name": "Cody Crain",
-          "popularity": 0.4121,
+          "popularity": 0.4661,
           "profile_path": "/ydcBR1eaYotPenw2McF42AojKjG.jpg"
         },
         {
@@ -826,7 +1196,7 @@
           "known_for_department": "Acting",
           "name": "Nigel Downer",
           "original_name": "Nigel Downer",
-          "popularity": 0.5755,
+          "popularity": 0.525,
           "profile_path": "/evIxywR2os9C1hQCqRveKpQnSj9.jpg"
         },
         {
@@ -839,7 +1209,7 @@
           "known_for_department": "Acting",
           "name": "Stuart Fink",
           "original_name": "Stuart Fink",
-          "popularity": 0.3778,
+          "popularity": 0.5842,
           "profile_path": "/yRhZesWPPvg7fDnCBOxDWfW2qsv.jpg"
         },
         {
@@ -852,7 +1222,7 @@
           "known_for_department": "Acting",
           "name": "Andrew Leeds",
           "original_name": "Andrew Leeds",
-          "popularity": 1.3387,
+          "popularity": 1.4759,
           "profile_path": "/w9aIFV2E4qIA19wEaarPR3Dxtbu.jpg"
         },
         {
@@ -865,7 +1235,7 @@
           "known_for_department": "Acting",
           "name": "Jon Ambrose",
           "original_name": "Jon Ambrose",
-          "popularity": 0.5763,
+          "popularity": 0.7522,
           "profile_path": "/sGjvjNeCxVrGXhknsniFId0hxi6.jpg"
         },
         {
@@ -878,7 +1248,7 @@
           "known_for_department": "Acting",
           "name": "Ellen David",
           "original_name": "Ellen David",
-          "popularity": 1.2487,
+          "popularity": 0.9475,
           "profile_path": "/kODfwKI8AD5ZI3Yb9IcAeOxxMKQ.jpg"
         },
         {
@@ -891,7 +1261,7 @@
           "known_for_department": "Acting",
           "name": "Bill Rowat",
           "original_name": "Bill Rowat",
-          "popularity": 1.3749,
+          "popularity": 0.7893,
           "profile_path": "/xzce2UhuneIlXLMQdBdchVkFIAV.jpg"
         }
       ]
@@ -910,7 +1280,60 @@
       "still_path": "/fHcW2Lw9g19LcjWaIDekib7daVU.jpg",
       "vote_average": 6.3,
       "vote_count": 12,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "6172fcca6d4c9700653c5ce1",
+          "adult": false,
+          "gender": 0,
+          "id": 3280625,
+          "known_for_department": "Writing",
+          "name": "Emily Schmidt",
+          "original_name": "Emily Schmidt",
+          "popularity": 0.5346,
+          "profile_path": "/3OogNwq8HCrAG3TDAwk19Cg3waB.jpg"
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "61bf9860f29d660067bb9729",
+          "adult": false,
+          "gender": 1,
+          "id": 1224743,
+          "known_for_department": "Directing",
+          "name": "Christine Gernon",
+          "original_name": "Christine Gernon",
+          "popularity": 1.1733,
+          "profile_path": "/vfDCWgvPg2U4zHzqlGgeuxkGpiC.jpg"
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf216f2eee23d19f49ab72",
+          "adult": false,
+          "gender": 0,
+          "id": 3314642,
+          "known_for_department": "Editing",
+          "name": "Kenneth LaMere",
+          "original_name": "Kenneth LaMere",
+          "popularity": 0.3013,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Bela",
@@ -922,7 +1345,7 @@
           "known_for_department": "Acting",
           "name": "Punam Patel",
           "original_name": "Punam Patel",
-          "popularity": 1.0266,
+          "popularity": 0.8308,
           "profile_path": "/3SjcFZXnHRMS9ZixWKRGlQX3mVJ.jpg"
         },
         {
@@ -935,7 +1358,7 @@
           "known_for_department": "Acting",
           "name": "Rodrigo Fernandez-Stoll",
           "original_name": "Rodrigo Fernandez-Stoll",
-          "popularity": 1.7167,
+          "popularity": 1.039,
           "profile_path": "/n7Py821noR7f7y99Rad2yOKhLtB.jpg"
         },
         {
@@ -948,7 +1371,7 @@
           "known_for_department": "Acting",
           "name": "Tristan D. Lalla",
           "original_name": "Tristan D. Lalla",
-          "popularity": 1.0114,
+          "popularity": 0.8468,
           "profile_path": "/yyrn7MeftoEpTVidzCbaazoCvNp.jpg"
         },
         {
@@ -961,7 +1384,7 @@
           "known_for_department": "Acting",
           "name": "Joy Osmanski",
           "original_name": "Joy Osmanski",
-          "popularity": 1.4695,
+          "popularity": 1.5464,
           "profile_path": "/xoRSO5b7hWN9i42fFEswHwStLEI.jpg"
         }
       ]
@@ -980,7 +1403,60 @@
       "still_path": "/3Zra4K7aJnRr77kPXJGjrI2Suqg.jpg",
       "vote_average": 6,
       "vote_count": 11,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "61679595d7f465004249e3cf",
+          "adult": false,
+          "gender": 0,
+          "id": 1915218,
+          "known_for_department": "Writing",
+          "name": "Talia Bernstein",
+          "original_name": "Talia Bernstein",
+          "popularity": 0.5891,
+          "profile_path": null
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "63ebbe0f813cb600794218e6",
+          "adult": false,
+          "gender": 2,
+          "id": 169448,
+          "known_for_department": "Directing",
+          "name": "Richie Keen",
+          "original_name": "Richie Keen",
+          "popularity": 0.9754,
+          "profile_path": "/7dILc8lBE0v6vqfVv3pmkQTUx2c.jpg"
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf21306d1ef146cd3920a6",
+          "adult": false,
+          "gender": 2,
+          "id": 1331892,
+          "known_for_department": "Editing",
+          "name": "Simon Webb",
+          "original_name": "Simon Webb",
+          "popularity": 0.4432,
+          "profile_path": null
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Mark",
@@ -992,7 +1468,7 @@
           "known_for_department": "Acting",
           "name": "Tristan D. Lalla",
           "original_name": "Tristan D. Lalla",
-          "popularity": 1.0114,
+          "popularity": 0.8468,
           "profile_path": "/yyrn7MeftoEpTVidzCbaazoCvNp.jpg"
         },
         {
@@ -1005,7 +1481,7 @@
           "known_for_department": "Acting",
           "name": "Betsy Sodaro",
           "original_name": "Betsy Sodaro",
-          "popularity": 1.7018,
+          "popularity": 1.6788,
           "profile_path": "/mia2ZT1kMUnKUdT2Q9QZ7u80HJJ.jpg"
         },
         {
@@ -1018,7 +1494,7 @@
           "known_for_department": "Acting",
           "name": "Marc-Antoine Kelertas",
           "original_name": "Marc-Antoine Kelertas",
-          "popularity": 0.3231,
+          "popularity": 0.3699,
           "profile_path": "/xHxqakPKRcpcLrzmnY4z4NdDthI.jpg"
         },
         {
@@ -1031,7 +1507,7 @@
           "known_for_department": "Acting",
           "name": "Mary Holland",
           "original_name": "Mary Holland",
-          "popularity": 2.3254,
+          "popularity": 1.8902,
           "profile_path": "/iwEK2fIrU1q7aijjD8FI9hCUMEL.jpg"
         },
         {
@@ -1044,7 +1520,7 @@
           "known_for_department": "Acting",
           "name": "Dustin Ybarra",
           "original_name": "Dustin Ybarra",
-          "popularity": 0.8528,
+          "popularity": 1.0069,
           "profile_path": "/bYMFFOlVotAJ4wtNS1Nyove9Ej7.jpg"
         },
         {
@@ -1057,7 +1533,7 @@
           "known_for_department": "Acting",
           "name": "Sinem Gulturk",
           "original_name": "Sinem Gulturk",
-          "popularity": 0.453,
+          "popularity": 0.762,
           "profile_path": "/4I6SxKaUxLeGUA1rzBjoZG6bzKR.jpg"
         },
         {
@@ -1070,7 +1546,7 @@
           "known_for_department": "Acting",
           "name": "Larry Wilmore",
           "original_name": "Larry Wilmore",
-          "popularity": 1.8021,
+          "popularity": 1.3918,
           "profile_path": "/6Z55cIMHa50Wy3EEP8uCaK2sVGM.jpg"
         },
         {
@@ -1083,7 +1559,7 @@
           "known_for_department": "Acting",
           "name": "Myles-Anthony Douglas",
           "original_name": "Myles-Anthony Douglas",
-          "popularity": 0.4733,
+          "popularity": 0.5821,
           "profile_path": null
         }
       ]
@@ -1102,7 +1578,73 @@
       "still_path": "/hxbbILzDu7O7gzZGThSNar6VJCB.jpg",
       "vote_average": 6.3,
       "vote_count": 11,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "615e82c7d144430043677363",
+          "adult": false,
+          "gender": 2,
+          "id": 1590723,
+          "known_for_department": "Writing",
+          "name": "John Blickstead",
+          "original_name": "John Blickstead",
+          "popularity": 0.4406,
+          "profile_path": null
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "615e82cd67e0f70043883882",
+          "adult": false,
+          "gender": 2,
+          "id": 1590724,
+          "known_for_department": "Writing",
+          "name": "Trey Kollmer",
+          "original_name": "Trey Kollmer",
+          "popularity": 0.4337,
+          "profile_path": null
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "63ebbe0f813cb600794218e6",
+          "adult": false,
+          "gender": 2,
+          "id": 169448,
+          "known_for_department": "Directing",
+          "name": "Richie Keen",
+          "original_name": "Richie Keen",
+          "popularity": 0.9754,
+          "profile_path": "/7dILc8lBE0v6vqfVv3pmkQTUx2c.jpg"
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf216f2eee23d19f49ab72",
+          "adult": false,
+          "gender": 0,
+          "id": 3314642,
+          "known_for_department": "Editing",
+          "name": "Kenneth LaMere",
+          "original_name": "Kenneth LaMere",
+          "popularity": 0.3013,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Mark",
@@ -1114,7 +1656,7 @@
           "known_for_department": "Acting",
           "name": "Tristan D. Lalla",
           "original_name": "Tristan D. Lalla",
-          "popularity": 1.0114,
+          "popularity": 0.8468,
           "profile_path": "/yyrn7MeftoEpTVidzCbaazoCvNp.jpg"
         },
         {
@@ -1127,7 +1669,7 @@
           "known_for_department": "Acting",
           "name": "Cat Lemieux",
           "original_name": "Cat Lemieux",
-          "popularity": 0.8079,
+          "popularity": 0.6509,
           "profile_path": "/b1k7V5G2ji8Yl5mP66bA9OWZ7Nu.jpg"
         },
         {
@@ -1140,7 +1682,7 @@
           "known_for_department": "Acting",
           "name": "Arthur Holden",
           "original_name": "Arthur Holden",
-          "popularity": 1.7717,
+          "popularity": 1.2,
           "profile_path": "/c8FXyHhiVXCsjvwxXOzuVi28z3i.jpg"
         },
         {
@@ -1153,7 +1695,7 @@
           "known_for_department": "Acting",
           "name": "Caroline Aaron",
           "original_name": "Caroline Aaron",
-          "popularity": 2.1753,
+          "popularity": 1.5709,
           "profile_path": "/7nnic1Dao3XoScrwX7Ac39N2BC1.jpg"
         },
         {
@@ -1166,7 +1708,7 @@
           "known_for_department": "Acting",
           "name": "John Hartman",
           "original_name": "John Hartman",
-          "popularity": 0.6742,
+          "popularity": 0.8043,
           "profile_path": "/wVs9ncZ28tEIURhPLaXbOq53F4Q.jpg"
         },
         {
@@ -1179,7 +1721,7 @@
           "known_for_department": "Acting",
           "name": "Betsy Sodaro",
           "original_name": "Betsy Sodaro",
-          "popularity": 1.7018,
+          "popularity": 1.6788,
           "profile_path": "/mia2ZT1kMUnKUdT2Q9QZ7u80HJJ.jpg"
         },
         {
@@ -1192,7 +1734,7 @@
           "known_for_department": "Acting",
           "name": "Nigel Downer",
           "original_name": "Nigel Downer",
-          "popularity": 0.5755,
+          "popularity": 0.525,
           "profile_path": "/evIxywR2os9C1hQCqRveKpQnSj9.jpg"
         },
         {
@@ -1205,7 +1747,7 @@
           "known_for_department": "Acting",
           "name": "Stuart Fink",
           "original_name": "Stuart Fink",
-          "popularity": 0.3778,
+          "popularity": 0.5842,
           "profile_path": "/yRhZesWPPvg7fDnCBOxDWfW2qsv.jpg"
         },
         {
@@ -1218,7 +1760,7 @@
           "known_for_department": "Acting",
           "name": "Mike Lane",
           "original_name": "Mike Lane",
-          "popularity": 0.5422,
+          "popularity": 0.7313,
           "profile_path": "/dRGeKVLBPL5OiFZWUqbQ9RRpmwT.jpg"
         },
         {
@@ -1231,7 +1773,7 @@
           "known_for_department": "Acting",
           "name": "Marc-Antoine Kelertas",
           "original_name": "Marc-Antoine Kelertas",
-          "popularity": 0.3231,
+          "popularity": 0.3699,
           "profile_path": "/xHxqakPKRcpcLrzmnY4z4NdDthI.jpg"
         },
         {
@@ -1244,7 +1786,7 @@
           "known_for_department": "Acting",
           "name": "Christine Ko",
           "original_name": "Christine Ko",
-          "popularity": 1.0482,
+          "popularity": 1.1706,
           "profile_path": "/KWbFpptHRuAye99Insr3q6rn8p.jpg"
         },
         {
@@ -1257,7 +1799,7 @@
           "known_for_department": "Acting",
           "name": "Mary Holland",
           "original_name": "Mary Holland",
-          "popularity": 2.3254,
+          "popularity": 1.8902,
           "profile_path": "/iwEK2fIrU1q7aijjD8FI9hCUMEL.jpg"
         },
         {
@@ -1270,7 +1812,7 @@
           "known_for_department": "Acting",
           "name": "Sasheer Zamata",
           "original_name": "Sasheer Zamata",
-          "popularity": 1.147,
+          "popularity": 2.091,
           "profile_path": "/cI5jWRJNGuECiATsSBGGb5B9VRg.jpg"
         },
         {
@@ -1283,7 +1825,7 @@
           "known_for_department": "Acting",
           "name": "Larry Wilmore",
           "original_name": "Larry Wilmore",
-          "popularity": 1.8021,
+          "popularity": 1.3918,
           "profile_path": "/6Z55cIMHa50Wy3EEP8uCaK2sVGM.jpg"
         },
         {
@@ -1296,7 +1838,7 @@
           "known_for_department": "Acting",
           "name": "Myles-Anthony Douglas",
           "original_name": "Myles-Anthony Douglas",
-          "popularity": 0.4733,
+          "popularity": 0.5821,
           "profile_path": null
         }
       ]
@@ -1315,7 +1857,60 @@
       "still_path": "/lIHEFmCC4XQsfXrCwpCFIrdjIbn.jpg",
       "vote_average": 5.6,
       "vote_count": 9,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "661a1a4193db92017d0b5a8c",
+          "adult": false,
+          "gender": 0,
+          "id": 102004,
+          "known_for_department": "Writing",
+          "name": "Skander Halim",
+          "original_name": "Skander Halim",
+          "popularity": 0.6123,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf21306d1ef146cd3920a6",
+          "adult": false,
+          "gender": 2,
+          "id": 1331892,
+          "known_for_department": "Editing",
+          "name": "Simon Webb",
+          "original_name": "Simon Webb",
+          "popularity": 0.4432,
+          "profile_path": null
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "6aaf21dc0f6ccdd57bada4a4",
+          "adult": false,
+          "gender": 2,
+          "id": 1733707,
+          "known_for_department": "Directing",
+          "name": "Todd Biermann",
+          "original_name": "Todd Biermann",
+          "popularity": 0.5517,
+          "profile_path": "/9Ovjc0p7Wym2KMsw5zPlL86Zp8c.jpg"
+        }
+      ],
       "guest_stars": [
         {
           "character": "Ted",
@@ -1327,7 +1922,7 @@
           "known_for_department": "Acting",
           "name": "Jon Blair",
           "original_name": "Jon Blair",
-          "popularity": 0.7844,
+          "popularity": 0.7916,
           "profile_path": null
         },
         {
@@ -1340,7 +1935,7 @@
           "known_for_department": "Acting",
           "name": "Tori Barban",
           "original_name": "Tori Barban",
-          "popularity": 0.7318,
+          "popularity": 0.7388,
           "profile_path": "/rSDJg5gKWdW9Lg7ZOCGiAIQVNSZ.jpg"
         },
         {
@@ -1353,7 +1948,7 @@
           "known_for_department": "Acting",
           "name": "Brandon Knox",
           "original_name": "Brandon Knox",
-          "popularity": 0.5723,
+          "popularity": 0.8837,
           "profile_path": null
         },
         {
@@ -1366,7 +1961,7 @@
           "known_for_department": "Acting",
           "name": "Mary Holland",
           "original_name": "Mary Holland",
-          "popularity": 2.3254,
+          "popularity": 1.8902,
           "profile_path": "/iwEK2fIrU1q7aijjD8FI9hCUMEL.jpg"
         },
         {
@@ -1379,7 +1974,7 @@
           "known_for_department": "Acting",
           "name": "Will Greenberg",
           "original_name": "Will Greenberg",
-          "popularity": 1.1478,
+          "popularity": 1.4637,
           "profile_path": "/qNUnINlhFUQO567z7YDLZljj5lc.jpg"
         },
         {
@@ -1392,7 +1987,7 @@
           "known_for_department": "Acting",
           "name": "Gracie Dzienny",
           "original_name": "Gracie Dzienny",
-          "popularity": 0.8736,
+          "popularity": 1.064,
           "profile_path": "/efqHAnG95i6HYVAeNic9TwoatkJ.jpg"
         },
         {
@@ -1405,7 +2000,7 @@
           "known_for_department": "Acting",
           "name": "Greg Worswick",
           "original_name": "Greg Worswick",
-          "popularity": 0.6654,
+          "popularity": 0.6905,
           "profile_path": "/nAMGtsjKmVfhQHocXdVwhusjLbC.jpg"
         }
       ]
@@ -1424,7 +2019,60 @@
       "still_path": "/yAE2q1xod3XnpZ9D7J3amyjjPb8.jpg",
       "vote_average": 6,
       "vote_count": 10,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "67cb235636598226a1aff0d6",
+          "adult": false,
+          "gender": 0,
+          "id": 4698092,
+          "known_for_department": "Writing",
+          "name": "Brian Bahe",
+          "original_name": "Brian Bahe",
+          "popularity": 0.4783,
+          "profile_path": "/5ptxMRbEERSIcCkS9HGbN2Mu814.jpg"
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf216f2eee23d19f49ab72",
+          "adult": false,
+          "gender": 0,
+          "id": 3314642,
+          "known_for_department": "Editing",
+          "name": "Kenneth LaMere",
+          "original_name": "Kenneth LaMere",
+          "popularity": 0.3013,
+          "profile_path": null
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "6aaf21dc0f6ccdd57bada4a4",
+          "adult": false,
+          "gender": 2,
+          "id": 1733707,
+          "known_for_department": "Directing",
+          "name": "Todd Biermann",
+          "original_name": "Todd Biermann",
+          "popularity": 0.5517,
+          "profile_path": "/9Ovjc0p7Wym2KMsw5zPlL86Zp8c.jpg"
+        }
+      ],
       "guest_stars": [
         {
           "character": "Olga",
@@ -1436,7 +2084,7 @@
           "known_for_department": "Acting",
           "name": "Kelly Craig",
           "original_name": "Kelly Craig",
-          "popularity": 0.9296,
+          "popularity": 1.0047,
           "profile_path": "/AeXj9nfhm05e0HgIVkPlf3SJVC1.jpg"
         },
         {
@@ -1449,7 +2097,7 @@
           "known_for_department": "Acting",
           "name": "Steve Berg",
           "original_name": "Steve Berg",
-          "popularity": 1.0133,
+          "popularity": 0.8501,
           "profile_path": "/rXYD0Zqx4lqz7c3XWwA6TG75AzB.jpg"
         },
         {
@@ -1462,7 +2110,7 @@
           "known_for_department": "Acting",
           "name": "John Michael Higgins",
           "original_name": "John Michael Higgins",
-          "popularity": 2.7309,
+          "popularity": 1.8564,
           "profile_path": "/1McAEXIhRW2Q3LJsX3os90UXcJz.jpg"
         }
       ]
@@ -1481,7 +2129,73 @@
       "still_path": "/aaJ3d7S0NJy43N7P1pnxLNM4pN9.jpg",
       "vote_average": 6.1,
       "vote_count": 10,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "60a710c28dbc33005994a806",
+          "adult": false,
+          "gender": 2,
+          "id": 1220717,
+          "known_for_department": "Writing",
+          "name": "Joe Port",
+          "original_name": "Joe Port",
+          "popularity": 0.8102,
+          "profile_path": null
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "60a710b74b0c63002a8a9a7a",
+          "adult": false,
+          "gender": 2,
+          "id": 1220718,
+          "known_for_department": "Writing",
+          "name": "Joe Wiseman",
+          "original_name": "Joe Wiseman",
+          "popularity": 0.5354,
+          "profile_path": null
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "67cb23611f9ef3532dafe8e7",
+          "adult": false,
+          "gender": 1,
+          "id": 53485,
+          "known_for_department": "Acting",
+          "name": "Rose McIver",
+          "original_name": "Rose McIver",
+          "popularity": 2.5006,
+          "profile_path": "/7oswXIUIGAZphpZMBhuXoUgOIJi.jpg"
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf21306d1ef146cd3920a6",
+          "adult": false,
+          "gender": 2,
+          "id": 1331892,
+          "known_for_department": "Editing",
+          "name": "Simon Webb",
+          "original_name": "Simon Webb",
+          "popularity": 0.4432,
+          "profile_path": null
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Bela",
@@ -1493,7 +2207,7 @@
           "known_for_department": "Acting",
           "name": "Punam Patel",
           "original_name": "Punam Patel",
-          "popularity": 1.0266,
+          "popularity": 0.8308,
           "profile_path": "/3SjcFZXnHRMS9ZixWKRGlQX3mVJ.jpg"
         },
         {
@@ -1506,7 +2220,7 @@
           "known_for_department": "Acting",
           "name": "Betsy Sodaro",
           "original_name": "Betsy Sodaro",
-          "popularity": 1.7018,
+          "popularity": 1.6788,
           "profile_path": "/mia2ZT1kMUnKUdT2Q9QZ7u80HJJ.jpg"
         },
         {
@@ -1519,7 +2233,7 @@
           "known_for_department": "Acting",
           "name": "Joshua Peace",
           "original_name": "Joshua Peace",
-          "popularity": 1.7674,
+          "popularity": 1.2505,
           "profile_path": "/hzBO3jGfWLUwvcolw2zFxHlaRvO.jpg"
         },
         {
@@ -1532,7 +2246,7 @@
           "known_for_department": "Acting",
           "name": "Al Mukadam",
           "original_name": "Al Mukadam",
-          "popularity": 1.2829,
+          "popularity": 1.4176,
           "profile_path": "/vbLQYlJKh0mrZn15rYgc5wChpRh.jpg"
         },
         {
@@ -1545,7 +2259,7 @@
           "known_for_department": "Acting",
           "name": "Dustin Ybarra",
           "original_name": "Dustin Ybarra",
-          "popularity": 0.8528,
+          "popularity": 1.0069,
           "profile_path": "/bYMFFOlVotAJ4wtNS1Nyove9Ej7.jpg"
         },
         {
@@ -1558,7 +2272,7 @@
           "known_for_department": "Acting",
           "name": "Sinem Gulturk",
           "original_name": "Sinem Gulturk",
-          "popularity": 0.453,
+          "popularity": 0.762,
           "profile_path": "/4I6SxKaUxLeGUA1rzBjoZG6bzKR.jpg"
         },
         {
@@ -1571,7 +2285,7 @@
           "known_for_department": "Acting",
           "name": "Ben Feldman",
           "original_name": "Ben Feldman",
-          "popularity": 2.4242,
+          "popularity": 1.9947,
           "profile_path": "/neArGlsh50NtcGzUM99Puz6TrFX.jpg"
         },
         {
@@ -1584,7 +2298,7 @@
           "known_for_department": "Acting",
           "name": "Jeff Hiller",
           "original_name": "Jeff Hiller",
-          "popularity": 1.586,
+          "popularity": 1.6607,
           "profile_path": "/nyaD40aVXJoeabL8U7y0oKx6BdG.jpg"
         },
         {
@@ -1597,7 +2311,7 @@
           "known_for_department": "Acting",
           "name": "Christy Bruce",
           "original_name": "Christy Bruce",
-          "popularity": 0.6611,
+          "popularity": 0.6164,
           "profile_path": "/ltEVD4CoaU2Lyq86Rx0mc6cx9hA.jpg"
         },
         {
@@ -1610,7 +2324,7 @@
           "known_for_department": "Acting",
           "name": "Soleyman Pierini",
           "original_name": "Soleyman Pierini",
-          "popularity": 0.2983,
+          "popularity": 0.4943,
           "profile_path": "/hYHvPs27xeAUBX00xq8rDd4WQPI.jpg"
         },
         {
@@ -1623,7 +2337,7 @@
           "known_for_department": "Acting",
           "name": "Ali Mohammadi",
           "original_name": "Ali Mohammadi",
-          "popularity": 0.5685,
+          "popularity": 0.7603,
           "profile_path": "/yuu23mmZntKK7PszPR23sNvoF20.jpg"
         },
         {
@@ -1636,7 +2350,7 @@
           "known_for_department": "Acting",
           "name": "Shauntel Harry",
           "original_name": "Shauntel Harry",
-          "popularity": 0.4361,
+          "popularity": 0.4844,
           "profile_path": null
         },
         {
@@ -1649,7 +2363,7 @@
           "known_for_department": "Acting",
           "name": "Nikki Reyes",
           "original_name": "Nikki Reyes",
-          "popularity": 0.4971,
+          "popularity": 0.458,
           "profile_path": "/sNWoScY86gfJdyzuway74EjWCNZ.jpg"
         }
       ]
@@ -1668,7 +2382,60 @@
       "still_path": "/e7U9p5RY5VpfxSDgrlCJEM2rXAv.jpg",
       "vote_average": 6.1,
       "vote_count": 11,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "616795a08fdda900623c503d",
+          "adult": false,
+          "gender": 0,
+          "id": 1302245,
+          "known_for_department": "Acting",
+          "name": "Katie Locke O'Brien",
+          "original_name": "Katie Locke O'Brien",
+          "popularity": 1.2931,
+          "profile_path": "/diH8YmWFmxnkSWcxlA1wv6s2mhl.jpg"
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "643c64a141ad8d046f6485df",
+          "adult": false,
+          "gender": 1,
+          "id": 4014020,
+          "known_for_department": "Writing",
+          "name": "Liz Alexander",
+          "original_name": "Liz Alexander",
+          "popularity": 0.4522,
+          "profile_path": null
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf216f2eee23d19f49ab72",
+          "adult": false,
+          "gender": 0,
+          "id": 3314642,
+          "known_for_department": "Editing",
+          "name": "Kenneth LaMere",
+          "original_name": "Kenneth LaMere",
+          "popularity": 0.3013,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Bela",
@@ -1680,7 +2447,7 @@
           "known_for_department": "Acting",
           "name": "Punam Patel",
           "original_name": "Punam Patel",
-          "popularity": 1.0266,
+          "popularity": 0.8308,
           "profile_path": "/3SjcFZXnHRMS9ZixWKRGlQX3mVJ.jpg"
         },
         {
@@ -1693,7 +2460,7 @@
           "known_for_department": "Acting",
           "name": "Tristan D. Lalla",
           "original_name": "Tristan D. Lalla",
-          "popularity": 1.0114,
+          "popularity": 0.8468,
           "profile_path": "/yyrn7MeftoEpTVidzCbaazoCvNp.jpg"
         },
         {
@@ -1706,7 +2473,7 @@
           "known_for_department": "Acting",
           "name": "Cat Lemieux",
           "original_name": "Cat Lemieux",
-          "popularity": 0.8079,
+          "popularity": 0.6509,
           "profile_path": "/b1k7V5G2ji8Yl5mP66bA9OWZ7Nu.jpg"
         },
         {
@@ -1719,7 +2486,7 @@
           "known_for_department": "Acting",
           "name": "Arthur Holden",
           "original_name": "Arthur Holden",
-          "popularity": 1.7717,
+          "popularity": 1.2,
           "profile_path": "/c8FXyHhiVXCsjvwxXOzuVi28z3i.jpg"
         },
         {
@@ -1732,7 +2499,7 @@
           "known_for_department": "Acting",
           "name": "Betsy Sodaro",
           "original_name": "Betsy Sodaro",
-          "popularity": 1.7018,
+          "popularity": 1.6788,
           "profile_path": "/mia2ZT1kMUnKUdT2Q9QZ7u80HJJ.jpg"
         },
         {
@@ -1745,7 +2512,7 @@
           "known_for_department": "Acting",
           "name": "Nigel Downer",
           "original_name": "Nigel Downer",
-          "popularity": 0.5755,
+          "popularity": 0.525,
           "profile_path": "/evIxywR2os9C1hQCqRveKpQnSj9.jpg"
         },
         {
@@ -1758,7 +2525,7 @@
           "known_for_department": "Acting",
           "name": "Stuart Fink",
           "original_name": "Stuart Fink",
-          "popularity": 0.3778,
+          "popularity": 0.5842,
           "profile_path": "/yRhZesWPPvg7fDnCBOxDWfW2qsv.jpg"
         },
         {
@@ -1771,7 +2538,7 @@
           "known_for_department": "Acting",
           "name": "Ben Feldman",
           "original_name": "Ben Feldman",
-          "popularity": 2.4242,
+          "popularity": 1.9947,
           "profile_path": "/neArGlsh50NtcGzUM99Puz6TrFX.jpg"
         },
         {
@@ -1784,7 +2551,7 @@
           "known_for_department": "Acting",
           "name": "Ellen David",
           "original_name": "Ellen David",
-          "popularity": 1.2487,
+          "popularity": 0.9475,
           "profile_path": "/kODfwKI8AD5ZI3Yb9IcAeOxxMKQ.jpg"
         },
         {
@@ -1797,7 +2564,7 @@
           "known_for_department": "Acting",
           "name": "Douglas Nyback",
           "original_name": "Douglas Nyback",
-          "popularity": 0.4662,
+          "popularity": 0.5087,
           "profile_path": "/7HW030fNzz4hTIffMLGppfc8XyT.jpg"
         },
         {
@@ -1810,7 +2577,7 @@
           "known_for_department": "Acting",
           "name": "Jonathan Vanderzon",
           "original_name": "Jonathan Vanderzon",
-          "popularity": 0.4638,
+          "popularity": 0.6653,
           "profile_path": "/xFwG6wyMmu8IOTX6ktgIHx35rYG.jpg"
         },
         {
@@ -1823,7 +2590,7 @@
           "known_for_department": "Acting",
           "name": "Michael Mast",
           "original_name": "Michael Mast",
-          "popularity": 0.5513,
+          "popularity": 0.678,
           "profile_path": "/lybv7gBodaPCG8j8KA7htdH1B73.jpg"
         }
       ]
@@ -1842,7 +2609,60 @@
       "still_path": "/7aE4uETJ5w13HeUwijYEetipmW6.jpg",
       "vote_average": 6.5,
       "vote_count": 11,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "614d0ccc982f74008c602c54",
+          "adult": false,
+          "gender": 2,
+          "id": 1605873,
+          "known_for_department": "Writing",
+          "name": "Josh Malmuth",
+          "original_name": "Josh Malmuth",
+          "popularity": 0.5329,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf21306d1ef146cd3920a6",
+          "adult": false,
+          "gender": 2,
+          "id": 1331892,
+          "known_for_department": "Editing",
+          "name": "Simon Webb",
+          "original_name": "Simon Webb",
+          "popularity": 0.4432,
+          "profile_path": null
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "6aaf220699e99aad8af66821",
+          "adult": false,
+          "gender": 2,
+          "id": 929511,
+          "known_for_department": "Acting",
+          "name": "Utkarsh Ambudkar",
+          "original_name": "Utkarsh Ambudkar",
+          "popularity": 2.3598,
+          "profile_path": "/vUW5bFrkjWikNFzh5B6F11r5C3X.jpg"
+        }
+      ],
       "guest_stars": [
         {
           "character": "Creepy Dirk",
@@ -1854,7 +2674,7 @@
           "known_for_department": "Acting",
           "name": "Arthur Holden",
           "original_name": "Arthur Holden",
-          "popularity": 1.7717,
+          "popularity": 1.2,
           "profile_path": "/c8FXyHhiVXCsjvwxXOzuVi28z3i.jpg"
         },
         {
@@ -1867,7 +2687,7 @@
           "known_for_department": "Acting",
           "name": "Nigel Downer",
           "original_name": "Nigel Downer",
-          "popularity": 0.5755,
+          "popularity": 0.525,
           "profile_path": "/evIxywR2os9C1hQCqRveKpQnSj9.jpg"
         },
         {
@@ -1880,7 +2700,7 @@
           "known_for_department": "Acting",
           "name": "Steven Yaffee",
           "original_name": "Steven Yaffee",
-          "popularity": 0.8117,
+          "popularity": 0.8709,
           "profile_path": "/mXocbdbwai9N6xPUI8oCMw4hLCE.jpg"
         },
         {
@@ -1893,7 +2713,7 @@
           "known_for_department": "Acting",
           "name": "Ennis Esmer",
           "original_name": "Ennis Esmer",
-          "popularity": 1.8892,
+          "popularity": 1.9294,
           "profile_path": "/1XF7Nic3qBMXFICFHb7nVhpf9sD.jpg"
         },
         {
@@ -1906,7 +2726,7 @@
           "known_for_department": "Acting",
           "name": "Connie Shi",
           "original_name": "Connie Shi",
-          "popularity": 1.4233,
+          "popularity": 1.2683,
           "profile_path": "/xyJ8mf2N8deScO7bfSeoanBH0vg.jpg"
         },
         {
@@ -1919,7 +2739,7 @@
           "known_for_department": "Acting",
           "name": "Christopher Jackson",
           "original_name": "Christopher Jackson",
-          "popularity": 1.3121,
+          "popularity": 1.4954,
           "profile_path": "/tPzdVCV8LsWvgVm0EYonuuzgt0H.jpg"
         }
       ]
@@ -1938,7 +2758,60 @@
       "still_path": "/iXJJ95FSW9lTfcVW0WRINrVAzTc.jpg",
       "vote_average": 6.7,
       "vote_count": 12,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "6252e588a0b6b500a88139c9",
+          "adult": false,
+          "gender": 2,
+          "id": 2182050,
+          "known_for_department": "Editing",
+          "name": "Cortney Carrillo",
+          "original_name": "Cortney Carrillo",
+          "popularity": 0.604,
+          "profile_path": null
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "637158bc798e06007fe63702",
+          "adult": false,
+          "gender": 1,
+          "id": 2046285,
+          "known_for_department": "Writing",
+          "name": "Sophia Lear",
+          "original_name": "Sophia Lear",
+          "popularity": 0.5834,
+          "profile_path": null
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf216f2eee23d19f49ab72",
+          "adult": false,
+          "gender": 0,
+          "id": 3314642,
+          "known_for_department": "Editing",
+          "name": "Kenneth LaMere",
+          "original_name": "Kenneth LaMere",
+          "popularity": 0.3013,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Police Officer Jim",
@@ -1950,7 +2823,7 @@
           "known_for_department": "Acting",
           "name": "Martin Sims",
           "original_name": "Martin Sims",
-          "popularity": 0.5995,
+          "popularity": 0.7092,
           "profile_path": "/vHimAlTSEE5uqSEjDRCuXImObed.jpg"
         },
         {
@@ -1963,7 +2836,7 @@
           "known_for_department": "Writing",
           "name": "Heidi Foss",
           "original_name": "Heidi Foss",
-          "popularity": 0.4721,
+          "popularity": 0.6398,
           "profile_path": null
         },
         {
@@ -1976,7 +2849,7 @@
           "known_for_department": "Acting",
           "name": "Tristan D. Lalla",
           "original_name": "Tristan D. Lalla",
-          "popularity": 1.0114,
+          "popularity": 0.8468,
           "profile_path": "/yyrn7MeftoEpTVidzCbaazoCvNp.jpg"
         },
         {
@@ -1989,7 +2862,7 @@
           "known_for_department": "Acting",
           "name": "Cat Lemieux",
           "original_name": "Cat Lemieux",
-          "popularity": 0.8079,
+          "popularity": 0.6509,
           "profile_path": "/b1k7V5G2ji8Yl5mP66bA9OWZ7Nu.jpg"
         },
         {
@@ -2002,7 +2875,7 @@
           "known_for_department": "Acting",
           "name": "Arthur Holden",
           "original_name": "Arthur Holden",
-          "popularity": 1.7717,
+          "popularity": 1.2,
           "profile_path": "/c8FXyHhiVXCsjvwxXOzuVi28z3i.jpg"
         },
         {
@@ -2015,7 +2888,7 @@
           "known_for_department": "Acting",
           "name": "Betsy Sodaro",
           "original_name": "Betsy Sodaro",
-          "popularity": 1.7018,
+          "popularity": 1.6788,
           "profile_path": "/mia2ZT1kMUnKUdT2Q9QZ7u80HJJ.jpg"
         },
         {
@@ -2028,7 +2901,7 @@
           "known_for_department": "Acting",
           "name": "Cody Crain",
           "original_name": "Cody Crain",
-          "popularity": 0.4121,
+          "popularity": 0.4661,
           "profile_path": "/ydcBR1eaYotPenw2McF42AojKjG.jpg"
         },
         {
@@ -2041,7 +2914,7 @@
           "known_for_department": "Acting",
           "name": "Nigel Downer",
           "original_name": "Nigel Downer",
-          "popularity": 0.5755,
+          "popularity": 0.525,
           "profile_path": "/evIxywR2os9C1hQCqRveKpQnSj9.jpg"
         },
         {
@@ -2054,7 +2927,7 @@
           "known_for_department": "Acting",
           "name": "Ennis Esmer",
           "original_name": "Ennis Esmer",
-          "popularity": 1.8892,
+          "popularity": 1.9294,
           "profile_path": "/1XF7Nic3qBMXFICFHb7nVhpf9sD.jpg"
         },
         {
@@ -2067,7 +2940,7 @@
           "known_for_department": "Acting",
           "name": "Iain Armitage",
           "original_name": "Iain Armitage",
-          "popularity": 4.6517,
+          "popularity": 4.5638,
           "profile_path": "/d16P91j8fhw7ngR727M84rCrj4r.jpg"
         },
         {
@@ -2080,7 +2953,7 @@
           "known_for_department": "Acting",
           "name": "Brandon Keener",
           "original_name": "Brandon Keener",
-          "popularity": 0.9532,
+          "popularity": 1.2538,
           "profile_path": "/zVF5HSRDZqpAygYgKVNUK2CTjdc.jpg"
         },
         {
@@ -2093,7 +2966,7 @@
           "known_for_department": "Acting",
           "name": "Jonathan Kite",
           "original_name": "Jonathan Kite",
-          "popularity": 1.5786,
+          "popularity": 1.329,
           "profile_path": "/65ywCkTifntIjB7AMv74Lhrj3y.jpg"
         },
         {
@@ -2106,7 +2979,7 @@
           "known_for_department": "Acting",
           "name": "LaNisa Renee Frederick",
           "original_name": "LaNisa Renee Frederick",
-          "popularity": 0.7201,
+          "popularity": 0.7187,
           "profile_path": "/4LU8JGpjxtij6aKxL5FSVCtBaU6.jpg"
         },
         {
@@ -2119,7 +2992,7 @@
           "known_for_department": "Acting",
           "name": "Jayne Eastwood",
           "original_name": "Jayne Eastwood",
-          "popularity": 2.0412,
+          "popularity": 2.0783,
           "profile_path": "/cL75FbJRKDdpvkOJDUgUYPZHKks.jpg"
         },
         {
@@ -2132,7 +3005,7 @@
           "known_for_department": "Acting",
           "name": "Charity Adzie",
           "original_name": "Charity Adzie",
-          "popularity": 0.3508,
+          "popularity": 0.4632,
           "profile_path": null
         },
         {
@@ -2145,7 +3018,7 @@
           "known_for_department": "Acting",
           "name": "Jonathan Vanderzon",
           "original_name": "Jonathan Vanderzon",
-          "popularity": 0.4638,
+          "popularity": 0.6653,
           "profile_path": "/xFwG6wyMmu8IOTX6ktgIHx35rYG.jpg"
         },
         {
@@ -2158,7 +3031,7 @@
           "known_for_department": "Acting",
           "name": "Stephanie Ng Wan",
           "original_name": "Stephanie Ng Wan",
-          "popularity": 0.4772,
+          "popularity": 0.8069,
           "profile_path": "/o4COjaj3vUw86lmSKpVmoG8UMTI.jpg"
         }
       ]
@@ -2177,7 +3050,60 @@
       "still_path": "/fyIos5TaV8VBdp4Z8yGoqEOZlG3.jpg",
       "vote_average": 6,
       "vote_count": 10,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "616795a08fdda900623c503d",
+          "adult": false,
+          "gender": 0,
+          "id": 1302245,
+          "known_for_department": "Acting",
+          "name": "Katie Locke O'Brien",
+          "original_name": "Katie Locke O'Brien",
+          "popularity": 1.2931,
+          "profile_path": "/diH8YmWFmxnkSWcxlA1wv6s2mhl.jpg"
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "633f76441a32480090a292df",
+          "adult": false,
+          "gender": 2,
+          "id": 2755901,
+          "known_for_department": "Writing",
+          "name": "Guy Endore-Kaiser",
+          "original_name": "Guy Endore-Kaiser",
+          "popularity": 0.3962,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf21306d1ef146cd3920a6",
+          "adult": false,
+          "gender": 2,
+          "id": 1331892,
+          "known_for_department": "Editing",
+          "name": "Simon Webb",
+          "original_name": "Simon Webb",
+          "popularity": 0.4432,
+          "profile_path": null
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Police Officer Jim",
@@ -2189,7 +3115,7 @@
           "known_for_department": "Acting",
           "name": "Martin Sims",
           "original_name": "Martin Sims",
-          "popularity": 0.5995,
+          "popularity": 0.7092,
           "profile_path": "/vHimAlTSEE5uqSEjDRCuXImObed.jpg"
         },
         {
@@ -2202,7 +3128,7 @@
           "known_for_department": "Writing",
           "name": "Heidi Foss",
           "original_name": "Heidi Foss",
-          "popularity": 0.4721,
+          "popularity": 0.6398,
           "profile_path": null
         },
         {
@@ -2215,7 +3141,7 @@
           "known_for_department": "Acting",
           "name": "Tristan D. Lalla",
           "original_name": "Tristan D. Lalla",
-          "popularity": 1.0114,
+          "popularity": 0.8468,
           "profile_path": "/yyrn7MeftoEpTVidzCbaazoCvNp.jpg"
         },
         {
@@ -2228,7 +3154,7 @@
           "known_for_department": "Acting",
           "name": "Cat Lemieux",
           "original_name": "Cat Lemieux",
-          "popularity": 0.8079,
+          "popularity": 0.6509,
           "profile_path": "/b1k7V5G2ji8Yl5mP66bA9OWZ7Nu.jpg"
         },
         {
@@ -2241,7 +3167,7 @@
           "known_for_department": "Acting",
           "name": "Arthur Holden",
           "original_name": "Arthur Holden",
-          "popularity": 1.7717,
+          "popularity": 1.2,
           "profile_path": "/c8FXyHhiVXCsjvwxXOzuVi28z3i.jpg"
         },
         {
@@ -2254,7 +3180,7 @@
           "known_for_department": "Acting",
           "name": "John Hartman",
           "original_name": "John Hartman",
-          "popularity": 0.6742,
+          "popularity": 0.8043,
           "profile_path": "/wVs9ncZ28tEIURhPLaXbOq53F4Q.jpg"
         },
         {
@@ -2267,7 +3193,7 @@
           "known_for_department": "Acting",
           "name": "Betsy Sodaro",
           "original_name": "Betsy Sodaro",
-          "popularity": 1.7018,
+          "popularity": 1.6788,
           "profile_path": "/mia2ZT1kMUnKUdT2Q9QZ7u80HJJ.jpg"
         },
         {
@@ -2280,7 +3206,7 @@
           "known_for_department": "Acting",
           "name": "Nigel Downer",
           "original_name": "Nigel Downer",
-          "popularity": 0.5755,
+          "popularity": 0.525,
           "profile_path": "/evIxywR2os9C1hQCqRveKpQnSj9.jpg"
         },
         {
@@ -2293,7 +3219,7 @@
           "known_for_department": "Acting",
           "name": "Stuart Fink",
           "original_name": "Stuart Fink",
-          "popularity": 0.3778,
+          "popularity": 0.5842,
           "profile_path": "/yRhZesWPPvg7fDnCBOxDWfW2qsv.jpg"
         },
         {
@@ -2306,7 +3232,7 @@
           "known_for_department": "Acting",
           "name": "Steven Yaffee",
           "original_name": "Steven Yaffee",
-          "popularity": 0.8117,
+          "popularity": 0.8709,
           "profile_path": "/mXocbdbwai9N6xPUI8oCMw4hLCE.jpg"
         },
         {
@@ -2319,7 +3245,7 @@
           "known_for_department": "Acting",
           "name": "Jon Blair",
           "original_name": "Jon Blair",
-          "popularity": 0.7844,
+          "popularity": 0.7916,
           "profile_path": null
         },
         {
@@ -2332,7 +3258,7 @@
           "known_for_department": "Acting",
           "name": "Tori Barban",
           "original_name": "Tori Barban",
-          "popularity": 0.7318,
+          "popularity": 0.7388,
           "profile_path": "/rSDJg5gKWdW9Lg7ZOCGiAIQVNSZ.jpg"
         },
         {
@@ -2345,7 +3271,7 @@
           "known_for_department": "Acting",
           "name": "Mary Holland",
           "original_name": "Mary Holland",
-          "popularity": 2.3254,
+          "popularity": 1.8902,
           "profile_path": "/iwEK2fIrU1q7aijjD8FI9hCUMEL.jpg"
         },
         {
@@ -2358,7 +3284,7 @@
           "known_for_department": "Acting",
           "name": "Will Greenberg",
           "original_name": "Will Greenberg",
-          "popularity": 1.1478,
+          "popularity": 1.4637,
           "profile_path": "/qNUnINlhFUQO567z7YDLZljj5lc.jpg"
         },
         {
@@ -2371,7 +3297,7 @@
           "known_for_department": "Acting",
           "name": "Justin Kirk",
           "original_name": "Justin Kirk",
-          "popularity": 2.5207,
+          "popularity": 2.0401,
           "profile_path": "/7zRJN1qkaGPhUoGoIEtZDsDY9e6.jpg"
         },
         {
@@ -2384,7 +3310,7 @@
           "known_for_department": "Acting",
           "name": "Greg Worswick",
           "original_name": "Greg Worswick",
-          "popularity": 0.6654,
+          "popularity": 0.6905,
           "profile_path": "/nAMGtsjKmVfhQHocXdVwhusjLbC.jpg"
         },
         {
@@ -2397,7 +3323,7 @@
           "known_for_department": "Acting",
           "name": "Cedric Yarbrough",
           "original_name": "Cedric Yarbrough",
-          "popularity": 4.1042,
+          "popularity": 1.4763,
           "profile_path": "/7JsXBxOmHpRdNlVdbWJdbe2YFLO.jpg"
         }
       ]
@@ -2416,7 +3342,73 @@
       "still_path": "/wcwkhNgbTM8kD2xFFcMz6HzPmGh.jpg",
       "vote_average": 5.9,
       "vote_count": 10,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "60a710c28dbc33005994a806",
+          "adult": false,
+          "gender": 2,
+          "id": 1220717,
+          "known_for_department": "Writing",
+          "name": "Joe Port",
+          "original_name": "Joe Port",
+          "popularity": 0.8102,
+          "profile_path": null
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "60a710b74b0c63002a8a9a7a",
+          "adult": false,
+          "gender": 2,
+          "id": 1220718,
+          "known_for_department": "Writing",
+          "name": "Joe Wiseman",
+          "original_name": "Joe Wiseman",
+          "popularity": 0.5354,
+          "profile_path": null
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "616795a08fdda900623c503d",
+          "adult": false,
+          "gender": 0,
+          "id": 1302245,
+          "known_for_department": "Acting",
+          "name": "Katie Locke O'Brien",
+          "original_name": "Katie Locke O'Brien",
+          "popularity": 1.2931,
+          "profile_path": "/diH8YmWFmxnkSWcxlA1wv6s2mhl.jpg"
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf216f2eee23d19f49ab72",
+          "adult": false,
+          "gender": 0,
+          "id": 3314642,
+          "known_for_department": "Editing",
+          "name": "Kenneth LaMere",
+          "original_name": "Kenneth LaMere",
+          "popularity": 0.3013,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Bela",
@@ -2428,7 +3420,7 @@
           "known_for_department": "Acting",
           "name": "Punam Patel",
           "original_name": "Punam Patel",
-          "popularity": 1.0266,
+          "popularity": 0.8308,
           "profile_path": "/3SjcFZXnHRMS9ZixWKRGlQX3mVJ.jpg"
         },
         {
@@ -2441,7 +3433,7 @@
           "known_for_department": "Acting",
           "name": "Tristan D. Lalla",
           "original_name": "Tristan D. Lalla",
-          "popularity": 1.0114,
+          "popularity": 0.8468,
           "profile_path": "/yyrn7MeftoEpTVidzCbaazoCvNp.jpg"
         },
         {
@@ -2454,7 +3446,7 @@
           "known_for_department": "Acting",
           "name": "Taylor Ortega",
           "original_name": "Taylor Ortega",
-          "popularity": 1.647,
+          "popularity": 1.9202,
           "profile_path": "/wIYSeem4epL3TkZjnYtHqsqOlsF.jpg"
         },
         {
@@ -2467,7 +3459,7 @@
           "known_for_department": "Acting",
           "name": "Justin Kirk",
           "original_name": "Justin Kirk",
-          "popularity": 2.5207,
+          "popularity": 2.0401,
           "profile_path": "/7zRJN1qkaGPhUoGoIEtZDsDY9e6.jpg"
         },
         {
@@ -2480,7 +3472,7 @@
           "known_for_department": "Acting",
           "name": "Andrew Carter",
           "original_name": "Andrew Carter",
-          "popularity": 0.3919,
+          "popularity": 0.4235,
           "profile_path": "/nEHehQjnwRQc9EXUzmMdgfmMyFo.jpg"
         },
         {
@@ -2493,7 +3485,7 @@
           "known_for_department": "Acting",
           "name": "Giorgio Picone",
           "original_name": "Giorgio Picone",
-          "popularity": 0.3724,
+          "popularity": 0.3874,
           "profile_path": "/t46lLgDOM9yuuN6P61iF5s9XTR3.jpg"
         },
         {
@@ -2506,7 +3498,7 @@
           "known_for_department": "Acting",
           "name": "Madison Graves",
           "original_name": "Madison Graves",
-          "popularity": 0.6424,
+          "popularity": 0.6455,
           "profile_path": "/A5ZkNngMe4AnjdfeSkloYKurE0n.jpg"
         }
       ]
@@ -2525,7 +3517,60 @@
       "still_path": "/zpRytzjQoYJ7YNPF6pe3Hyp6SdS.jpg",
       "vote_average": 5.7,
       "vote_count": 9,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "61679595d7f465004249e3cf",
+          "adult": false,
+          "gender": 0,
+          "id": 1915218,
+          "known_for_department": "Writing",
+          "name": "Talia Bernstein",
+          "original_name": "Talia Bernstein",
+          "popularity": 0.5891,
+          "profile_path": null
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "639ee254223e2000c9814200",
+          "adult": false,
+          "gender": 2,
+          "id": 84074,
+          "known_for_department": "Directing",
+          "name": "Jay Karas",
+          "original_name": "Jay Karas",
+          "popularity": 1.3878,
+          "profile_path": "/yAvTNXjN80gLXxRbfA9Ha2ZzYxW.jpg"
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf21306d1ef146cd3920a6",
+          "adult": false,
+          "gender": 2,
+          "id": 1331892,
+          "known_for_department": "Editing",
+          "name": "Simon Webb",
+          "original_name": "Simon Webb",
+          "popularity": 0.4432,
+          "profile_path": null
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Mark",
@@ -2537,7 +3582,7 @@
           "known_for_department": "Acting",
           "name": "Tristan D. Lalla",
           "original_name": "Tristan D. Lalla",
-          "popularity": 1.0114,
+          "popularity": 0.8468,
           "profile_path": "/yyrn7MeftoEpTVidzCbaazoCvNp.jpg"
         },
         {
@@ -2550,7 +3595,7 @@
           "known_for_department": "Acting",
           "name": "Cat Lemieux",
           "original_name": "Cat Lemieux",
-          "popularity": 0.8079,
+          "popularity": 0.6509,
           "profile_path": "/b1k7V5G2ji8Yl5mP66bA9OWZ7Nu.jpg"
         },
         {
@@ -2563,7 +3608,7 @@
           "known_for_department": "Acting",
           "name": "Arthur Holden",
           "original_name": "Arthur Holden",
-          "popularity": 1.7717,
+          "popularity": 1.2,
           "profile_path": "/c8FXyHhiVXCsjvwxXOzuVi28z3i.jpg"
         },
         {
@@ -2576,7 +3621,7 @@
           "known_for_department": "Acting",
           "name": "Lindsey Broad",
           "original_name": "Lindsey Broad",
-          "popularity": 1.4214,
+          "popularity": 1.3764,
           "profile_path": "/pYAwb4RjSQnxkvqdJr51rhHXh02.jpg"
         },
         {
@@ -2589,7 +3634,7 @@
           "known_for_department": "Acting",
           "name": "Betsy Sodaro",
           "original_name": "Betsy Sodaro",
-          "popularity": 1.7018,
+          "popularity": 1.6788,
           "profile_path": "/mia2ZT1kMUnKUdT2Q9QZ7u80HJJ.jpg"
         },
         {
@@ -2602,7 +3647,7 @@
           "known_for_department": "Acting",
           "name": "Nigel Downer",
           "original_name": "Nigel Downer",
-          "popularity": 0.5755,
+          "popularity": 0.525,
           "profile_path": "/evIxywR2os9C1hQCqRveKpQnSj9.jpg"
         },
         {
@@ -2615,7 +3660,7 @@
           "known_for_department": "Acting",
           "name": "Stuart Fink",
           "original_name": "Stuart Fink",
-          "popularity": 0.3778,
+          "popularity": 0.5842,
           "profile_path": "/yRhZesWPPvg7fDnCBOxDWfW2qsv.jpg"
         },
         {
@@ -2628,7 +3673,7 @@
           "known_for_department": "Acting",
           "name": "Taylor Ortega",
           "original_name": "Taylor Ortega",
-          "popularity": 1.647,
+          "popularity": 1.9202,
           "profile_path": "/wIYSeem4epL3TkZjnYtHqsqOlsF.jpg"
         },
         {
@@ -2641,7 +3686,7 @@
           "known_for_department": "Acting",
           "name": "Justin Kirk",
           "original_name": "Justin Kirk",
-          "popularity": 2.5207,
+          "popularity": 2.0401,
           "profile_path": "/7zRJN1qkaGPhUoGoIEtZDsDY9e6.jpg"
         },
         {
@@ -2654,7 +3699,7 @@
           "known_for_department": "Acting",
           "name": "Stephanie Belding",
           "original_name": "Stephanie Belding",
-          "popularity": 0.8459,
+          "popularity": 1.1568,
           "profile_path": "/4WIJ20f0v2EJ6SurBaMA6qecCE5.jpg"
         },
         {
@@ -2667,7 +3712,7 @@
           "known_for_department": "Acting",
           "name": "Yassir Lester",
           "original_name": "Yassir Lester",
-          "popularity": 0.8012,
+          "popularity": 1.0192,
           "profile_path": "/cxQk4vTeBnFPgTvmVpYtkmTKVTf.jpg"
         },
         {
@@ -2680,7 +3725,7 @@
           "known_for_department": "Acting",
           "name": "Andrew Carter",
           "original_name": "Andrew Carter",
-          "popularity": 0.3919,
+          "popularity": 0.4235,
           "profile_path": "/nEHehQjnwRQc9EXUzmMdgfmMyFo.jpg"
         },
         {
@@ -2693,7 +3738,7 @@
           "known_for_department": "Acting",
           "name": "Timothy Stack",
           "original_name": "Timothy Stack",
-          "popularity": 1.4898,
+          "popularity": 1.3249,
           "profile_path": "/wMOpamq0meq9NSE5MMMV4x1MjFJ.jpg"
         },
         {
@@ -2706,7 +3751,7 @@
           "known_for_department": "Acting",
           "name": "Brianna Brown",
           "original_name": "Brianna Brown",
-          "popularity": 3.5708,
+          "popularity": 3.7539,
           "profile_path": "/eDvUSmOXm6Bz5QIjZkzKJTRvP5x.jpg"
         },
         {
@@ -2719,7 +3764,7 @@
           "known_for_department": "Acting",
           "name": "Caroline Vreeland",
           "original_name": "Caroline Vreeland",
-          "popularity": 0.4918,
+          "popularity": 0.6596,
           "profile_path": "/tGQBS3TG0YR2YiF4NWG35t4cnHf.jpg"
         }
       ]
@@ -2738,7 +3783,73 @@
       "still_path": "/cwXPmPAKnauHvP92eXEt0gS1QYc.jpg",
       "vote_average": 5.3,
       "vote_count": 7,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "6172fcca6d4c9700653c5ce1",
+          "adult": false,
+          "gender": 0,
+          "id": 3280625,
+          "known_for_department": "Writing",
+          "name": "Emily Schmidt",
+          "original_name": "Emily Schmidt",
+          "popularity": 0.5346,
+          "profile_path": "/3OogNwq8HCrAG3TDAwk19Cg3waB.jpg"
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "639ee254223e2000c9814200",
+          "adult": false,
+          "gender": 2,
+          "id": 84074,
+          "known_for_department": "Directing",
+          "name": "Jay Karas",
+          "original_name": "Jay Karas",
+          "popularity": 1.3878,
+          "profile_path": "/yAvTNXjN80gLXxRbfA9Ha2ZzYxW.jpg"
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf216f2eee23d19f49ab72",
+          "adult": false,
+          "gender": 0,
+          "id": 3314642,
+          "known_for_department": "Editing",
+          "name": "Kenneth LaMere",
+          "original_name": "Kenneth LaMere",
+          "popularity": 0.3013,
+          "profile_path": null
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "6aaf21cd5df2ae4872f66938",
+          "adult": false,
+          "gender": 1,
+          "id": 2185584,
+          "known_for_department": "Writing",
+          "name": "Rupinder Gill",
+          "original_name": "Rupinder Gill",
+          "popularity": 0.6693,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Paula",
@@ -2750,7 +3861,7 @@
           "known_for_department": "Acting",
           "name": "Rose Abdoo",
           "original_name": "Rose Abdoo",
-          "popularity": 2.5596,
+          "popularity": 1.9461,
           "profile_path": "/6gl2EerGV1p4LS2smamymwgU6jH.jpg"
         },
         {
@@ -2763,7 +3874,7 @@
           "known_for_department": "Acting",
           "name": "Taylor Ortega",
           "original_name": "Taylor Ortega",
-          "popularity": 1.647,
+          "popularity": 1.9202,
           "profile_path": "/wIYSeem4epL3TkZjnYtHqsqOlsF.jpg"
         }
       ]
@@ -2782,7 +3893,73 @@
       "still_path": "/6FU2fXIFyepW8MhHvZFSaFnVfM9.jpg",
       "vote_average": 6.3,
       "vote_count": 7,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "63ebbe0f813cb600794218e6",
+          "adult": false,
+          "gender": 2,
+          "id": 169448,
+          "known_for_department": "Directing",
+          "name": "Richie Keen",
+          "original_name": "Richie Keen",
+          "popularity": 0.9754,
+          "profile_path": "/7dILc8lBE0v6vqfVv3pmkQTUx2c.jpg"
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "661a1a4193db92017d0b5a8c",
+          "adult": false,
+          "gender": 0,
+          "id": 102004,
+          "known_for_department": "Writing",
+          "name": "Skander Halim",
+          "original_name": "Skander Halim",
+          "popularity": 0.6123,
+          "profile_path": null
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "661a1b14967cc701659ee0ee",
+          "adult": false,
+          "gender": 1,
+          "id": 2168372,
+          "known_for_department": "Writing",
+          "name": "Akilah Green",
+          "original_name": "Akilah Green",
+          "popularity": 0.7171,
+          "profile_path": "/v1MCEDq3UzEXizuMJGRoI81bfGN.jpg"
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf21306d1ef146cd3920a6",
+          "adult": false,
+          "gender": 2,
+          "id": 1331892,
+          "known_for_department": "Editing",
+          "name": "Simon Webb",
+          "original_name": "Simon Webb",
+          "popularity": 0.4432,
+          "profile_path": null
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        }
+      ],
       "guest_stars": [
         {
           "character": "Cholera Victim Cat",
@@ -2794,7 +3971,7 @@
           "known_for_department": "Acting",
           "name": "Cat Lemieux",
           "original_name": "Cat Lemieux",
-          "popularity": 0.8079,
+          "popularity": 0.6509,
           "profile_path": "/b1k7V5G2ji8Yl5mP66bA9OWZ7Nu.jpg"
         },
         {
@@ -2807,7 +3984,7 @@
           "known_for_department": "Acting",
           "name": "Arthur Holden",
           "original_name": "Arthur Holden",
-          "popularity": 1.7717,
+          "popularity": 1.2,
           "profile_path": "/c8FXyHhiVXCsjvwxXOzuVi28z3i.jpg"
         },
         {
@@ -2820,7 +3997,7 @@
           "known_for_department": "Acting",
           "name": "Kathryn Greenwood",
           "original_name": "Kathryn Greenwood",
-          "popularity": 1.0788,
+          "popularity": 1.0608,
           "profile_path": "/zVKcvl2SSFRBjKNK7ArJ9WEAQa8.jpg"
         },
         {
@@ -2833,7 +4010,7 @@
           "known_for_department": "Acting",
           "name": "Mark Linn-Baker",
           "original_name": "Mark Linn-Baker",
-          "popularity": 1.4124,
+          "popularity": 1.7091,
           "profile_path": "/pUNprACr5X9v8xZPLerV4QMqRfL.jpg"
         },
         {
@@ -2846,7 +4023,7 @@
           "known_for_department": "Acting",
           "name": "Betsy Sodaro",
           "original_name": "Betsy Sodaro",
-          "popularity": 1.7018,
+          "popularity": 1.6788,
           "profile_path": "/mia2ZT1kMUnKUdT2Q9QZ7u80HJJ.jpg"
         },
         {
@@ -2859,7 +4036,7 @@
           "known_for_department": "Acting",
           "name": "Nigel Downer",
           "original_name": "Nigel Downer",
-          "popularity": 0.5755,
+          "popularity": 0.525,
           "profile_path": "/evIxywR2os9C1hQCqRveKpQnSj9.jpg"
         },
         {
@@ -2872,7 +4049,7 @@
           "known_for_department": "Acting",
           "name": "Stuart Fink",
           "original_name": "Stuart Fink",
-          "popularity": 0.3778,
+          "popularity": 0.5842,
           "profile_path": "/yRhZesWPPvg7fDnCBOxDWfW2qsv.jpg"
         },
         {
@@ -2885,7 +4062,7 @@
           "known_for_department": "Acting",
           "name": "Jon Blair",
           "original_name": "Jon Blair",
-          "popularity": 0.7844,
+          "popularity": 0.7916,
           "profile_path": null
         },
         {
@@ -2898,7 +4075,7 @@
           "known_for_department": "Acting",
           "name": "Tori Barban",
           "original_name": "Tori Barban",
-          "popularity": 0.7318,
+          "popularity": 0.7388,
           "profile_path": "/rSDJg5gKWdW9Lg7ZOCGiAIQVNSZ.jpg"
         },
         {
@@ -2911,7 +4088,7 @@
           "known_for_department": "Acting",
           "name": "Justin Kirk",
           "original_name": "Justin Kirk",
-          "popularity": 2.5207,
+          "popularity": 2.0401,
           "profile_path": "/7zRJN1qkaGPhUoGoIEtZDsDY9e6.jpg"
         },
         {
@@ -2924,7 +4101,7 @@
           "known_for_department": "Acting",
           "name": "Steve Berg",
           "original_name": "Steve Berg",
-          "popularity": 1.0133,
+          "popularity": 0.8501,
           "profile_path": "/rXYD0Zqx4lqz7c3XWwA6TG75AzB.jpg"
         },
         {
@@ -2937,7 +4114,7 @@
           "known_for_department": "Acting",
           "name": "James Austin Johnson",
           "original_name": "James Austin Johnson",
-          "popularity": 1.3596,
+          "popularity": 1.2609,
           "profile_path": "/g9y0aABiKtB1FOIKmklDlgRpDof.jpg"
         },
         {
@@ -2950,7 +4127,7 @@
           "known_for_department": "Acting",
           "name": "Linda Kash",
           "original_name": "Linda Kash",
-          "popularity": 1.4821,
+          "popularity": 1.1283,
           "profile_path": "/cjhnm6KivAf2CLWgTYuTPMqJxIw.jpg"
         },
         {
@@ -2963,7 +4140,7 @@
           "known_for_department": "Acting",
           "name": "Julian Gant",
           "original_name": "Julian Gant",
-          "popularity": 0.7672,
+          "popularity": 0.9119,
           "profile_path": "/dgaOTVPCtWkefAod1nzijxKdPdf.jpg"
         },
         {
@@ -2976,7 +4153,7 @@
           "known_for_department": "Acting",
           "name": "Nils Svensson-Carell",
           "original_name": "Nils Svensson-Carell",
-          "popularity": 0.4309,
+          "popularity": 0.4502,
           "profile_path": null
         }
       ]
@@ -2995,7 +4172,73 @@
       "still_path": "/5YxplkVSF986NflRwyhbg8yI6CM.jpg",
       "vote_average": 6.4,
       "vote_count": 7,
-      "crew": [],
+      "crew": [
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "63ebbe0f813cb600794218e6",
+          "adult": false,
+          "gender": 2,
+          "id": 169448,
+          "known_for_department": "Directing",
+          "name": "Richie Keen",
+          "original_name": "Richie Keen",
+          "popularity": 0.9754,
+          "profile_path": "/7dILc8lBE0v6vqfVv3pmkQTUx2c.jpg"
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "67cb235636598226a1aff0d6",
+          "adult": false,
+          "gender": 0,
+          "id": 4698092,
+          "known_for_department": "Writing",
+          "name": "Brian Bahe",
+          "original_name": "Brian Bahe",
+          "popularity": 0.4783,
+          "profile_path": "/5ptxMRbEERSIcCkS9HGbN2Mu814.jpg"
+        },
+        {
+          "job": "Director of Photography",
+          "department": "Camera",
+          "credit_id": "6aaf216a934958ff81b9f525",
+          "adult": false,
+          "gender": 2,
+          "id": 2006059,
+          "known_for_department": "Camera",
+          "name": "Michel St-Martin",
+          "original_name": "Michel St-Martin",
+          "popularity": 0.5023,
+          "profile_path": null
+        },
+        {
+          "job": "Editor",
+          "department": "Editing",
+          "credit_id": "6aaf216f2eee23d19f49ab72",
+          "adult": false,
+          "gender": 0,
+          "id": 3314642,
+          "known_for_department": "Editing",
+          "name": "Kenneth LaMere",
+          "original_name": "Kenneth LaMere",
+          "popularity": 0.3013,
+          "profile_path": null
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "6aaf2215c16eb1123c93bffa",
+          "adult": false,
+          "gender": 0,
+          "id": 1253351,
+          "known_for_department": "Acting",
+          "name": "Greg Worswick",
+          "original_name": "Greg Worswick",
+          "popularity": 0.6905,
+          "profile_path": "/nAMGtsjKmVfhQHocXdVwhusjLbC.jpg"
+        }
+      ],
       "guest_stars": [
         {
           "character": "Nancy",
@@ -3007,7 +4250,7 @@
           "known_for_department": "Acting",
           "name": "Betsy Sodaro",
           "original_name": "Betsy Sodaro",
-          "popularity": 1.7018,
+          "popularity": 1.6788,
           "profile_path": "/mia2ZT1kMUnKUdT2Q9QZ7u80HJJ.jpg"
         },
         {
@@ -3020,7 +4263,7 @@
           "known_for_department": "Acting",
           "name": "Rose Abdoo",
           "original_name": "Rose Abdoo",
-          "popularity": 2.5596,
+          "popularity": 1.9461,
           "profile_path": "/6gl2EerGV1p4LS2smamymwgU6jH.jpg"
         },
         {
@@ -3033,7 +4276,7 @@
           "known_for_department": "Acting",
           "name": "Ben Feldman",
           "original_name": "Ben Feldman",
-          "popularity": 2.4242,
+          "popularity": 1.9947,
           "profile_path": "/neArGlsh50NtcGzUM99Puz6TrFX.jpg"
         },
         {
@@ -3046,7 +4289,7 @@
           "known_for_department": "Acting",
           "name": "Farhang Ghajar",
           "original_name": "Farhang Ghajar",
-          "popularity": 0.4793,
+          "popularity": 0.5635,
           "profile_path": "/cD30jbhwFPetyaeOAgNVmRE4S9H.jpg"
         },
         {
@@ -3059,7 +4302,7 @@
           "known_for_department": "Acting",
           "name": "James Austin Johnson",
           "original_name": "James Austin Johnson",
-          "popularity": 1.3596,
+          "popularity": 1.2609,
           "profile_path": "/g9y0aABiKtB1FOIKmklDlgRpDof.jpg"
         },
         {
@@ -3072,7 +4315,7 @@
           "known_for_department": "Acting",
           "name": "Dominic Burgess",
           "original_name": "Dominic Burgess",
-          "popularity": 1.6156,
+          "popularity": 1.6483,
           "profile_path": "/ncqFGuh7Og4G2qTyliJiJErsMKe.jpg"
         },
         {
@@ -3085,7 +4328,7 @@
           "known_for_department": "Acting",
           "name": "Shawn Baichoo",
           "original_name": "Shawn Baichoo",
-          "popularity": 0.6372,
+          "popularity": 0.8582,
           "profile_path": "/fzWrJHOnJkIaBhEtadquMXUNdYi.jpg"
         },
         {
@@ -3098,7 +4341,7 @@
           "known_for_department": "Acting",
           "name": "Brian Sills",
           "original_name": "Brian Sills",
-          "popularity": 0.6227,
+          "popularity": 0.7657,
           "profile_path": "/DM5z532C5JgFMnE0gHDQzzxtK9.jpg"
         }
       ]

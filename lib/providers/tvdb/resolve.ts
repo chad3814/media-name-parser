@@ -31,9 +31,21 @@ const MIN_SERIES_AGREEMENT = 0.30;
 /** The aired order, which is what `SxxExx` in a filename means. */
 const SEASON_TYPE = 'default';
 
-function agrees(parsedTitle: string, name: string): boolean {
+/**
+ * Every name a series goes by, canonical first.
+ *
+ * TheTVDB answers in a series' primary language, so the canonical name for
+ * an anime is Japanese and the romaji a filename carries lives in the
+ * aliases. Judging either the guard or the score on the canonical name
+ * alone rejects the very records this provider exists to find.
+ */
+function namesOf(series: TvdbSeries, knownAs: string): readonly string[] {
+  return [knownAs, series.name, ...series.aliases.map((alias) => alias.name)];
+}
+
+function agrees(parsedTitle: string, names: readonly string[]): boolean {
   if (foldForMatch(parsedTitle).length === 0) return false;
-  return titleSimilarity(parsedTitle, name) >= MIN_SERIES_AGREEMENT;
+  return names.some((name) => titleSimilarity(parsedTitle, name) >= MIN_SERIES_AGREEMENT);
 }
 
 /**
@@ -51,6 +63,7 @@ function agrees(parsedTitle: string, name: string): boolean {
 function candidateOf(
   title: string,
   year: number | null,
+  aliases: readonly string[],
   seasonExists: boolean | null,
   episodeExists: boolean | null,
 ): Candidate {
@@ -58,6 +71,7 @@ function candidateOf(
     title,
     originalTitle: null,
     year,
+    aliases,
     originCountries: [],
     popularity: 0,
     voteCount: 0,
@@ -74,7 +88,9 @@ function searchCandidate(hit: TvdbSearchResult): Candidate {
     ? Number.NaN
     : Number.parseInt(hit.first_air_time.slice(0, 4), 10);
   const year = Number.isNaN(stated) ? aired : stated;
-  return candidateOf(hit.name, Number.isNaN(year) ? null : year, null, null);
+  // A search hit's aliases are bare strings, where a series record's are
+  // objects. Already in the response either way.
+  return candidateOf(hit.name, Number.isNaN(year) ? null : year, hit.aliases, null, null);
 }
 
 /**
@@ -96,8 +112,9 @@ function scoreSeries(
   parsed: ParsedVideo, series: TvdbSeries, knownAs: string,
   seasonExists: boolean | null, episodeExists: boolean | null,
 ): number {
+  const [canonical = knownAs, ...rest] = namesOf(series, knownAs);
   const best = pickBest(parsed, [series], (s) =>
-    candidateOf(knownAs, yearOf(s), seasonExists, episodeExists));
+    candidateOf(canonical, yearOf(s), rest, seasonExists, episodeExists));
   return best?.confidence ?? 0;
 }
 
@@ -110,7 +127,9 @@ async function findSeriesRef(
   if (list === null || list.data.length === 0) return null;
   const best = pickBest(parsed, list.data, searchCandidate);
   if (best === null) return null;
-  return agrees(parsed.title, best.item.name) ? best.item.tvdb_id : null;
+  return agrees(parsed.title, [best.item.name, ...best.item.aliases])
+    ? best.item.tvdb_id
+    : null;
 }
 
 export function createTvdbProvider(client: TvdbClient): Provider {
@@ -153,7 +172,7 @@ export function createTvdbProvider(client: TvdbClient): Provider {
         // The title identity is judged against, which is not always this
         // catalogue's own: see `knownAs`.
         const knownAs = ctx.seriesTitle ?? body.data.series.name;
-        if (!agrees(parsed.title, knownAs)) return null;
+        if (!agrees(parsed.title, namesOf(body.data.series, knownAs))) return null;
         // Language-independent integrity check, and the only one available
         // on a handed-over id: confirm the row really belongs to the series
         // that was asked about rather than trusting the URL round-tripped.
@@ -173,7 +192,7 @@ export function createTvdbProvider(client: TvdbClient): Provider {
       );
       if (body === null) return null;
       const knownAs = ctx.seriesTitle ?? body.data.name;
-      if (!agrees(parsed.title, knownAs)) return null;
+      if (!agrees(parsed.title, namesOf(body.data, knownAs))) return null;
 
       const series = normalizeSeries(body.data);
       const media: ResolvedMedia = parsed.kind === 'season'

@@ -167,3 +167,75 @@ test('an exact title cannot rescue a contradicting year', () => {
   assert.ok(best.confidence < CONFIDENCE_FLOOR,
     `a 20-year gap is not fixed by the title: ${String(best?.confidence)}`);
 });
+
+/**
+ * Aliases: the names a catalogue publishes for a record besides its
+ * canonical one. An anime filename carries the romaji title
+ * (`ReZero kara Hajimeru Isekai Seikatsu`) where TMDB's canonical name is
+ * the English one (`Re:ZERO -Starting Life in Another World-`), which scores
+ * 0.316 -- so the right series was found by the search and then discarded.
+ */
+const RE_ZERO_EN = 'Re:ZERO -Starting Life in Another World-';
+const RE_ZERO_ROMAJI = 'ReZero kara Hajimeru Isekai Seikatsu';
+
+test('an alias scores where the canonical title cannot', () => {
+  const p = parsed('tv', '[Onalrie] ReZero kara Hajimeru Isekai Seikatsu - S04E18 [1080p].mkv');
+  const without = scoreCandidate(p, {
+    ...base, title: RE_ZERO_EN, seasonExists: true, episodeExists: true,
+  });
+  const with_ = scoreCandidate(p, {
+    ...base, title: RE_ZERO_EN, aliases: [RE_ZERO_ROMAJI],
+    seasonExists: true, episodeExists: true,
+  });
+  assert.ok(without < CONFIDENCE_FLOOR, `the canonical name alone cannot clear the floor, got ${without}`);
+  assert.ok(with_ >= CONFIDENCE_FLOOR, `the alias should clear it, got ${with_}`);
+});
+
+test('the best alias wins, and a poor one cannot drag a good title down', () => {
+  const p = parsed('tv', 'Ghosts.S05E12.1080p.WEB.h264-GRP.mkv');
+  const plain = scoreCandidate(p, { ...base, title: 'Ghosts', seasonExists: true, episodeExists: true });
+  const noisy = scoreCandidate(p, {
+    ...base, title: 'Ghosts', aliases: ['Something Else Entirely', 'Ghostbusters'],
+    seasonExists: true, episodeExists: true,
+  });
+  assert.equal(noisy, plain, 'aliases are a maximum, never an average');
+});
+
+test('an exact alias earns the exact-title bonus', () => {
+  // An alias is a name the catalogue itself publishes for the record, so
+  // matching one exactly is an exact match.
+  const p = parsed('tv', 'ReZero kara Hajimeru Isekai Seikatsu.S04E18.1080p.mkv');
+  const best = pickBest(p, [{ id: 1 }], () => ({
+    ...base, title: RE_ZERO_EN, aliases: [RE_ZERO_ROMAJI],
+    seasonExists: true, episodeExists: true,
+  }));
+  const unbonused = scoreCandidate(p, {
+    ...base, title: RE_ZERO_EN, aliases: [RE_ZERO_ROMAJI],
+    seasonExists: true, episodeExists: true,
+  });
+  assert.ok((best?.confidence ?? 0) > unbonused, 'the lone exact match is lifted');
+});
+
+test('two candidates matching exactly on aliases still share the bonus rule', () => {
+  // `pickBest` withholds the bonus when more than one candidate matches
+  // exactly, because that is the case an exact match cannot settle. Aliases
+  // make that commoner, and the rule must hold for them too.
+  const p = parsed('tv', 'Ghosts.S05E12.1080p.WEB.h264-GRP.mkv');
+  const both = pickBest(p, [{ id: 1 }, { id: 2 }], (item) => ({
+    ...base,
+    title: item.id === 1 ? 'Ghosts (US)' : 'Ghosts (UK)',
+    aliases: ['Ghosts'],
+    seasonExists: true, episodeExists: true,
+  }));
+  const one = scoreCandidate(p, {
+    ...base, title: 'Ghosts (US)', aliases: ['Ghosts'], seasonExists: true, episodeExists: true,
+  });
+  assert.equal(both?.confidence, one, 'no bonus when two candidates match equally well');
+});
+
+test('a candidate with no aliases scores exactly as it did before', () => {
+  const p = parsed('movies', 'The.Matrix.1999.1080p.BluRay.x264-GRP.mkv');
+  const empty = scoreCandidate(p, { ...base, title: 'The Matrix', year: 1999, aliases: [] });
+  const absent = scoreCandidate(p, { ...base, title: 'The Matrix', year: 1999 });
+  assert.equal(empty, absent);
+});

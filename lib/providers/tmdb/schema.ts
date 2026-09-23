@@ -40,6 +40,21 @@ export const tmdbMovieSearch = z.object({
   results: z.array(tmdbMovieSearchResult).default([]),
 });
 
+/**
+ * Present when the request asked for `append_to_response=alternative_titles`.
+ *
+ * Rides along in an append the detail fetches already make, so it is free.
+ * TMDB names the array `titles` for a movie and `results` for a series --
+ * the same data under two keys -- so both are read and whichever arrives is
+ * used.
+ */
+const alternativeTitles = z.object({
+  titles: z.array(z.object({ title: z.string() })).nullish(),
+  results: z.array(z.object({ title: z.string() })).nullish(),
+}).nullish();
+
+export type TmdbAlternativeTitles = z.infer<typeof alternativeTitles>;
+
 export const tmdbMovieDetails = z.object({
   id: z.number(),
   title: z.string(),
@@ -51,6 +66,7 @@ export const tmdbMovieDetails = z.object({
   tagline: z.string().nullish(),
   belongs_to_collection: z.object({ name: z.string() }).nullish(),
   credits: tmdbCredits.nullish(),
+  alternative_titles: alternativeTitles,
 });
 
 export const tmdbTvSearchResult = z.object({
@@ -90,6 +106,7 @@ export const tmdbTvDetails = z.object({
     imdb_id: z.string().nullish(),
     tvdb_id: z.number().nullish(),
   }).nullish(),
+  alternative_titles: alternativeTitles,
 });
 
 export const tmdbEpisode = z.object({

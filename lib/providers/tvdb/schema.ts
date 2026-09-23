@@ -30,6 +30,11 @@ export const seriesSchema = z.object({
   /** A string on this API, not a number. */
   year: z.string().nullish(),
   status: statusObjectSchema.nullish(),
+  /**
+   * Other names the series goes by, including the romaji an anime filename
+   * carries. Already in the response; reading it costs nothing.
+   */
+  aliases: z.array(z.object({ name: z.string() })).default([]),
 });
 
 export const episodeSchema = z.object({
@@ -73,6 +78,8 @@ export const searchResultSchema = z.object({
   year: z.string().nullish(),
   /** A bare string here, unlike the object on a series record. */
   status: z.string().nullish(),
+  /** Bare strings here too, unlike the objects on a series record. */
+  aliases: z.array(z.string()).default([]),
 });
 
 export const searchResponseSchema = z.object({

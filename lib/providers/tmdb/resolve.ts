@@ -5,6 +5,7 @@ import type { TmdbClient } from './client';
 import {
   tmdbFind, tmdbMovieDetails, tmdbMovieSearch, tmdbSeasonDetails, tmdbTvDetails, tmdbTvSearch,
   type TmdbMovieSearchResult, type TmdbTvDetails, type TmdbTvSearchResult,
+  type TmdbAlternativeTitles,
 } from './schema';
 import { normalizeEpisode, normalizeMovie, normalizeSeason, normalizeSeries } from './normalize';
 
@@ -25,6 +26,16 @@ function movieCandidate(result: TmdbMovieSearchResult): Candidate {
     seasonExists: null,
     episodeExists: null,
   };
+}
+
+/**
+ * The alternative titles a detail response carried, if it was asked for
+ * them. TMDB keys the array `titles` on a movie and `results` on a series.
+ */
+function aliasesOf(details: { readonly alternative_titles?: TmdbAlternativeTitles }): readonly string[] {
+  const alt = details.alternative_titles;
+  if (alt === null || alt === undefined) return [];
+  return (alt.titles ?? alt.results ?? []).map((entry) => entry.title);
 }
 
 function tvCandidate(result: TmdbTvSearchResult): Candidate {
@@ -121,7 +132,7 @@ async function resolveMovie(
   const namedId = await tmdbIdFor(client, parsed, 'movie', ctx);
   if (namedId !== null) {
     const named = await client.get(
-      `/movie/${namedId}`, { append_to_response: 'credits' }, tmdbMovieDetails, ctx,
+      `/movie/${namedId}`, { append_to_response: 'credits,alternative_titles' }, tmdbMovieDetails, ctx,
     );
     if (named !== null) return { media: normalizeMovie(named), confidence: 1 };
   }
@@ -148,9 +159,17 @@ async function resolveMovie(
   const best = pickBest(effective, results, movieCandidate);
   if (best === null) return null;
   const details = await client.get(
-    `/movie/${best.item.id}`, { append_to_response: 'credits' }, tmdbMovieDetails, ctx,
+    `/movie/${best.item.id}`, { append_to_response: 'credits,alternative_titles' }, tmdbMovieDetails, ctx,
   );
-  return details === null ? null : { media: normalizeMovie(details), confidence: best.confidence };
+  if (details === null) return null;
+  // Re-scored against the detail's alternative titles, which the search
+  // result it was chosen on did not carry. A film released here under a
+  // different name than the one the filename uses is the movie half of the
+  // same problem anime has.
+  const confidence = scoreCandidate(parsed, {
+    ...movieCandidate(best.item), aliases: aliasesOf(details),
+  });
+  return { media: normalizeMovie(details), confidence: Math.max(confidence, best.confidence) };
 }
 
 /**
@@ -186,7 +205,7 @@ async function resolveTv(
   const namedId = await tmdbIdFor(client, parsed, 'tv', ctx);
   const namedDetails = namedId === null
     ? null
-    : await client.get(`/tv/${namedId}`, { append_to_response: 'external_ids' }, tmdbTvDetails, ctx);
+    : await client.get(`/tv/${namedId}`, { append_to_response: 'external_ids,alternative_titles' }, tmdbTvDetails, ctx);
 
   const search = namedDetails !== null ? null : await client.get('/search/tv', {
     query: parsed.title,
@@ -214,16 +233,28 @@ async function resolveTv(
 
   const details = namedDetails ?? (searched === null
     ? null
-    : await client.get(`/tv/${searched.id}`, { append_to_response: 'external_ids' }, tmdbTvDetails, ctx));
+    : await client.get(`/tv/${searched.id}`, { append_to_response: 'external_ids,alternative_titles' }, tmdbTvDetails, ctx));
   if (details === null) return null;
   const seriesId = searched?.id ?? namedId;
   if (seriesId === null) return null;
   const series = normalizeSeries(details);
   // An id needs no re-scoring: it is already certain. `chosen` exists only to
   // feed the existence re-score, which is a search-path concern.
-  const chosen = searched?.candidate ?? null;
+  //
+  // The detail's alternative titles are merged in here because `candidate`
+  // was built from a *search* result, and a search result carries none. Left
+  // out, the aliases would be fetched and never reach the score -- which is
+  // the whole point of fetching them.
+  const aliases = aliasesOf(details);
+  const chosen = searched === null ? null : { ...searched.candidate, aliases };
   if (parsed.kind === 'series' || parsed.kind === 'movie') {
-    return { media: series, confidence: searched?.confidence ?? 1 };
+    // Re-scored rather than reusing `searched.confidence`, which was
+    // computed before the details existed and so knew no aliases. A series
+    // parse for an anime is exactly the case that needs them.
+    return {
+      media: series,
+      confidence: chosen === null ? 1 : scoreCandidate(parsed, chosen),
+    };
   }
 
   // A year-season (`S2013`) does not name a TMDB season, so fall back to the
@@ -322,12 +353,12 @@ async function resolveAcrossNamespaces(
   if (Number.isNaN(id)) return null;
 
   const asMovie = await client.get(
-    `/movie/${id}`, { append_to_response: 'credits' }, tmdbMovieDetails, ctx,
+    `/movie/${id}`, { append_to_response: 'credits,alternative_titles' }, tmdbMovieDetails, ctx,
   );
   if (asMovie !== null && titleSimilarity(parsed.title, asMovie.title) >= CORROBORATION) {
     return { media: normalizeMovie(asMovie), confidence: 1 };
   }
-  const asSeries = await client.get(`/tv/${id}`, { append_to_response: 'external_ids' }, tmdbTvDetails, ctx);
+  const asSeries = await client.get(`/tv/${id}`, { append_to_response: 'external_ids,alternative_titles' }, tmdbTvDetails, ctx);
   if (asSeries !== null && titleSimilarity(parsed.title, asSeries.name) >= CORROBORATION) {
     return { media: normalizeSeries(asSeries), confidence: 1 };
   }
@@ -338,7 +369,7 @@ async function detailsForMovie(
   client: TmdbClient, id: number, ctx: ResolveContext,
 ): Promise<ResolveOutcome | null> {
   const details = await client.get(
-    `/movie/${id}`, { append_to_response: 'credits' }, tmdbMovieDetails, ctx,
+    `/movie/${id}`, { append_to_response: 'credits,alternative_titles' }, tmdbMovieDetails, ctx,
   );
   return details === null ? null : { media: normalizeMovie(details), confidence: 1 };
 }
@@ -346,7 +377,7 @@ async function detailsForMovie(
 async function detailsForSeries(
   client: TmdbClient, id: number, ctx: ResolveContext,
 ): Promise<ResolveOutcome | null> {
-  const details = await client.get(`/tv/${id}`, { append_to_response: 'external_ids' }, tmdbTvDetails, ctx);
+  const details = await client.get(`/tv/${id}`, { append_to_response: 'external_ids,alternative_titles' }, tmdbTvDetails, ctx);
   return details === null ? null : { media: normalizeSeries(details), confidence: 1 };
 }
 

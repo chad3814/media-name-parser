@@ -14,22 +14,9 @@
       "season_number": 1,
       "show_id": 17174,
       "still_path": "/m3zEAQn4XHH7TX9izHdLnuk0ypn.jpg",
-      "vote_average": 7.333,
-      "vote_count": 18,
+      "vote_average": 7.316,
+      "vote_count": 19,
       "crew": [
-        {
-          "job": "Director",
-          "department": "Directing",
-          "credit_id": "5cacf6900e0a2679eda2c8e9",
-          "adult": false,
-          "gender": 2,
-          "id": 939336,
-          "known_for_department": "Directing",
-          "name": "Tom Kingsley",
-          "original_name": "Tom Kingsley",
-          "popularity": 0.6462,
-          "profile_path": "/tNh97HQjw71VaJJ3hD9Cuon73Om.jpg"
-        },
         {
           "job": "Writer",
           "department": "Writing",
@@ -40,8 +27,21 @@
           "known_for_department": "Acting",
           "name": "Mathew Baynton",
           "original_name": "Mathew Baynton",
-          "popularity": 1.351,
+          "popularity": 1.668,
           "profile_path": "/g3FnkjMKL5bsGQc0sEpuXFYK4u4.jpg"
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "5cacf6900e0a2679eda2c8e9",
+          "adult": false,
+          "gender": 2,
+          "id": 939336,
+          "known_for_department": "Directing",
+          "name": "Tom Kingsley",
+          "original_name": "Tom Kingsley",
+          "popularity": 3.0199,
+          "profile_path": "/tNh97HQjw71VaJJ3hD9Cuon73Om.jpg"
         },
         {
           "job": "Writer",
@@ -53,7 +53,7 @@
           "known_for_department": "Acting",
           "name": "Jim Howick",
           "original_name": "Jim Howick",
-          "popularity": 1.6725,
+          "popularity": 1.5088,
           "profile_path": "/1HzAboxM0ay7eed284VbSveG3ku.jpg"
         }
       ],
@@ -68,7 +68,7 @@
           "known_for_department": "Acting",
           "name": "Richard Durden",
           "original_name": "Richard Durden",
-          "popularity": 1.3905,
+          "popularity": 1.1525,
           "profile_path": "/eH5gdjtoCMFNs2OlSyWb0ha2yHn.jpg"
         },
         {
@@ -81,7 +81,7 @@
           "known_for_department": "Acting",
           "name": "Ed Kear",
           "original_name": "Ed Kear",
-          "popularity": 0.7147,
+          "popularity": 0.8933,
           "profile_path": "/jB1QY1DSN253bbtz51MHXEBj9O8.jpg"
         },
         {
@@ -94,7 +94,7 @@
           "known_for_department": "Acting",
           "name": "Steve Oram",
           "original_name": "Steve Oram",
-          "popularity": 1.3208,
+          "popularity": 1.0387,
           "profile_path": "/lRLC2evuvWxFtq0aq7Te4I1L9MS.jpg"
         },
         {
@@ -107,7 +107,7 @@
           "known_for_department": "Acting",
           "name": "Ania Marson",
           "original_name": "Ania Marson",
-          "popularity": 0.8834,
+          "popularity": 0.8118,
           "profile_path": "/mqHopPpXsCkwbxq7A2oDPcs80CR.jpg"
         },
         {
@@ -120,7 +120,7 @@
           "known_for_department": "Acting",
           "name": "Anya McKenna-Bruce",
           "original_name": "Anya McKenna-Bruce",
-          "popularity": 0.7087,
+          "popularity": 0.6331,
           "profile_path": "/ljg6f2KWyprfXB2DkLCxMIv9y87.jpg"
         },
         {
@@ -133,7 +133,7 @@
           "known_for_department": "Acting",
           "name": "Yani Xander",
           "original_name": "Yani Xander",
-          "popularity": 0.6397,
+          "popularity": 0.4775,
           "profile_path": "/i5vxVPuAcu6rz6sPMk2ip7kW5tP.jpg"
         }
       ]
@@ -150,8 +150,8 @@
       "season_number": 1,
       "show_id": 17174,
       "still_path": "/s3Xe9YI84TS9J1vqOmAkzoblrY5.jpg",
-      "vote_average": 7.5,
-      "vote_count": 16,
+      "vote_average": 7.471,
+      "vote_count": 17,
       "crew": [
         {
           "job": "Director",
@@ -163,7 +163,7 @@
           "known_for_department": "Directing",
           "name": "Tom Kingsley",
           "original_name": "Tom Kingsley",
-          "popularity": 0.6462,
+          "popularity": 3.0199,
           "profile_path": "/tNh97HQjw71VaJJ3hD9Cuon73Om.jpg"
         },
         {
@@ -176,7 +176,7 @@
           "known_for_department": "Acting",
           "name": "Laurence Rickard",
           "original_name": "Laurence Rickard",
-          "popularity": 0.8313,
+          "popularity": 0.9173,
           "profile_path": "/y2Hn3kX70wKduMMWdzd9eTOgMuT.jpg"
         }
       ],
@@ -191,7 +191,7 @@
           "known_for_department": "Acting",
           "name": "Paul Cawley",
           "original_name": "Paul Cawley",
-          "popularity": 0.5493,
+          "popularity": 0.7379,
           "profile_path": null
         },
         {
@@ -204,7 +204,7 @@
           "known_for_department": "Acting",
           "name": "Angela Yeoh",
           "original_name": "Angela Yeoh",
-          "popularity": 1.165,
+          "popularity": 0.9323,
           "profile_path": "/XGUkZkY01JfpHL5wmwDlgiQ6uk.jpg"
         },
         {
@@ -217,7 +217,7 @@
           "known_for_department": "Acting",
           "name": "Yani Xander",
           "original_name": "Yani Xander",
-          "popularity": 0.6397,
+          "popularity": 0.4775,
           "profile_path": "/i5vxVPuAcu6rz6sPMk2ip7kW5tP.jpg"
         }
       ]
@@ -234,8 +234,8 @@
       "season_number": 1,
       "show_id": 17174,
       "still_path": "/iXmcVNaYSCCp9vNlWYUZTMG5iBY.jpg",
-      "vote_average": 7.688,
-      "vote_count": 16,
+      "vote_average": 7.647,
+      "vote_count": 17,
       "crew": [
         {
           "job": "Director",
@@ -247,7 +247,7 @@
           "known_for_department": "Directing",
           "name": "Tom Kingsley",
           "original_name": "Tom Kingsley",
-          "popularity": 0.6462,
+          "popularity": 3.0199,
           "profile_path": "/tNh97HQjw71VaJJ3hD9Cuon73Om.jpg"
         },
         {
@@ -260,7 +260,7 @@
           "known_for_department": "Acting",
           "name": "Ben Willbond",
           "original_name": "Ben Willbond",
-          "popularity": 1.0694,
+          "popularity": 1.3402,
           "profile_path": "/lPbG2095GBoUkmpw6A2IbiyEnjV.jpg"
         }
       ],
@@ -275,7 +275,7 @@
           "known_for_department": "Acting",
           "name": "Steve Oram",
           "original_name": "Steve Oram",
-          "popularity": 1.3208,
+          "popularity": 1.0387,
           "profile_path": "/lRLC2evuvWxFtq0aq7Te4I1L9MS.jpg"
         },
         {
@@ -288,7 +288,7 @@
           "known_for_department": "Acting",
           "name": "Imran Adams",
           "original_name": "Imran Adams",
-          "popularity": 0.482,
+          "popularity": 0.5744,
           "profile_path": "/rMur2CMkMWndIfP4k6c1Jt1wXLU.jpg"
         },
         {
@@ -301,7 +301,7 @@
           "known_for_department": "Acting",
           "name": "Ethan Alston",
           "original_name": "Ethan Alston",
-          "popularity": 0.2801,
+          "popularity": 0.2729,
           "profile_path": null
         },
         {
@@ -314,7 +314,7 @@
           "known_for_department": "Acting",
           "name": "Tom Grey",
           "original_name": "Tom Grey",
-          "popularity": 0.3149,
+          "popularity": 0.279,
           "profile_path": null
         },
         {
@@ -327,7 +327,7 @@
           "known_for_department": "Acting",
           "name": "Tim Plester",
           "original_name": "Tim Plester",
-          "popularity": 1.1382,
+          "popularity": 1.1041,
           "profile_path": "/a66p9DDwRSQFRZcDn3sDLsGb8zu.jpg"
         }
       ]
@@ -344,22 +344,9 @@
       "season_number": 1,
       "show_id": 17174,
       "still_path": "/lHyjmFH7O4WoHucLd1QBVbghqb9.jpg",
-      "vote_average": 7.133,
+      "vote_average": 7.1,
       "vote_count": 15,
       "crew": [
-        {
-          "job": "Director",
-          "department": "Directing",
-          "credit_id": "5cacf6900e0a2679eda2c8e9",
-          "adult": false,
-          "gender": 2,
-          "id": 939336,
-          "known_for_department": "Directing",
-          "name": "Tom Kingsley",
-          "original_name": "Tom Kingsley",
-          "popularity": 0.6462,
-          "profile_path": "/tNh97HQjw71VaJJ3hD9Cuon73Om.jpg"
-        },
         {
           "job": "Writer",
           "department": "Writing",
@@ -370,8 +357,21 @@
           "known_for_department": "Acting",
           "name": "Mathew Baynton",
           "original_name": "Mathew Baynton",
-          "popularity": 1.351,
+          "popularity": 1.668,
           "profile_path": "/g3FnkjMKL5bsGQc0sEpuXFYK4u4.jpg"
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "5cacf6900e0a2679eda2c8e9",
+          "adult": false,
+          "gender": 2,
+          "id": 939336,
+          "known_for_department": "Directing",
+          "name": "Tom Kingsley",
+          "original_name": "Tom Kingsley",
+          "popularity": 3.0199,
+          "profile_path": "/tNh97HQjw71VaJJ3hD9Cuon73Om.jpg"
         },
         {
           "job": "Writer",
@@ -383,7 +383,7 @@
           "known_for_department": "Acting",
           "name": "Jim Howick",
           "original_name": "Jim Howick",
-          "popularity": 1.6725,
+          "popularity": 1.5088,
           "profile_path": "/1HzAboxM0ay7eed284VbSveG3ku.jpg"
         }
       ],
@@ -398,7 +398,7 @@
           "known_for_department": "Acting",
           "name": "Caoilfhionn Dunne",
           "original_name": "Caoilfhionn Dunne",
-          "popularity": 1.1903,
+          "popularity": 1.0337,
           "profile_path": "/96GTcKtmXe0mU9yaMhGvRxrqkJU.jpg"
         },
         {
@@ -411,7 +411,7 @@
           "known_for_department": "Acting",
           "name": "Rory Fleck-Byrne",
           "original_name": "Rory Fleck-Byrne",
-          "popularity": 1.2578,
+          "popularity": 1.3485,
           "profile_path": "/iwPrSa41IxD5jy3Fb7IVF0O5DQ2.jpg"
         },
         {
@@ -424,7 +424,7 @@
           "known_for_department": "Acting",
           "name": "Elisabeth Hopper",
           "original_name": "Elisabeth Hopper",
-          "popularity": 0.8445,
+          "popularity": 0.6326,
           "profile_path": "/zWPPnTxIxslwfQtpCa0WrzCOeA4.jpg"
         },
         {
@@ -437,7 +437,7 @@
           "known_for_department": "Acting",
           "name": "Tom Mackley",
           "original_name": "Tom Mackley",
-          "popularity": 0.3517,
+          "popularity": 0.4544,
           "profile_path": null
         },
         {
@@ -450,7 +450,7 @@
           "known_for_department": "Acting",
           "name": "Nicholas A. Newman",
           "original_name": "Nicholas A. Newman",
-          "popularity": 0.4563,
+          "popularity": 0.6948,
           "profile_path": "/qEJiAaiFNcjJbc6rEVft44XcZGY.jpg"
         },
         {
@@ -463,7 +463,7 @@
           "known_for_department": "Acting",
           "name": "John Omole",
           "original_name": "John Omole",
-          "popularity": 0.3887,
+          "popularity": 0.5122,
           "profile_path": "/d3GBYvKN99log7MkdGz88y6NZu0.jpg"
         },
         {
@@ -476,7 +476,7 @@
           "known_for_department": "Acting",
           "name": "Caroline Guthrie",
           "original_name": "Caroline Guthrie",
-          "popularity": 0.6111,
+          "popularity": 0.9639,
           "profile_path": "/dditFwlQfHhBqGzgcD5qIhHgkak.jpg"
         },
         {
@@ -489,7 +489,7 @@
           "known_for_department": "Acting",
           "name": "Richard Thomson",
           "original_name": "Richard Thomson",
-          "popularity": 0.4671,
+          "popularity": 0.6262,
           "profile_path": "/vHu7vSgxKQarJzk6B7KdUCRVN3z.jpg"
         },
         {
@@ -502,7 +502,7 @@
           "known_for_department": "Acting",
           "name": "Yani Xander",
           "original_name": "Yani Xander",
-          "popularity": 0.6397,
+          "popularity": 0.4775,
           "profile_path": "/i5vxVPuAcu6rz6sPMk2ip7kW5tP.jpg"
         }
       ]
@@ -519,7 +519,7 @@
       "season_number": 1,
       "show_id": 17174,
       "still_path": "/kixvYhFyvem4wSn1gZoVHP7mHj4.jpg",
-      "vote_average": 7.429,
+      "vote_average": 7.4,
       "vote_count": 14,
       "crew": [
         {
@@ -532,21 +532,8 @@
           "known_for_department": "Directing",
           "name": "Tom Kingsley",
           "original_name": "Tom Kingsley",
-          "popularity": 0.6462,
+          "popularity": 3.0199,
           "profile_path": "/tNh97HQjw71VaJJ3hD9Cuon73Om.jpg"
-        },
-        {
-          "job": "Writer",
-          "department": "Writing",
-          "credit_id": "5f313c94cdf2e6003820a92d",
-          "adult": false,
-          "gender": 2,
-          "id": 1405880,
-          "known_for_department": "Acting",
-          "name": "Laurence Rickard",
-          "original_name": "Laurence Rickard",
-          "popularity": 0.8313,
-          "profile_path": "/y2Hn3kX70wKduMMWdzd9eTOgMuT.jpg"
         },
         {
           "job": "Writer",
@@ -558,8 +545,21 @@
           "known_for_department": "Acting",
           "name": "Martha Howe-Douglas",
           "original_name": "Martha Howe-Douglas",
-          "popularity": 0.7689,
+          "popularity": 1.3023,
           "profile_path": "/hk39eTYpKXAHJePNu0J6WBrCwR0.jpg"
+        },
+        {
+          "job": "Writer",
+          "department": "Writing",
+          "credit_id": "5f313c94cdf2e6003820a92d",
+          "adult": false,
+          "gender": 2,
+          "id": 1405880,
+          "known_for_department": "Acting",
+          "name": "Laurence Rickard",
+          "original_name": "Laurence Rickard",
+          "popularity": 0.9173,
+          "profile_path": "/y2Hn3kX70wKduMMWdzd9eTOgMuT.jpg"
         }
       ],
       "guest_stars": [
@@ -573,7 +573,7 @@
           "known_for_department": "Acting",
           "name": "Sophie Thompson",
           "original_name": "Sophie Thompson",
-          "popularity": 2.9573,
+          "popularity": 3.1858,
           "profile_path": "/tRPHovRBLwZTeWodLBqUD2arrlH.jpg"
         },
         {
@@ -586,7 +586,7 @@
           "known_for_department": "Acting",
           "name": "Geoffrey McGivern",
           "original_name": "Geoffrey McGivern",
-          "popularity": 1.201,
+          "popularity": 0.9102,
           "profile_path": "/lWXOwpA6n0uNrCaz1np98DCK7B8.jpg"
         },
         {
@@ -599,7 +599,7 @@
           "known_for_department": "Acting",
           "name": "Yani Xander",
           "original_name": "Yani Xander",
-          "popularity": 0.6397,
+          "popularity": 0.4775,
           "profile_path": "/i5vxVPuAcu6rz6sPMk2ip7kW5tP.jpg"
         }
       ]
@@ -616,22 +616,9 @@
       "season_number": 1,
       "show_id": 17174,
       "still_path": "/8rcEObVANJGlWfpS2aprEiCerU5.jpg",
-      "vote_average": 7.429,
+      "vote_average": 7.4,
       "vote_count": 14,
       "crew": [
-        {
-          "job": "Director",
-          "department": "Directing",
-          "credit_id": "5cacf6900e0a2679eda2c8e9",
-          "adult": false,
-          "gender": 2,
-          "id": 939336,
-          "known_for_department": "Directing",
-          "name": "Tom Kingsley",
-          "original_name": "Tom Kingsley",
-          "popularity": 0.6462,
-          "profile_path": "/tNh97HQjw71VaJJ3hD9Cuon73Om.jpg"
-        },
         {
           "job": "Writer",
           "department": "Writing",
@@ -642,8 +629,21 @@
           "known_for_department": "Acting",
           "name": "Mathew Baynton",
           "original_name": "Mathew Baynton",
-          "popularity": 1.351,
+          "popularity": 1.668,
           "profile_path": "/g3FnkjMKL5bsGQc0sEpuXFYK4u4.jpg"
+        },
+        {
+          "job": "Director",
+          "department": "Directing",
+          "credit_id": "5cacf6900e0a2679eda2c8e9",
+          "adult": false,
+          "gender": 2,
+          "id": 939336,
+          "known_for_department": "Directing",
+          "name": "Tom Kingsley",
+          "original_name": "Tom Kingsley",
+          "popularity": 3.0199,
+          "profile_path": "/tNh97HQjw71VaJJ3hD9Cuon73Om.jpg"
         },
         {
           "job": "Writer",
@@ -655,7 +655,7 @@
           "known_for_department": "Acting",
           "name": "Jim Howick",
           "original_name": "Jim Howick",
-          "popularity": 1.6725,
+          "popularity": 1.5088,
           "profile_path": "/1HzAboxM0ay7eed284VbSveG3ku.jpg"
         }
       ],
@@ -670,7 +670,7 @@
           "known_for_department": "Acting",
           "name": "Ed Kear",
           "original_name": "Ed Kear",
-          "popularity": 0.7147,
+          "popularity": 0.8933,
           "profile_path": "/jB1QY1DSN253bbtz51MHXEBj9O8.jpg"
         },
         {
@@ -683,7 +683,7 @@
           "known_for_department": "Acting",
           "name": "Simon Bubb",
           "original_name": "Simon Bubb",
-          "popularity": 0.8273,
+          "popularity": 0.9423,
           "profile_path": null
         },
         {
@@ -696,7 +696,7 @@
           "known_for_department": "Acting",
           "name": "Rosie Cavaliero",
           "original_name": "Rosie Cavaliero",
-          "popularity": 1.9853,
+          "popularity": 1.4652,
           "profile_path": "/q9EOEphyrCGhUyDgAhFf00xAlWB.jpg"
         },
         {
@@ -704,12 +704,12 @@
           "credit_id": "5f327454cdf2e60039285f46",
           "order": 506,
           "adult": false,
-          "gender": 0,
+          "gender": 1,
           "id": 2368471,
           "known_for_department": "Acting",
           "name": "Florian Schwienbacher",
           "original_name": "Florian Schwienbacher",
-          "popularity": 0.5125,
+          "popularity": 0.5042,
           "profile_path": null
         },
         {
@@ -722,7 +722,7 @@
           "known_for_department": "Acting",
           "name": "Simon Stache",
           "original_name": "Simon Stache",
-          "popularity": 0.5226,
+          "popularity": 0.4942,
           "profile_path": null
         },
         {
@@ -735,7 +735,7 @@
           "known_for_department": "Acting",
           "name": "Yani Xander",
           "original_name": "Yani Xander",
-          "popularity": 0.6397,
+          "popularity": 0.4775,
           "profile_path": "/i5vxVPuAcu6rz6sPMk2ip7kW5tP.jpg"
         }
       ]

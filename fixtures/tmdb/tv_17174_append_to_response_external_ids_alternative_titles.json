@@ -103,7 +103,7 @@
   "original_language": "en",
   "original_name": "Ghosts",
   "overview": "A cash-strapped young couple inherits a grand country house, only to find it is both falling apart and teeming with the ghosts of former inhabitants.",
-  "popularity": 17.9752,
+  "popularity": 18.318,
   "poster_path": "/3Xz4JtqISyVCKct96O94k4Mz5sU.jpg",
   "production_companies": [
     {
@@ -198,8 +198,8 @@
   "status": "Ended",
   "tagline": "It's a live-in nightmare.",
   "type": "Scripted",
-  "vote_average": 7.923,
-  "vote_count": 259,
+  "vote_average": 7.918,
+  "vote_count": 267,
   "external_ids": {
     "imdb_id": "tt8594324",
     "freebase_mid": "",
@@ -210,5 +210,39 @@
     "facebook_id": null,
     "instagram_id": null,
     "twitter_id": null
+  },
+  "alternative_titles": {
+    "results": [
+      {
+        "iso_3166_1": "CN",
+        "title": "古宅老友记",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "CN",
+        "title": "同一屋檐吓",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "IL",
+        "title": "רוחות רפאים: בריטניה",
+        "type": "yes"
+      },
+      {
+        "iso_3166_1": "TW",
+        "title": "古宅老友記",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "US",
+        "title": "Ghosts U.K.",
+        "type": "CBS title"
+      },
+      {
+        "iso_3166_1": "US",
+        "title": "Ghosts UK",
+        "type": "CBS title"
+      }
+    ]
   }
 }
