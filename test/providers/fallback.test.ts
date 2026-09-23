@@ -190,3 +190,49 @@ test('no tvdb id means the fallback searches for itself', async () => {
   await createFallbackProvider(primary, secondary).resolve(parsed(EPISODE), ctx);
   assert.equal(seenRef, undefined);
 });
+
+test('a fallback answer names the primary record it stood in for', async () => {
+  // The composite is the only place both identities are in hand at once,
+  // which is what makes the link exact rather than a guess.
+  const tmdbSeries = {
+    kind: 'series', title: 'House Hunters Renovation', provider: 'tmdb',
+    providerRef: 'tmdb:tv:55493', externalIds: [{ source: 'tvdb', id: '262643' }], parent: null,
+  };
+  const tvdbSeries = {
+    kind: 'series', title: 'House Hunters Renovation', provider: 'tvdb',
+    providerRef: '262643', externalIds: [], parent: null,
+  };
+  const tvdbEpisode = { kind: 'episode', provider: 'tvdb', externalIds: [], parent: tvdbSeries };
+
+  const primary: Provider = {
+    name: 'tmdb',
+    supports: () => true,
+    resolve: async () => ({
+      confidence: 0.5, media: tmdbSeries as unknown as ResolveOutcome['media'],
+    }),
+  };
+  const secondary: Provider = {
+    name: 'tvdb',
+    supports: () => true,
+    resolve: async () => ({
+      confidence: 0.9, media: tvdbEpisode as unknown as ResolveOutcome['media'],
+    }),
+  };
+  const out = await createFallbackProvider(primary, secondary).resolve(parsed(EPISODE), ctx);
+
+  assert.deepEqual(out?.media.parent?.sameAs, { provider: 'tmdb', providerRef: 'tmdb:tv:55493' },
+    'on the series, which is what the handover established');
+  assert.equal(out?.media.sameAs, undefined,
+    'not on the episode: the handover says nothing about whether TMDB has it');
+});
+
+test('an answer the primary gave itself names nothing', async () => {
+  const media = { kind: 'episode', provider: 'tmdb', externalIds: [], parent: null };
+  const primary: Provider = {
+    name: 'tmdb',
+    supports: () => true,
+    resolve: async () => ({ confidence: 0.9, media: media as unknown as ResolveOutcome['media'] }),
+  };
+  const out = await createFallbackProvider(primary, null).resolve(parsed(EPISODE), ctx);
+  assert.equal(out?.media.sameAs, undefined);
+});
