@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scoreCandidate, pickBest, titleSimilarity, CONFIDENCE_FLOOR } from '../../lib/resolve/confidence';
+import {
+  scoreCandidate, scoreResolved, pickBest, titleSimilarity, CONFIDENCE_FLOOR,
+} from '../../lib/resolve/confidence';
 import { parseVideo } from '../../lib/parse/video';
 import type { ParsedVideo } from '../../lib/parse/types';
 
@@ -238,4 +240,67 @@ test('a candidate with no aliases scores exactly as it did before', () => {
   const empty = scoreCandidate(p, { ...base, title: 'The Matrix', year: 1999, aliases: [] });
   const absent = scoreCandidate(p, { ...base, title: 'The Matrix', year: 1999 });
   assert.equal(empty, absent);
+});
+
+test('a title differing only in punctuation is an exact match', () => {
+  // `MASH.S11...` against TMDB's `M*A*S*H`. The spaced fold reads
+  // `mash` against `m a s h` and scores 0.571, which is a near miss for a
+  // title that is the same string.
+  assert.equal(titleSimilarity('MASH', 'M*A*S*H'), 1);
+  assert.equal(titleSimilarity('SWAT', 'S.W.A.T.'), 1);
+  assert.equal(titleSimilarity('Spiderman', 'Spider-Man'), 1);
+});
+
+test('punctuation does not make unrelated titles equal', () => {
+  assert.ok(titleSimilarity('The Office', 'The Officer') < 1);
+  assert.ok(titleSimilarity('Ghost', 'Ghosts') < 1);
+});
+
+test('a punctuated exact match earns the exact-title bonus', () => {
+  const p = parsed('tv', 'MASH.S11.1080p.WEB-DL-FLUX.mkv');
+  const best = pickBest(p, [1], () => ({
+    ...base, title: 'M*A*S*H', seasonExists: true, episodeExists: null,
+  }));
+  const plain = scoreCandidate(p, {
+    ...base, title: 'M*A*S*H', seasonExists: true, episodeExists: null,
+  });
+  assert.ok((best?.confidence ?? 0) > plain, 'the lone exact match is lifted');
+  assert.ok((best?.confidence ?? 0) >= CONFIDENCE_FLOOR,
+    `a season pack of a show whose name is punctuated should resolve, got ${best?.confidence}`);
+});
+
+test('an exact match through an alias earns the bonus too', () => {
+  // TMDB publishes `MASH` as an alternative title for `M*A*S*H`. Before
+  // this, the alias supplied the similarity and the bonus was unreachable:
+  // it is awarded in `pickBest`, which runs on search results, and a search
+  // result carries no alternative titles.
+  const p = parsed('tv', 'MASH.S11.1080p.WEB-DL-FLUX.mkv');
+  const withAlias = scoreCandidate(p, {
+    ...base, title: 'Something Else', aliases: ['MASH'],
+    seasonExists: true, episodeExists: null,
+  });
+  const best = pickBest(p, [1], () => ({
+    ...base, title: 'Something Else', aliases: ['MASH'],
+    seasonExists: true, episodeExists: null,
+  }));
+  assert.ok((best?.confidence ?? 0) > withAlias);
+});
+
+test('scoreResolved lifts a chosen candidate that matches exactly', () => {
+  // The detail re-score is where aliases finally arrive, and it is the one
+  // place the exact bonus could never be awarded: `pickBest` owns the
+  // bonus and runs on search results, which carry no alternative titles.
+  const p = parsed('tv', 'MASH.S11.1080p.WEB-DL-FLUX.mkv');
+  const candidate = {
+    ...base, title: 'Something Else', aliases: ['MASH'],
+    seasonExists: true, episodeExists: null,
+  };
+  assert.ok(scoreResolved(p, candidate) > scoreCandidate(p, candidate));
+  assert.ok(scoreResolved(p, candidate) >= CONFIDENCE_FLOOR);
+});
+
+test('scoreResolved leaves a near miss exactly where it was', () => {
+  const p = parsed('tv', 'Ghosts.S05E12.1080p.WEB-DL-GRP.mkv');
+  const candidate = { ...base, title: 'Ghost Adventures', seasonExists: true, episodeExists: true };
+  assert.equal(scoreResolved(p, candidate), scoreCandidate(p, candidate));
 });

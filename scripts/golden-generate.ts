@@ -26,6 +26,13 @@ const PINNED: readonly (readonly [Category, string])[] = [
   ['movies', '360.2012.1080p.AMZN.WEB-DL.DDP5.1.H.264.DUAL-BiOMA.nzb'],
   ['movies', 'IF.2024.NORDiC.1080p.WEB-DL.H.264.DDP5.1.Atmos-NoTrace.nzb'],
   ['movies', 'La.captura.2026.MULTi.VFF.1080p.WEB.EAC3.5.1.x264-FRQC.nzb'],
+  // A re-release carries a second year, and `RERELEASE` classified as
+  // nothing, so the junk walk stopped on it and swallowed the year, the
+  // edition and the first year into the title.
+  ['movies', 'Treasure.Island.1999.FULLSCREEN.2003.RERELEASE.NTSC.USA.DVD9-AndreMor'],
+  // And once it did not, `Collectors` was the next word to stop the walk,
+  // which settled for the 2003 re-release year over the 1998 release.
+  ['movies', 'A.Bugs.Life.1998.FULLSCREEN.Collectors.Edition.2003.RERELEASE.DISC1.NTSC.USA.DVD9-AndreMor.nzb'],
   ['movies', 'Movies/Interstellar (2014)/00136.m2ts'],
   ['movies', 'Movies/Up (2009)/Up.2009.COMPLETE.UHD.BLURAY-AViATOR.iso'],
   ['tv', 'Red River S01E08 1080p CR WEB-DL AAC2.0 H.264-OldT.nzb'],

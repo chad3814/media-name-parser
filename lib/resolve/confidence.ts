@@ -1,4 +1,4 @@
-import { foldForMatch } from '../parse/normalize';
+import { foldForMatch, foldTight } from '../parse/normalize';
 import type { ParsedVideo } from '../parse/types';
 import { envNumber } from '../env';
 
@@ -59,6 +59,12 @@ export function titleSimilarity(a: string, b: string): number {
   const right = foldForMatch(b);
   if (left.length === 0 || right.length === 0) return 0;
   if (left === right) return 1;
+  // Same string, differently punctuated: `MASH` against `M*A*S*H`, `SWAT`
+  // against `S.W.A.T.`, `Spiderman` against `Spider-Man`. Edit distance
+  // over the spaced fold reads those as near misses -- 0.571 for the first
+  // -- because it counts the separators as characters that differ. They
+  // are one title wearing punctuation, so they score as one title.
+  if (foldTight(a) === foldTight(b)) return 1;
   const distance = editDistance(left, right);
   const longest = Math.max(left.length, right.length);
   return Math.max(0, 1 - distance / longest);
@@ -156,13 +162,39 @@ const EXACT_TITLE_BONUS = 0.1;
  * keeps two same-named shows from being settled by a coin flip.
  */
 function matchesExactly(parsed: ParsedVideo, candidate: Candidate): boolean {
-  const wanted = foldForMatch(parsed.title);
+  const wanted = foldTight(parsed.title);
   if (wanted.length === 0) return false;
-  if (wanted === foldForMatch(candidate.title)) return true;
-  if (candidate.originalTitle !== null && wanted === foldForMatch(candidate.originalTitle)) {
-    return true;
-  }
-  return (candidate.aliases ?? []).some((alias) => wanted === foldForMatch(alias));
+  // Compared tight, so a title that differs only in how it is punctuated
+  // counts as the exact match it is.
+  const names = [
+    candidate.title,
+    ...(candidate.originalTitle === null ? [] : [candidate.originalTitle]),
+    ...(candidate.aliases ?? []),
+  ];
+  return names.some((name) => wanted === foldTight(name));
+}
+
+/**
+ * The score for a candidate that has already been chosen, with the
+ * exact-title bonus applied.
+ *
+ * `pickBest` owns that bonus, and it runs on *search* results -- which
+ * carry no alternative titles, because TMDB only returns them on a detail
+ * fetch. So an exact match through an alias earned the similarity and
+ * never the bonus: `MASH.S11` against a series TMDB also publishes as
+ * `MASH` scored 0.7228, under the floor, for want of the 0.1 the bonus
+ * exists to give. That is the same number, and the same cause, as the
+ * `The Dark Knight Rises` case `EXACT_TITLE_BONUS` was written for.
+ *
+ * One difference from `pickBest` worth stating: that function withholds
+ * the bonus when *two* candidates match exactly, because an exact match
+ * cannot settle a tie it is party to. Here there is one candidate and the
+ * choice is already made, so the guard has nothing to weigh -- the bonus
+ * moves the confidence reported, never the record returned.
+ */
+export function scoreResolved(parsed: ParsedVideo, candidate: Candidate): number {
+  const score = scoreCandidate(parsed, candidate);
+  return matchesExactly(parsed, candidate) ? Math.min(1, score + EXACT_TITLE_BONUS) : score;
 }
 
 export function pickBest<T>(
