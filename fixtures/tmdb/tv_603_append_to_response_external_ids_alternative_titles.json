@@ -69,7 +69,7 @@
   "original_language": "en",
   "original_name": "Veronica's Closet",
   "overview": "Veronica 'Ronnie' Chase is the 'Queen of Romance.' Founder of a successful lingerie empire, and best-selling author of self-help romance books, Ronnie has it all ... money, success, sex appeal and a philandering husband. How she will find true happiness without jeopardizing her business will be her biggest challenge yet. ",
-  "popularity": 9.6569,
+  "popularity": 19.943,
   "poster_path": "/pORo0C7IFMiefK2dpgrSWpPSUha.jpg",
   "production_companies": [
     {
@@ -134,8 +134,8 @@
   "status": "Ended",
   "tagline": "",
   "type": "Scripted",
-  "vote_average": 5.375,
-  "vote_count": 16,
+  "vote_average": 5.353,
+  "vote_count": 17,
   "external_ids": {
     "imdb_id": "tt0118506",
     "freebase_mid": "/m/052b3s",
@@ -146,5 +146,8 @@
     "facebook_id": null,
     "instagram_id": null,
     "twitter_id": null
+  },
+  "alternative_titles": {
+    "results": []
   }
 }

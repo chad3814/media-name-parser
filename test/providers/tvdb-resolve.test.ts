@@ -246,3 +246,66 @@ test('an episode belonging to another series is refused', async () => {
   );
   assert.equal(out, null);
 });
+
+test('the romaji alias is what makes a Japanese-named series resolve', async () => {
+  // TheTVDB answers in a series' primary language, so Re:ZERO's canonical
+  // name is Japanese and the romaji a filename carries is an alias. Judging
+  // on the canonical name alone rejects it at the guard and sinks the score,
+  // which is the case this provider exists to serve.
+  const RE_ZERO = {
+    id: 305089,
+    name: 'Re：ゼロから始める異世界生活',
+    firstAired: '2016-04-04',
+    year: '2016',
+    aliases: [
+      { language: 'fra', name: 'Re:Zero kara Hajimeru Isekai Seikatsu' },
+      { language: 'jpn', name: 'Re:ゼロから始める異世界生活 新編集版' },
+    ],
+  };
+  const provider = createTvdbProvider(stubClient([], {
+    '/series/305089/episodes/default': {
+      data: {
+        series: RE_ZERO,
+        episodes: [{ id: 1, seriesId: 305089, name: 'ラム', aired: '2026-05-06', number: 18, seasonNumber: 4 }],
+      },
+    },
+  }));
+  const out = await provider.resolve(
+    parsed('[Onalrie] ReZero kara Hajimeru Isekai Seikatsu - S04E18 [1080p].mkv'),
+    { ...ctx, seriesRef: '305089' },
+  );
+  assert.equal(out?.media.kind, 'episode');
+  assert.ok((out?.confidence ?? 0) >= 0.75,
+    `the romaji alias should carry it over the floor, got ${out?.confidence}`);
+});
+
+test('a search hit is selected and accepted on its aliases', async () => {
+  // The guard reads aliases too. Without that, `pickBest` would choose the
+  // right series on its romaji alias and `agrees` would then reject it for
+  // not matching a Japanese name.
+  const calls: Call[] = [];
+  const provider = createTvdbProvider(stubClient(calls, {
+    '/search': {
+      data: [{
+        tvdb_id: '305089',
+        name: 'Re：ゼロから始める異世界生活',
+        year: '2016',
+        aliases: ['Re: Zero Kara Hajimeru Isekai Seikatsu'],
+      }],
+    },
+    '/series/305089/episodes/default': {
+      data: {
+        series: {
+          id: 305089, name: 'Re：ゼロから始める異世界生活', year: '2016',
+          aliases: [{ language: 'fra', name: 'Re:Zero kara Hajimeru Isekai Seikatsu' }],
+        },
+        episodes: [{ id: 1, seriesId: 305089, name: 'ラム', number: 18, seasonNumber: 4 }],
+      },
+    },
+  }));
+  const out = await provider.resolve(
+    parsed('[Onalrie] ReZero kara Hajimeru Isekai Seikatsu - S04E18 [1080p].mkv'), ctx,
+  );
+  assert.deepEqual(calls.map((c) => c.path), ['/search', '/series/305089/episodes/default']);
+  assert.equal(out?.media.kind, 'episode');
+});

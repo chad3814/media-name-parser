@@ -38,8 +38,8 @@
     "id": 3453975,
     "name": "Gods and Monsters",
     "overview": "With Layla tracking down Harrow, Marc, Steven, and Khonshu must return to Cairo to stop Ammit as she looks to threaten humanity once more.",
-    "vote_average": 7.541,
-    "vote_count": 111,
+    "vote_average": 7.6,
+    "vote_count": 114,
     "air_date": "2022-05-04",
     "episode_number": 6,
     "episode_type": "finale",
@@ -67,7 +67,7 @@
   "original_language": "en",
   "original_name": "Moon Knight",
   "overview": "When Steven Grant, a mild-mannered gift-shop employee, becomes plagued with blackouts and memories of another life, he discovers he has dissociative identity disorder and shares a body with mercenary Marc Spector. As Steven/Marc’s enemies converge upon them, they must navigate their complex identities while thrust into a deadly mystery among the powerful gods of Egypt.",
-  "popularity": 26.1543,
+  "popularity": 33.3316,
   "poster_path": "/x6FsYvt33846IQnDSFxla9j0RX8.jpg",
   "production_companies": [
     {
@@ -98,7 +98,7 @@
       "overview": "",
       "poster_path": "/zPFm8ZbvdzoViRHnLi8cH7TBS1B.jpg",
       "season_number": 1,
-      "vote_average": 7.6
+      "vote_average": 7.7
     }
   ],
   "softcore": false,
@@ -112,8 +112,8 @@
   "status": "Ended",
   "tagline": "Embrace the chaos.",
   "type": "Miniseries",
-  "vote_average": 7.635,
-  "vote_count": 3676,
+  "vote_average": 7.6,
+  "vote_count": 3710,
   "external_ids": {
     "imdb_id": "tt10234724",
     "freebase_mid": null,
@@ -124,5 +124,74 @@
     "facebook_id": "moonknight",
     "instagram_id": "themoonknight",
     "twitter_id": "moonknight"
+  },
+  "alternative_titles": {
+    "results": [
+      {
+        "iso_3166_1": "AL",
+        "title": "Kalorësi i Hënës",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "AM",
+        "title": "Լուսնի Ասպետ",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "IL",
+        "title": "אביר הירח",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "KR",
+        "title": "문 나이트",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "KR",
+        "title": "마블 문나이트",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "MK",
+        "title": "Витез на месечината",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "MO",
+        "title": "月光骑士",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "SG",
+        "title": "月光骑士",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "TW",
+        "title": "月光騎士",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "UA",
+        "title": "Місячний лицар",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "US",
+        "title": "Marvel Studios' Moon Knight",
+        "type": "promotional title"
+      },
+      {
+        "iso_3166_1": "VN",
+        "title": "Moon Knight: Kỵ Sĩ Mặt Trăng",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "YE",
+        "title": "فارس القمر",
+        "type": ""
+      }
+    ]
   }
 }

@@ -10,6 +10,20 @@ export interface Candidate {
   readonly originalTitle: string | null;
   readonly year: number | null;
   readonly originCountries: readonly string[];
+  /**
+   * Other names the catalogue publishes for this record: TMDB's
+   * `alternative_titles`, TheTVDB's `aliases`.
+   *
+   * A filename carries whichever name its release group used, and for anime
+   * that is routinely the romaji rather than the catalogue's canonical
+   * English. `ReZero kara Hajimeru Isekai Seikatsu` against
+   * `Re:ZERO -Starting Life in Another World-` scores 0.316, so the search
+   * found the right series and the score then threw it away. The romaji is
+   * in TMDB's own alternative titles, verbatim.
+   *
+   * Optional so a caller with none says nothing rather than something empty.
+   */
+  readonly aliases?: readonly string[];
   readonly popularity: number;
   readonly voteCount: number;
   /** Null when not yet known — a search result has not been detail-fetched. */
@@ -75,7 +89,13 @@ export function scoreCandidate(parsed: ParsedVideo, candidate: Candidate): numbe
   const original = candidate.originalTitle === null
     ? 0
     : titleSimilarity(parsed.title, candidate.originalTitle);
-  let score = Math.max(direct, original) * 0.7;
+  // The best of every name the record goes by, never an average: a record
+  // with forty alternative titles is not a worse match for having
+  // thirty-nine that do not apply.
+  const aliased = (candidate.aliases ?? []).reduce(
+    (best, alias) => Math.max(best, titleSimilarity(parsed.title, alias)), 0,
+  );
+  let score = Math.max(direct, original, aliased) * 0.7;
 
   const wanted = assertedYear(parsed);
   if (wanted !== null && candidate.year !== null) {
@@ -125,12 +145,24 @@ export function scoreCandidate(parsed: ParsedVideo, candidate: Candidate): numbe
  */
 const EXACT_TITLE_BONUS = 0.1;
 
-/** Fold-equal against either title the provider gives. */
+/**
+ * Fold-equal against any name the provider gives for the record.
+ *
+ * Aliases count. One is a name the catalogue itself publishes, so matching
+ * it exactly is an exact match -- and it is the whole point here, since the
+ * romaji title an anime filename carries is an alias rather than the
+ * canonical one. `pickBest` still withholds the bonus when two candidates
+ * match, which aliases make commoner; that rule is unchanged and is what
+ * keeps two same-named shows from being settled by a coin flip.
+ */
 function matchesExactly(parsed: ParsedVideo, candidate: Candidate): boolean {
   const wanted = foldForMatch(parsed.title);
   if (wanted.length === 0) return false;
-  return wanted === foldForMatch(candidate.title)
-    || (candidate.originalTitle !== null && wanted === foldForMatch(candidate.originalTitle));
+  if (wanted === foldForMatch(candidate.title)) return true;
+  if (candidate.originalTitle !== null && wanted === foldForMatch(candidate.originalTitle)) {
+    return true;
+  }
+  return (candidate.aliases ?? []).some((alias) => wanted === foldForMatch(alias));
 }
 
 export function pickBest<T>(
