@@ -1,4 +1,13 @@
-export const PARSER_VERSION = 1;
+/**
+ * Bumped whenever the parser can produce different tokens for a name it has
+ * already seen. `decide()` re-resolves any lookup whose stored parse predates
+ * the current version -- re-parsing is local and free, and a resolution built
+ * on a stale parse cannot be trusted however confident it was.
+ *
+ * 2: a leading bracketed run is now a release group rather than part of the
+ *    title, so every anime-shaped name parses differently.
+ */
+export const PARSER_VERSION = 2;
 
 export type Marker =
   | {
