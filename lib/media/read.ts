@@ -27,6 +27,15 @@ export interface MediaView extends MediaNode {
   readonly details: Readonly<Record<string, string | number | null>>;
   /** Nearest first: an episode's parents are its season, then its series. */
   readonly parents: readonly MediaNode[];
+  /**
+   * The same thing as another provider recorded it. Empty when none is
+   * known, so a consumer never has to tell "none" from "not supported".
+   *
+   * Only for the node being read. A parent's versions are not included:
+   * that would multiply the response with the chain for a fact a caller can
+   * ask for directly.
+   */
+  readonly versions: readonly MediaNode[];
   readonly people: readonly PersonView[];
 }
 
@@ -91,6 +100,16 @@ export async function readMediaTree(tx: Tx, mediaId: string): Promise<MediaView 
      -- response that led with the third-billed actor would read as unsorted.
      ORDER BY (mp.role <> 'performer'), mp.billing_order NULLS LAST, p.name`);
 
+  // A row with no links yields no rows, so no media read can fail for want
+  // of one. The CASE is what makes a canonically-stored pair visible from
+  // either side.
+  const versions = await tx.execute(sql`
+    SELECT m.id, m.kind, m.title, m.release_date, m.year, m.provider, m.provider_ref
+      FROM media_versions v
+      JOIN media m ON m.id = CASE WHEN v.a = ${mediaId}::uuid THEN v.b ELSE v.a END
+     WHERE v.a = ${mediaId}::uuid OR v.b = ${mediaId}::uuid
+     ORDER BY m.provider`);
+
   const detailRow = details.rows[0] ?? {};
   // The subquery aliases above are named after `kind` exactly, so this is a
   // direct lookup rather than a mapping.
@@ -112,6 +131,7 @@ export async function readMediaTree(tx: Tx, mediaId: string): Promise<MediaView 
     overview: self.overview === null ? null : String(self.overview),
     details: flattened,
     parents: rows.slice(1).map(node),
+    versions: versions.rows.map(node),
     people: people.rows.map((r) => ({
       providerRef: String(r.provider_ref),
       name: String(r.name),

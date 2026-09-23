@@ -170,13 +170,13 @@ test('hydration costs a bounded number of queries regardless of depth', opts, as
     const episodeView = await readMediaTree(countingTx(tx, episodeCalls), episodeId);
     assert.ok(episodeView !== null);
     assert.equal(episodeView.parents.length, 2, 'season then series');
-    assert.equal(episodeCalls.count, 3, 'ancestry + details + people, however deep');
+    assert.equal(episodeCalls.count, 4, 'ancestry + details + people + versions, however deep');
 
     const seriesCalls = { count: 0 };
     const seriesView = await readMediaTree(countingTx(tx, seriesCalls), seriesId);
     assert.ok(seriesView !== null);
     assert.equal(seriesView.parents.length, 0);
-    assert.equal(seriesCalls.count, 3, 'the same three queries with no ancestors at all');
+    assert.equal(seriesCalls.count, 4, 'the same four queries with no ancestors at all');
   });
 });
 
@@ -209,5 +209,28 @@ test('a scene carries the provider ids for its site and its performers', opts, a
     assert.equal(view?.details.siteName, 'Ids Site');
     assert.equal(view?.people[0]?.providerRef, 'tpdb-person-ids', 'the performer id');
     assert.equal(view?.people[0]?.name, 'Ids Performer');
+  });
+});
+
+test('a linked row reports its counterpart, from either side', opts, async () => {
+  await inRollback(async (tx) => {
+    const a = await persistResolved(tx, SERIES);
+    const b = await persistResolved(tx, {
+      ...SERIES, provider: 'tvdb', providerRef: 'tvdb-r1',
+      sameAs: { provider: 'tmdb', providerRef: SERIES.providerRef },
+    });
+    const fromB = await readMediaTree(tx, b);
+    assert.deepEqual(fromB?.versions.map((v) => v.providerRef), [SERIES.providerRef]);
+    // Stored canonically as one row, so the far side is exactly the case a
+    // naive `WHERE a = $1` gets wrong.
+    const fromA = await readMediaTree(tx, a);
+    assert.deepEqual(fromA?.versions.map((v) => v.providerRef), ['tvdb-r1']);
+  });
+});
+
+test('an unlinked row reports an empty list, not a missing key', opts, async () => {
+  await inRollback(async (tx) => {
+    const view = await readMediaTree(tx, await persistResolved(tx, SERIES));
+    assert.deepEqual(view?.versions, [], 'a consumer never tells none from unsupported');
   });
 });
