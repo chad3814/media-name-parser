@@ -2,10 +2,11 @@ import type { Category, ParsedVideo } from '../../parse/types';
 import type { Provider, ResolveContext, ResolveOutcome, ResolvedMedia } from '../types';
 import { pickBest, titleSimilarity, type Candidate } from '../../resolve/confidence';
 import { foldForMatch } from '../../parse/normalize';
+import { logFailure } from '../../http/log';
 import type { TvdbClient } from './client';
 import {
-  episodesResponseSchema, searchResponseSchema, seriesResponseSchema,
-  type TvdbSearchResult, type TvdbSeries,
+  episodesResponseSchema, extendedEpisodeResponseSchema, searchResponseSchema,
+  seriesResponseSchema, type TvdbEpisode, type TvdbSearchResult, type TvdbSeries,
 } from './schema';
 import { normalizeEpisode, normalizeSeason, normalizeSeries, yearOf } from './normalize';
 
@@ -132,6 +133,39 @@ async function findSeriesRef(
     : null;
 }
 
+/**
+ * The episode again, from the endpoint that carries its credits.
+ *
+ * The listing this provider resolves against returns base records with no
+ * `characters`, so the cast and crew cost one more call. Paid only here,
+ * after the episode has been found and the guards have passed, so a name
+ * that resolves to nothing never pays it; measured at about 120ms against
+ * an eight-second deadline.
+ *
+ * A failure is swallowed and the uncredited episode returned. Credits are
+ * an enrichment, and losing them is not a reason to lose the resolution --
+ * the same judgement the TPDB provider makes about its site-cache write.
+ */
+async function withCredits(
+  client: TvdbClient, episode: TvdbEpisode, ctx: ResolveContext,
+): Promise<TvdbEpisode> {
+  try {
+    const body = await client.get(
+      `/episodes/${encodeURIComponent(String(episode.id))}/extended`, {},
+      extendedEpisodeResponseSchema, ctx,
+    );
+    // Only the credits are taken. The extended record is the same episode,
+    // but swapping it wholesale would quietly replace fields the guards and
+    // the season number were already decided from; this call was made to
+    // learn one thing and that is all it contributes.
+    if (body === null || body.data.characters.length === 0) return episode;
+    return { ...episode, characters: body.data.characters };
+  } catch (error) {
+    logFailure(`tvdb credits for episode ${episode.id}`, error);
+    return episode;
+  }
+}
+
 export function createTvdbProvider(client: TvdbClient): Provider {
   return {
     name: 'tvdb',
@@ -182,7 +216,7 @@ export function createTvdbProvider(client: TvdbClient): Provider {
         const series = normalizeSeries(body.data.series);
         const season = normalizeSeason(series, found.seasonNumber ?? wantedSeason);
         return {
-          media: normalizeEpisode(season, found),
+          media: normalizeEpisode(season, await withCredits(client, found, ctx)),
           confidence: scoreSeries(parsed, body.data.series, knownAs, true, true),
         };
       }

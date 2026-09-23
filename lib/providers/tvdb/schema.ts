@@ -37,6 +37,23 @@ export const seriesSchema = z.object({
   aliases: z.array(z.object({ name: z.string() })).default([]),
 });
 
+/**
+ * A credit on the extended endpoints. `peopleId` is the person and `id` is
+ * this particular credit, which is why the person is what gets recorded:
+ * `people` is keyed `unique(provider, provider_ref)`, and keying on the
+ * credit would make a fresh person row for every part an actor ever played.
+ *
+ * `name` is the character and is null for crew. `peopleType` seen live
+ * across four series on 2026-09-23: Actor, Guest Star, Writer, Director.
+ */
+export const characterSchema = z.object({
+  peopleId: z.number(),
+  personName: z.string(),
+  name: z.string().nullish(),
+  peopleType: z.string().nullish(),
+  sort: z.number().nullish(),
+});
+
 export const episodeSchema = z.object({
   id: z.number(),
   seriesId: z.number().nullish(),
@@ -48,6 +65,12 @@ export const episodeSchema = z.object({
   number: z.number().nullish(),
   seasonNumber: z.number().nullish(),
   absoluteNumber: z.number().nullish(),
+  /**
+   * Only the *extended* endpoint carries these; the episodes listing does
+   * not. Defaulted so the same schema reads both, and so a record with no
+   * credits -- an unscripted show has none -- is absent rather than an error.
+   */
+  characters: z.array(characterSchema).nullish().transform((v) => v ?? []),
 });
 
 /**
@@ -63,6 +86,9 @@ export const episodesResponseSchema = z.object({
 });
 
 export const seriesResponseSchema = z.object({ data: seriesSchema });
+
+/** `/episodes/{id}/extended`, which is where the credits live. */
+export const extendedEpisodeResponseSchema = z.object({ data: episodeSchema });
 
 /**
  * A search hit. `id` is `"series-121361"` while `tvdb_id` is the bare
@@ -88,4 +114,5 @@ export const searchResponseSchema = z.object({
 
 export type TvdbSeries = z.infer<typeof seriesSchema>;
 export type TvdbEpisode = z.infer<typeof episodeSchema>;
+export type TvdbCharacter = z.infer<typeof characterSchema>;
 export type TvdbSearchResult = z.infer<typeof searchResultSchema>;

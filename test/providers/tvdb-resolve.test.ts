@@ -80,7 +80,11 @@ test('an inherited series id costs one call and no search', async () => {
   );
   const out = await provider.resolve(parsed(EPISODE_NAME), { ...ctx, seriesRef: '121361' });
 
-  assert.deepEqual(calls.map((c) => c.path), ['/series/121361/episodes/default']);
+  // One query to find the episode, then one for its credits -- the listing
+  // returns base records with no `characters`. No search either way.
+  assert.deepEqual(calls.map((c) => c.path), [
+    '/series/121361/episodes/default', '/episodes/3254641/extended',
+  ]);
   assert.deepEqual(calls[0]?.query, { season: 1, episodeNumber: 1 });
   assert.equal(out?.media.kind, 'episode');
   assert.equal(out?.media.title, 'Winter Is Coming');
@@ -101,7 +105,9 @@ test('with no inherited id it searches, then fetches the episode', async () => {
   }));
   const out = await provider.resolve(parsed(EPISODE_NAME), ctx);
 
-  assert.deepEqual(calls.map((c) => c.path), ['/search', '/series/121361/episodes/default']);
+  assert.deepEqual(calls.map((c) => c.path), [
+    '/search', '/series/121361/episodes/default', '/episodes/3254641/extended',
+  ]);
   assert.deepEqual(calls[0]?.query, { query: 'Game of Thrones', type: 'series' });
   assert.equal(out?.media.title, 'Winter Is Coming');
 });
@@ -306,6 +312,8 @@ test('a search hit is selected and accepted on its aliases', async () => {
   const out = await provider.resolve(
     parsed('[Onalrie] ReZero kara Hajimeru Isekai Seikatsu - S04E18 [1080p].mkv'), ctx,
   );
-  assert.deepEqual(calls.map((c) => c.path), ['/search', '/series/305089/episodes/default']);
+  assert.deepEqual(calls.map((c) => c.path), [
+    '/search', '/series/305089/episodes/default', '/episodes/1/extended',
+  ]);
   assert.equal(out?.media.kind, 'episode');
 });
