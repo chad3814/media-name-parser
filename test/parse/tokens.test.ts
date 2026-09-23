@@ -109,3 +109,12 @@ test('expandCompound splits a junk pair and leaves everything else alone', () =>
   assert.deepEqual(expandCompound('Wick-Chapter'), ['Wick-Chapter']);
   assert.deepEqual(expandCompound('Outbreak'), ['Outbreak']);
 });
+
+test('a re-release marker is a tag, not the end of the title', () => {
+  // `RERELEASE` classified as nothing, so the backwards junk walk stopped
+  // on it and declared everything to its left the title -- swallowing the
+  // year and the edition with it. Verified against
+  // `Aladdin.1992.WIDESCREEN.2004.RERELEASE.DISC1.NTSC.USA.DVD9`.
+  assert.equal(classifyToken('RERELEASE'), 'edition');
+  assert.equal(isJunk('RERELEASE'), true);
+});

@@ -223,3 +223,12 @@ test('a torrent is stripped like an nzb, being the same kind of metafile', () =>
   assert.equal(result.parsed.year, 2020);
   assert.ok(!/torrent/i.test(result.parsed.title), 'it must not reach the title');
 });
+
+test('a re-released disc keeps its title, its year and its edition', () => {
+  const result = parseVideo('movies', 'Treasure.Island.1999.FULLSCREEN.2003.RERELEASE.NTSC.USA.DVD9-AndreMor');
+  if (!result.ok) throw new Error(`refused: ${result.refusal}`);
+  assert.equal(result.parsed.title, 'Treasure Island');
+  assert.equal(result.parsed.year, 1999, 'the first year, not the re-release year');
+  assert.deepEqual(result.parsed.edition, ['FULLSCREEN', 'RERELEASE']);
+  assert.equal(result.parsed.group, 'AndreMor');
+});

@@ -57,6 +57,20 @@ const EDITION = new Set([
   // From the corpus blocking-token census. 'CUT' and 'AD' only ever apply
   // inside a trailing junk run, so `Ad Astra` and a film called `Cut` are safe.
   'CUT', 'HC', 'CONV', 'AD', 'RERIP',
+  // A re-release carries a second year, and without this the walk stopped
+  // on the word and swallowed the year, the edition and the first year
+  // into the title:
+  // `Treasure.Island.1999.FULLSCREEN.2003.RERELEASE.NTSC.USA.DVD9` parsed
+  // as the title `Treasure Island 1999 FULLSCREEN 2003 RERELEASE` with no
+  // year at all, so no search could have matched it.
+  'RERELEASE', 'REISSUE',
+  // 'COLLECTORS' pairs with the 'EDITION' already above, and became the
+  // next thing to stop the walk once 'RERELEASE' no longer did:
+  // `A.Bugs.Life.1998.FULLSCREEN.Collectors.Edition.2003.RERELEASE...`
+  // reached `Collectors` and settled for the 2003 re-release year over the
+  // 1998 release. Safe for the same reason 'CUT' is: it is only ever read
+  // inside a trailing junk run.
+  'COLLECTORS',
 ]);
 
 const STREAMING = new Set([
