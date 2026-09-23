@@ -1,7 +1,8 @@
 import {
-  boolean, date, index, integer, jsonb, pgEnum, pgTable, primaryKey, real,
+  boolean, check, date, index, integer, jsonb, pgEnum, pgTable, primaryKey, real,
   text, timestamp, uniqueIndex, unique, uuid,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const categoryEnum = pgEnum('category', ['tv', 'movies', 'books', 'xxx']);
 export const mediaKindEnum = pgEnum('media_kind', [
@@ -172,7 +173,7 @@ export const sceneDetails = pgTable('scene_details', {
    * The provider's own site identifier, stored beside the display name.
    *
    * Derivable from `site_name` only by normalising it and hoping it matches a
-   * `provider_sites.short_name`, which is a coincidence rather than a
+   * `sites.short_name`, which is a coincidence rather than a
    * guarantee. It is known exactly at write time, so it is written.
    */
   siteRef: text('site_ref'),
@@ -281,15 +282,86 @@ export const lookupJobs = pgTable('lookup_jobs', {
   index('lookup_jobs_due_idx').on(t.state, t.nextAttemptAt),
 ]);
 
-export const providerSites = pgTable('provider_sites', {
+/**
+ * A site a provider knows: a studio, a network, a channel.
+ *
+ * An entity with an identity of its own, like `people`, rather than an
+ * extension of a media row -- which is why it is `sites` and not
+ * `site_details`, and why it carries a surrogate id rather than keying on
+ * the provider pair. The surrogate is also what lets `sites_versions` be two
+ * columns wide like its siblings.
+ *
+ * The old name, `provider_sites`, read as a sibling of `provider_calls` --
+ * an observability table about requests, and nothing of the kind.
+ */
+export const sites = pgTable('sites', {
+  id: uuid('id').primaryKey().defaultRandom(),
   provider: providerEnum('provider').notNull(),
   providerRef: text('provider_ref').notNull(),
   shortName: text('short_name').notNull(),
   name: text('name').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  primaryKey({ columns: [t.provider, t.providerRef] }),
+  unique('sites_provider_ref_key').on(t.provider, t.providerRef),
   unique('provider_sites_short_name_key').on(t.provider, t.shortName),
+]);
+
+/**
+ * Two rows that are the same thing, seen by different providers.
+ *
+ * `CHECK (a < b)` with the pair as the primary key is what makes a link
+ * storable exactly once. Without it `(x, y)` and `(y, x)` are different rows
+ * saying the same thing, and every reader has to look both ways *and*
+ * dedupe. With it a writer sorts before inserting and a reader asks
+ * `WHERE a = $1 OR b = $1`; the index on `b` keeps that second half from
+ * scanning.
+ *
+ * Pairwise, and so not transitive: three providers on one record would need
+ * all three pairs written. The only cross-provider overlap that exists is
+ * tmdb-tvdb on `tv` -- `xxx` is tpdb alone and `books` is unimplemented --
+ * so that is a limitation to record rather than design around. A third
+ * provider in one category is the signal to revisit, and a group id would
+ * then be the better shape.
+ */
+export const mediaVersions = pgTable('media_versions', {
+  a: uuid('a').notNull().references(() => media.id, { onDelete: 'cascade' }),
+  b: uuid('b').notNull().references(() => media.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.a, t.b] }),
+  index('media_versions_b_idx').on(t.b),
+  check('media_versions_ordered', sql`${t.a} < ${t.b}`),
+]);
+
+/**
+ * Empty for now. Every provider embeds its people fully in a response the
+ * lookup already makes, and every id in those payloads is provider-local,
+ * so there is no link source on the resolve path. Issue #3 scopes the lazy
+ * work that will fill this.
+ */
+export const peopleVersions = pgTable('people_versions', {
+  a: uuid('a').notNull().references(() => people.id, { onDelete: 'cascade' }),
+  b: uuid('b').notNull().references(() => people.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.a, t.b] }),
+  index('people_versions_b_idx').on(t.b),
+  check('people_versions_ordered', sql`${t.a} < ${t.b}`),
+]);
+
+/**
+ * Empty, and necessarily so today: TPDB is the only provider that writes
+ * sites, so a cross-provider pair cannot exist. Created for symmetry with
+ * the other two, against a second site-writing provider.
+ */
+export const sitesVersions = pgTable('sites_versions', {
+  a: uuid('a').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+  b: uuid('b').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.a, t.b] }),
+  index('sites_versions_b_idx').on(t.b),
+  check('sites_versions_ordered', sql`${t.a} < ${t.b}`),
 ]);
 
 export const providerCalls = pgTable('provider_calls', {

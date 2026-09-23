@@ -72,7 +72,7 @@ export async function suggestForScene(
 
 async function siteFor(tx: Tx, site: string): Promise<SuggestedName | null> {
   const result = await tx.execute(sql`
-    SELECT name, provider_ref FROM provider_sites
+    SELECT name, provider_ref FROM sites
      WHERE provider = 'tpdb' AND short_name = ${normalize(site).replaceAll(' ', '')}`);
   const row = result.rows[0];
   if (row === undefined) return null;

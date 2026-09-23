@@ -31,7 +31,7 @@ export interface RememberedSite {
  */
 export async function findSiteId(tx: Tx, shortName: string): Promise<string | null> {
   const result = await tx.execute(sql`
-    SELECT provider_ref FROM provider_sites
+    SELECT provider_ref FROM sites
      WHERE provider = 'tpdb' AND short_name = ${normalizeSiteName(shortName)}`);
   const row = result.rows[0];
   if (row === undefined) return null;
@@ -72,11 +72,11 @@ export async function findSiteId(tx: Tx, shortName: string): Promise<string | nu
 export async function rememberSite(tx: Tx, site: RememberedSite): Promise<void> {
   const shortName = normalizeSiteName(site.shortName);
   await tx.execute(sql`
-    DELETE FROM provider_sites
+    DELETE FROM sites
      WHERE provider = 'tpdb' AND short_name = ${shortName}
        AND provider_ref <> ${site.providerRef}`);
   await tx.execute(sql`
-    INSERT INTO provider_sites (provider, provider_ref, short_name, name)
+    INSERT INTO sites (provider, provider_ref, short_name, name)
     VALUES ('tpdb', ${site.providerRef}, ${shortName}, ${site.name})
     ON CONFLICT (provider, provider_ref) DO UPDATE SET
       short_name = excluded.short_name, name = excluded.name`);

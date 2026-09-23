@@ -96,3 +96,10 @@ test('the provider enum carries every provider the code can name', () => {
   const names: readonly ProviderName[] = ['tmdb', 'ibdb', 'tpdb', 'tvdb'];
   assert.deepEqual([...schema.providerEnum.enumValues].toSorted(), [...names].toSorted());
 });
+
+test('the link tables are exported, and provider_sites is gone', () => {
+  for (const name of ['mediaVersions', 'peopleVersions', 'sitesVersions', 'sites']) {
+    assert.ok(name in schema, `schema is missing ${name}`);
+  }
+  assert.ok(!('providerSites' in schema), 'provider_sites was renamed to sites');
+});

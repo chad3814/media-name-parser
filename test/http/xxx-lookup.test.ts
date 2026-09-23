@@ -43,7 +43,7 @@ const FIXTURE_SCENE = {
 };
 
 /**
- * An in-memory site cache, kept out of `provider_sites` on purpose.
+ * An in-memory site cache, kept out of `sites` on purpose.
  *
  * `dbSiteCache()` -- the default -- commits a real row through this test's
  * own transaction and out the other side, since `Provider.resolve` runs
