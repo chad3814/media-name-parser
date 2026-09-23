@@ -134,6 +134,24 @@ export function foldForMatch(text: string): string {
     .trim();
 }
 
+/**
+ * The same fold with the separators closed up rather than spaced.
+ *
+ * `M*A*S*H` is one word wearing punctuation, not four words: the spaced
+ * fold gives `m a s h`, which a filename spelling it `MASH` never matches.
+ * The same is true of `S.W.A.T.`, and of the gap between `Spider-Man` and
+ * `Spiderman`.
+ *
+ * Used only for deciding whether two titles are *the same string* --
+ * `titleSimilarity` and `matchesExactly`. It is deliberately not what
+ * `foldForMatch` returns: edit distance over the spaced form is what makes
+ * a near miss score like a near miss, and collapsing everything would make
+ * `The Office` and `Theo Ffice` identical to it.
+ */
+export function foldTight(text: string): string {
+  return foldForMatch(text).replace(/ /g, '');
+}
+
 const NON_ALNUM_ASCII = /[^a-z0-9]/g;
 
 /**

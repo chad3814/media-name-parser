@@ -1,6 +1,8 @@
 import type { Category, ParsedVideo } from '../../parse/types';
 import type { Provider, ResolveContext, ResolveOutcome } from '../types';
-import { pickBest, scoreCandidate, titleSimilarity, type Candidate } from '../../resolve/confidence';
+import {
+  pickBest, scoreResolved, titleSimilarity, type Candidate,
+} from '../../resolve/confidence';
 import type { TmdbClient } from './client';
 import {
   tmdbFind, tmdbMovieDetails, tmdbMovieSearch, tmdbSeasonDetails, tmdbTvDetails, tmdbTvSearch,
@@ -166,7 +168,7 @@ async function resolveMovie(
   // result it was chosen on did not carry. A film released here under a
   // different name than the one the filename uses is the movie half of the
   // same problem anime has.
-  const confidence = scoreCandidate(parsed, {
+  const confidence = scoreResolved(parsed, {
     ...movieCandidate(best.item), aliases: aliasesOf(details),
   });
   return { media: normalizeMovie(details), confidence: Math.max(confidence, best.confidence) };
@@ -253,7 +255,7 @@ async function resolveTv(
     // parse for an anime is exactly the case that needs them.
     return {
       media: series,
-      confidence: chosen === null ? 1 : scoreCandidate(parsed, chosen),
+      confidence: chosen === null ? 1 : scoreResolved(parsed, chosen),
     };
   }
 
@@ -292,7 +294,7 @@ async function resolveTv(
   // the season, else the series. `media.kind` says which.
   const confidence = chosen === null
     ? 1
-    : scoreCandidate(parsed, {
+    : scoreResolved(parsed, {
       ...chosen,
       seasonExists,
       episodeExists: parsed.kind === 'episode' ? episode !== undefined : null,
