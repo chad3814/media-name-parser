@@ -1,9 +1,9 @@
-import { splitInput } from './normalize';
+import { splitInput, type SplitInput } from './normalize';
 import { tokenize } from './tokens';
 import { findMarker, type Marker } from './markers';
 import { findBoundary, findTitleRegion } from './boundary';
 import { extractQuality, collect, titleFrom } from './extract';
-import { extractExternalId } from './ids';
+import { extractExternalId, extractLeadingGroup, type ExternalId } from './ids';
 import { parseScene } from './scene';
 import type { Category, ParseHints, ParseResult, Quality } from './types';
 
@@ -97,10 +97,41 @@ export function parseVideo(category: Category, input: string): ParseResult {
   // -- and the stem is the only thing stripped, so `normalizeKey` keeps the
   // token and two ids never share a cache key.
   const named = extractExternalId(split.stem);
-  const stem = named === null ? split.stem : named.rest;
+  const withoutId = named === null ? split.stem : named.rest;
   const externalId = named === null ? {} : { externalId: named.id };
-  const cleaned = named === null ? split : { ...split, stem };
 
+  // The anime convention: the fansub group leads, in brackets, parens or
+  // braces. Lifted after the id, never before -- `{tmdb-603}` is
+  // brace-delimited too, and reading it as a group would discard an
+  // assertion about which record this is. The tokenizer cannot do this job
+  // because it treats all three delimiters as separators, by design.
+  //
+  // Not for `xxx`, where the same brackets hold something else entirely. A
+  // scene release writes its *studio* there -- `[PureTaboo.com] 2020-04-01 -
+  // Kenzie Reeves...` -- and `parseScene` reads that as the site, which is
+  // the strongest signal it has: `site_id` plus a date is very nearly a
+  // primary key on TPDB. Fifteen corpus names take this shape, and treating
+  // their brackets as a release group emptied the site on one outright.
+  const lead = category === 'xxx' ? null : extractLeadingGroup(withoutId);
+  const stem = lead === null ? withoutId : lead.rest;
+  const cleaned = stem === split.stem ? split : { ...split, stem };
+  const result = parseFrom(category, cleaned, stem, externalId);
+
+  // Only where nothing else claimed the group. Both a leading bracket and a
+  // trailing `-GRP` is rare and genuinely ambiguous, and preferring the
+  // reading that already works means this cannot regress a name that parses
+  // correctly today. Where it does apply the group was previously lost
+  // outright, so recovering it is strictly more than was there before.
+  if (lead === null || !result.ok || result.parsed.group !== null) return result;
+  return { ok: true, parsed: { ...result.parsed, group: lead.group } };
+}
+
+function parseFrom(
+  category: Category,
+  cleaned: SplitInput,
+  stem: string,
+  externalId: { readonly externalId?: ExternalId },
+): ParseResult {
   if (category === 'xxx') return parseScene(cleaned, externalId);
 
   const marker = findMarker(stem);
@@ -124,7 +155,7 @@ export function parseVideo(category: Category, input: string): ParseResult {
   const headJunkTokens = wholeName?.junkTokens ?? headRegion?.junkTokens ?? [];
   const headYear = wholeName?.year ?? headRegion?.year ?? null;
 
-  const dirs = readDirectories(split.ancestors);
+  const dirs = readDirectories(cleaned.ancestors);
 
   // The basename's own title, or the directory's when the basename has none.
   // A stem with no letters is not a title: `Movies/Interstellar (2014)/00136.m2ts`

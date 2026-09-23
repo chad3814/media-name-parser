@@ -9,6 +9,7 @@ import { resolveLookup } from '../../lib/resolve/pipeline';
 import { createTmdbClient } from '../../lib/providers/tmdb/client';
 import { createTmdbProvider } from '../../lib/providers/tmdb/resolve';
 import { fixtureFetch } from '../support/tmdb-fixtures';
+import { PARSER_VERSION } from '../../lib/parse/markers';
 
 const hasDb = (process.env.DATABASE_URL ?? '').length > 0;
 const opts = hasDb ? {} : { skip: 'DATABASE_URL is not set' };
@@ -20,7 +21,7 @@ async function pendingLookup(name: string): Promise<string> {
   return withTransaction(async (tx) => {
     await tx.execute(sql`
       INSERT INTO parses (category, normalized_key, tokens, parser_version)
-      VALUES ('movies', ${name.toLowerCase()}, '{}'::jsonb, 1)
+      VALUES ('movies', ${name.toLowerCase()}, '{}'::jsonb, ${PARSER_VERSION})
       ON CONFLICT (category, normalized_key) DO NOTHING`);
     const row = await tx.execute(sql`
       INSERT INTO lookups (category, name, normalized_key, state, last_attempt_at)
@@ -46,7 +47,7 @@ async function pendingScene(name: string): Promise<string> {
   return withTransaction(async (tx) => {
     await tx.execute(sql`
       INSERT INTO parses (category, normalized_key, tokens, parser_version)
-      VALUES ('xxx', ${key}, '{}'::jsonb, 1)
+      VALUES ('xxx', ${key}, '{}'::jsonb, ${PARSER_VERSION})
       ON CONFLICT (category, normalized_key) DO NOTHING`);
     const row = await tx.execute(sql`
       INSERT INTO lookups (category, name, normalized_key, state, last_attempt_at)
@@ -301,7 +302,7 @@ test('a sweep does not re-resolve a lookup that is already resolved', opts, asyn
     const mediaId = String(mediaRow.rows[0]?.id);
     await tx.execute(sql`
       INSERT INTO parses (category, normalized_key, tokens, parser_version)
-      VALUES ('movies', ${name.toLowerCase()}, '{}'::jsonb, 1)
+      VALUES ('movies', ${name.toLowerCase()}, '{}'::jsonb, ${PARSER_VERSION})
       ON CONFLICT (category, normalized_key) DO NOTHING`);
     const row = await tx.execute(sql`
       INSERT INTO lookups (category, name, normalized_key, media_id, confidence, state,
