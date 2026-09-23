@@ -1,6 +1,56 @@
-import type { JsonValue, ResolvedMedia } from '../types';
+import type { JsonValue, PersonRole, ResolvedMedia, ResolvedPerson } from '../types';
 import { sortTitleOf } from '../tmdb/normalize';
-import type { TvdbEpisode, TvdbSeries } from './schema';
+import type { TvdbCharacter, TvdbEpisode, TvdbSeries } from './schema';
+
+/**
+ * TheTVDB's `peopleType` onto the shared roles, mirroring `CREW_ROLES` in
+ * the tmdb normaliser. Sampled live across four series: Actor, Guest Star,
+ * Writer and Director are what actually appear. Producer is listed against
+ * the day it does -- the vocabulary is open -- and anything unrecognised is
+ * skipped rather than guessed at, as the tmdb path skips an unmapped job.
+ */
+const PEOPLE_TYPES: Readonly<Record<string, PersonRole>> = {
+  Actor: 'performer',
+  'Guest Star': 'performer',
+  Writer: 'writer',
+  Director: 'director',
+  Producer: 'producer',
+  'Executive Producer': 'producer',
+};
+
+/** Top-billed only, the same cap the tmdb path applies for the same reason. */
+const CAST_LIMIT = 15;
+
+/**
+ * Credits in the order a consumer wants them: performers by billing, then
+ * crew.
+ *
+ * Only episodes get these. `normalizeSeries` and `normalizeSeason` leave
+ * `people` empty because the tmdb normaliser does the same -- there, only a
+ * movie and an episode are credited -- and matching that is both the point
+ * and what keeps this to a single extra call.
+ */
+function peopleFrom(characters: readonly TvdbCharacter[]): readonly ResolvedPerson[] {
+  const performers: ResolvedPerson[] = [];
+  const crew: ResolvedPerson[] = [];
+  for (const character of characters) {
+    const role = PEOPLE_TYPES[character.peopleType ?? ''];
+    if (role === undefined) continue;
+    const isPerformer = role === 'performer';
+    (isPerformer ? performers : crew).push({
+      // The person, never `character.id`: see `characterSchema`. Namespaced
+      // like the tmdb refs so two catalogues cannot collide on a bare id.
+      providerRef: `tvdb:person:${character.peopleId}`,
+      name: character.personName,
+      role,
+      characterName: isPerformer ? textOrNull(character.name) : null,
+      billingOrder: isPerformer ? character.sort ?? null : null,
+      raw: character as unknown as JsonValue,
+    });
+  }
+  performers.sort((a, b) => (a.billingOrder ?? 999) - (b.billingOrder ?? 999));
+  return [...performers.slice(0, CAST_LIMIT), ...crew];
+}
 
 function textOrNull(value: string | null | undefined): string | null {
   return value === null || value === undefined || value.length === 0 ? null : value;
@@ -125,7 +175,7 @@ export function normalizeEpisode(season: ResolvedMedia, episode: TvdbEpisode): R
       },
       scene: null,
     },
-    people: [],
+    people: peopleFrom(episode.characters),
     parent: season,
   };
 }
