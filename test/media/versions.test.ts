@@ -2,7 +2,7 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { sql } from 'drizzle-orm';
 import { withTransaction, closeDb, type Tx } from '../../lib/db/client';
-import { linkVersions, versionsOf } from '../../lib/media/versions';
+import { linkVersions, seriesVersionCandidates, versionsOf } from '../../lib/media/versions';
 
 const hasDb = (process.env.DATABASE_URL ?? '').length > 0;
 const opts = hasDb ? {} : { skip: 'DATABASE_URL is not set' };
@@ -68,5 +68,50 @@ test('a row is not a version of itself', opts, async () => {
 test('an unlinked row has no versions', opts, async () => {
   await inRollback(async (tx) => {
     assert.deepEqual(await versionsOf(tx, await media(tx, 'tmdb')), []);
+  });
+});
+
+test('two shows with one title are not cross-linked', opts, async () => {
+  // The Office (US, 2005) and The Office (UK, 2001) are both held by both
+  // providers. Matching on title alone yields n*m pairs -- four here, two
+  // of them joining a US row to a UK one.
+  await inRollback(async (tx) => {
+    const ids: Record<string, string> = {};
+    for (const [key, provider, year] of [
+      ['usTmdb', 'tmdb', 2005], ['usTvdb', 'tvdb', 2005],
+      ['ukTmdb', 'tmdb', 2001], ['ukTvdb', 'tvdb', 2001],
+    ] as const) {
+      const r = await tx.execute(sql`
+        INSERT INTO media (category, kind, title, sort_title, year, provider, provider_ref, raw, raw_fetched_at)
+        VALUES ('tv','series','The Office','office', ${year}, ${provider}::provider,
+                ${`${key}-${crypto.randomUUID()}`}, '{}'::jsonb, now())
+        RETURNING id`);
+      ids[key] = String(r.rows[0]?.id);
+    }
+    const pairs = await seriesVersionCandidates(tx);
+    const found = pairs.map((p) => [p.aId, p.bId].sort().join('|')).sort();
+    const want = [
+      [ids.usTmdb ?? '', ids.usTvdb ?? ''].sort().join('|'),
+      [ids.ukTmdb ?? '', ids.ukTvdb ?? ''].sort().join('|'),
+    ].sort();
+    assert.deepEqual(found, want, 'the US pair and the UK pair, and nothing crossing them');
+  });
+});
+
+test('a candidate carries what a human needs to judge it', opts, async () => {
+  // The whole safeguard on this heuristic is a person reading the list. A
+  // line that prints only the title cannot be judged when the ambiguity IS
+  // the title.
+  await inRollback(async (tx) => {
+    for (const provider of ['tmdb', 'tvdb'] as const) {
+      await tx.execute(sql`
+        INSERT INTO media (category, kind, title, sort_title, year, release_date, provider, provider_ref, raw, raw_fetched_at)
+        VALUES ('tv','series','Judged','judged', 1999, '1999-03-31', ${provider}::provider,
+                ${`j-${provider}-${crypto.randomUUID()}`}, '{}'::jsonb, now())`);
+    }
+    const pair = (await seriesVersionCandidates(tx)).find((p) => p.title === 'Judged');
+    assert.ok(pair !== undefined);
+    assert.equal(pair.year, 1999, 'the year is what separates two shows of one name');
+    assert.ok(pair.aId.length > 0 && pair.bId.length > 0, 'and the ids identify the rows');
   });
 });

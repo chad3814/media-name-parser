@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { versionIdsSql } from './versions';
 import type { Tx } from '../db/client';
 import type { MediaKind, PersonRole, ProviderName } from '../providers/types';
 
@@ -54,8 +55,9 @@ function node(row: Readonly<Record<string, unknown>>): MediaNode {
 /**
  * A media row with its ancestors and people.
  *
- * Three queries regardless of depth: one recursive CTE for the row and its
- * parent chain, one for the detail tables, one for the people. Walking
+ * Four queries regardless of depth: one recursive CTE for the row and its
+ * parent chain, one for the detail tables, one for the people, and one for
+ * the versions. Walking
  * `parent_id` in application code would be a round trip per level, which for
  * an episode is three -- and the recursive form is no harder to read.
  */
@@ -105,10 +107,9 @@ export async function readMediaTree(tx: Tx, mediaId: string): Promise<MediaView 
   // either side.
   const versions = await tx.execute(sql`
     SELECT m.id, m.kind, m.title, m.release_date, m.year, m.provider, m.provider_ref
-      FROM media_versions v
-      JOIN media m ON m.id = CASE WHEN v.a = ${mediaId}::uuid THEN v.b ELSE v.a END
-     WHERE v.a = ${mediaId}::uuid OR v.b = ${mediaId}::uuid
-     ORDER BY m.provider`);
+      FROM media m
+     WHERE m.id IN (${versionIdsSql(mediaId)})
+     ORDER BY m.provider, m.provider_ref`);
 
   const detailRow = details.rows[0] ?? {};
   // The subquery aliases above are named after `kind` exactly, so this is a
