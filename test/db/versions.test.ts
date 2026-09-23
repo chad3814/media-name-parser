@@ -21,6 +21,18 @@ async function twoMedia(tx: Tx): Promise<readonly [string, string]> {
   return [ids[0] ?? '', ids[1] ?? ''];
 }
 
+/**
+ * Every assertion runs inside a transaction that is then rolled back, as
+ * the persist and read suites do. Committing fixtures would leave rows
+ * behind for the backfill -- and every other query -- to trip over.
+ */
+async function inRollback(fn: (tx: Tx) => Promise<void>): Promise<void> {
+  await assert.rejects(withTransaction(async (tx) => {
+    await fn(tx);
+    throw new Error('__rollback__');
+  }), /__rollback__/);
+}
+
 test('a mirrored pair is refused, so one fact is one row', opts, async () => {
   // Without the CHECK, (x,y) and (y,x) are two rows saying the same thing
   // and every reader has to look both ways *and* dedupe.
@@ -41,19 +53,18 @@ test('a mirrored pair is refused, so one fact is one row', opts, async () => {
 });
 
 test('a media row takes its links with it', opts, async () => {
-  await withTransaction(async (tx) => {
+  await inRollback(async (tx) => {
     const [a, b] = await twoMedia(tx);
     await tx.execute(sql`INSERT INTO media_versions (a, b) VALUES (${a}::uuid, ${b}::uuid)`);
     await tx.execute(sql`DELETE FROM media WHERE id = ${a}::uuid`);
     const left = await tx.execute(sql`
       SELECT count(*)::int AS n FROM media_versions WHERE a = ${a}::uuid OR b = ${a}::uuid`);
     assert.equal(left.rows[0]?.n, 0, 'a dangling pair would outlive the row it describes');
-    await tx.execute(sql`DELETE FROM media WHERE id = ${b}::uuid`);
   });
 });
 
 test('people_versions and sites_versions exist and start empty', opts, async () => {
-  await withTransaction(async (tx) => {
+  await inRollback(async (tx) => {
     const people = await tx.execute(sql`SELECT count(*)::int AS n FROM people_versions`);
     assert.equal(people.rows[0]?.n, 0);
     const sites = await tx.execute(sql`SELECT count(*)::int AS n FROM sites_versions`);
@@ -62,7 +73,7 @@ test('people_versions and sites_versions exist and start empty', opts, async () 
 });
 
 test('sites holds what provider_sites held, under a surrogate id', opts, async () => {
-  await withTransaction(async (tx) => {
+  await inRollback(async (tx) => {
     const r = await tx.execute(sql`
       SELECT count(*)::int AS n, count(id)::int AS with_id FROM sites`);
     assert.equal(r.rows[0]?.n, r.rows[0]?.with_id, 'every row has an id');

@@ -20,8 +20,20 @@ async function media(tx: Tx, provider: 'tmdb' | 'tvdb'): Promise<string> {
   return String(r.rows[0]?.id);
 }
 
+/**
+ * Every assertion runs inside a transaction that is then rolled back, as
+ * the persist and read suites do. Committing fixtures would leave rows
+ * behind for the backfill -- and every other query -- to trip over.
+ */
+async function inRollback(fn: (tx: Tx) => Promise<void>): Promise<void> {
+  await assert.rejects(withTransaction(async (tx) => {
+    await fn(tx);
+    throw new Error('__rollback__');
+  }), /__rollback__/);
+}
+
 test('a pair is written once and found from both sides', opts, async () => {
-  await withTransaction(async (tx) => {
+  await inRollback(async (tx) => {
     const x = await media(tx, 'tmdb');
     const y = await media(tx, 'tvdb');
     assert.equal(await linkVersions(tx, x, y), true);
@@ -33,7 +45,7 @@ test('a pair is written once and found from both sides', opts, async () => {
 test('the same pair offered again, in either order, writes nothing', opts, async () => {
   // The resolve path re-offers a link on every stale lookup, so this
   // happens constantly and must be silent rather than an error.
-  await withTransaction(async (tx) => {
+  await inRollback(async (tx) => {
     const x = await media(tx, 'tmdb');
     const y = await media(tx, 'tvdb');
     assert.equal(await linkVersions(tx, x, y), true);
@@ -46,7 +58,7 @@ test('the same pair offered again, in either order, writes nothing', opts, async
 });
 
 test('a row is not a version of itself', opts, async () => {
-  await withTransaction(async (tx) => {
+  await inRollback(async (tx) => {
     const x = await media(tx, 'tmdb');
     assert.equal(await linkVersions(tx, x, x), false, 'no row, and no constraint violation');
     assert.deepEqual(await versionsOf(tx, x), []);
@@ -54,7 +66,7 @@ test('a row is not a version of itself', opts, async () => {
 });
 
 test('an unlinked row has no versions', opts, async () => {
-  await withTransaction(async (tx) => {
+  await inRollback(async (tx) => {
     assert.deepEqual(await versionsOf(tx, await media(tx, 'tmdb')), []);
   });
 });
