@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { Tx } from '../db/client';
+import { linkVersions } from '../media/versions';
 import { rememberExternalIds } from '../media/externalIds';
 import type {
   ProviderCallRecord, ProviderName, ResolvedMedia, ResolvedPerson,
@@ -49,9 +50,31 @@ export async function persistResolved(tx: Tx, resolved: ResolvedMedia): Promise<
     throw new Error(`media upsert returned no id for ${resolved.providerRef}`);
   }
 
+  await linkCounterpart(tx, mediaId, resolved);
   await persistDetails(tx, mediaId, resolved);
   await persistPeople(tx, mediaId, resolved.provider, resolved.people);
   return mediaId;
+}
+
+/**
+ * Records the pair when the resolution named another provider's record for
+ * the same thing and that record is stored.
+ *
+ * Silent when it is not, which is the ordinary case on a first fallback:
+ * the primary's chain is discarded unpersisted, so there is nothing yet to
+ * link to. The next lookup that resolves the other provider, or the
+ * backfill, closes it. A link that cannot be written is not an error, it is
+ * a fact not yet known.
+ */
+async function linkCounterpart(tx: Tx, mediaId: string, resolved: ResolvedMedia): Promise<void> {
+  const other = resolved.sameAs;
+  if (other === undefined) return;
+  const found = await tx.execute(sql`
+    SELECT id FROM media
+     WHERE provider = ${other.provider}::provider AND provider_ref = ${other.providerRef}`);
+  const counterpart = found.rows[0]?.id;
+  if (typeof counterpart !== 'string') return;
+  await linkVersions(tx, mediaId, counterpart);
 }
 
 async function persistDetails(tx: Tx, mediaId: string, resolved: ResolvedMedia): Promise<void> {
