@@ -79,6 +79,15 @@ export interface ResolvedMedia {
    * any of them be answered without a call.
    */
   readonly externalIds: readonly ExternalId[];
+  /**
+   * Another provider's record for this same thing, when the resolution knew
+   * of one. `persistResolved` turns it into a `media_versions` pair if that
+   * row is stored, and does nothing if it is not.
+   *
+   * Optional so a resolution that knows of no counterpart says nothing
+   * rather than something empty.
+   */
+  readonly sameAs?: { readonly provider: ProviderName; readonly providerRef: string };
   readonly parent: ResolvedMedia | null;
 }
 

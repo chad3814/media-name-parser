@@ -143,3 +143,12 @@ test('the spec route serves JSON and needs no credential', async () => {
   assert.equal(body.openapi, '3.1.0');
   assert.ok('paths' in body);
 });
+
+test('the media schema documents versions', () => {
+  const media = obj(obj(obj(spec.components).schemas).Media);
+  assert.ok('versions' in obj(media.properties), 'versions is part of the documented shape');
+  assert.ok(
+    (media.required as readonly string[]).includes('versions'),
+    'always present, empty when none is known',
+  );
+});

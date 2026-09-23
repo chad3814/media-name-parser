@@ -64,6 +64,37 @@ function handoverFrom(media: ResolvedMedia | null): Handover | undefined {
   return undefined;
 }
 
+/** The series node of a chain, or null when it has none. */
+function seriesOf(media: ResolvedMedia): ResolvedMedia | null {
+  for (let node: ResolvedMedia | null = media; node !== null; node = node.parent) {
+    if (node.kind === 'series') return node;
+  }
+  return null;
+}
+
+/**
+ * The same chain with its series pointed at the primary's series.
+ *
+ * On the series, never the episode: the handover established that two
+ * *series* are the same and says nothing about whether the primary has the
+ * episode -- which is usually the reason the fallback ran at all.
+ *
+ * Rebuilt rather than mutated. `ResolvedMedia` is readonly throughout, and
+ * the parent chain is shared structure a caller may be holding elsewhere.
+ */
+function withSameAs(media: ResolvedMedia, primaryMedia: ResolvedMedia): ResolvedMedia {
+  const counterpart = seriesOf(primaryMedia);
+  if (counterpart === null) return media;
+  if (media.kind === 'series') {
+    return {
+      ...media,
+      sameAs: { provider: counterpart.provider, providerRef: counterpart.providerRef },
+    };
+  }
+  if (media.parent === null) return media;
+  return { ...media, parent: withSameAs(media.parent, primaryMedia) };
+}
+
 /**
  * A provider that leads with `primary` and asks `secondary` only when the
  * first fell short.
@@ -102,7 +133,11 @@ export function createFallbackProvider(primary: Provider, secondary: Provider | 
         // `?? first`, not a bare return: the fallback may only improve an
         // answer. A secondary that knows nothing must not turn the primary's
         // shallow answer into no answer at all.
-        return (await secondary.resolve(parsed, handover)) ?? first;
+        const answered = await secondary.resolve(parsed, handover);
+        if (answered === null || first === null || inherited === undefined) {
+          return answered ?? first;
+        }
+        return { ...answered, media: withSameAs(answered.media, first.media) };
       } catch (error) {
         // Swallowed deliberately. A fallback that is down is not an outage of
         // the thing it backs up: propagating here would turn every tv lookup

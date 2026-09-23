@@ -50,7 +50,7 @@ test('windows fold punctuation, because a filename spells names with dots', () =
 test('a known site and a known performer are both offered', opts, async () => {
   await inRollback(async (tx) => {
     await tx.execute(sql`
-      INSERT INTO provider_sites (provider, provider_ref, short_name, name)
+      INSERT INTO sites (provider, provider_ref, short_name, name)
       VALUES ('tpdb', '999001', 'suggestsite', 'Suggest Site')`);
     await tx.execute(sql`
       INSERT INTO people (provider, provider_ref, name, sort_name, raw, raw_fetched_at)

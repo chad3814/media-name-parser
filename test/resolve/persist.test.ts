@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { sql } from 'drizzle-orm';
 import { withTransaction, closeDb, type Tx } from '../../lib/db/client';
 import { persistResolved } from '../../lib/resolve/persist';
+import { versionsOf } from '../../lib/media/versions';
 import type { ResolvedMedia } from '../../lib/providers/types';
 
 const hasDb = (process.env.DATABASE_URL ?? '').length > 0;
@@ -189,5 +190,53 @@ test('a scene writes scene_details, its performers, and no parent', opts, async 
            + (SELECT count(*)::int FROM season_details WHERE media_id = ${id}::uuid)
            + (SELECT count(*)::int FROM episode_details WHERE media_id = ${id}::uuid) AS n`);
     assert.equal(strays.rows[0]?.n, 0, 'the detail row lands only in the table matching the kind');
+  });
+});
+
+/** The SERIES fixture under another provider, with the overrides given. */
+function counterpart(over: Partial<ResolvedMedia>): ResolvedMedia {
+  return { ...SERIES, provider: 'tvdb', ...over };
+}
+
+test('a sameAs naming a stored row records the pair', opts, async () => {
+  await inRollback(async (tx) => {
+    const primaryId = await persistResolved(tx, SERIES);
+    const fallbackId = await persistResolved(tx, counterpart({
+      providerRef: 'tvdb-1', sameAs: { provider: 'tmdb', providerRef: 'tmdb:tv:t1' },
+    }));
+    assert.deepEqual(await versionsOf(tx, fallbackId), [primaryId]);
+    assert.deepEqual(await versionsOf(tx, primaryId), [fallbackId], 'and from the far side');
+  });
+});
+
+test('a sameAs naming a row that is not stored is not an error', opts, async () => {
+  // The ordinary case on a first fallback: the primary's chain was
+  // discarded unpersisted, so there is nothing yet to link to.
+  await inRollback(async (tx) => {
+    const id = await persistResolved(tx, counterpart({
+      providerRef: 'tvdb-2', sameAs: { provider: 'tmdb', providerRef: 'tmdb:tv:absent' },
+    }));
+    assert.deepEqual(await versionsOf(tx, id), [], 'no pair, and no throw');
+  });
+});
+
+test('a sameAs naming the row being written records nothing', opts, async () => {
+  await inRollback(async (tx) => {
+    const id = await persistResolved(tx, counterpart({
+      providerRef: 'tvdb-3', sameAs: { provider: 'tvdb', providerRef: 'tvdb-3' },
+    }));
+    assert.deepEqual(await versionsOf(tx, id), []);
+  });
+});
+
+test('resolving the same name twice leaves one pair', opts, async () => {
+  await inRollback(async (tx) => {
+    await persistResolved(tx, SERIES);
+    const again = counterpart({
+      providerRef: 'tvdb-4', sameAs: { provider: 'tmdb', providerRef: 'tmdb:tv:t1' },
+    });
+    const id = await persistResolved(tx, again);
+    await persistResolved(tx, again);
+    assert.equal((await versionsOf(tx, id)).length, 1, 'idempotent across re-resolution');
   });
 });

@@ -93,9 +93,14 @@ const mediaSchema: JsonSchema = {
       description: "Nearest first: an episode's parents are its season, then its series.",
       items: { type: 'object', properties: nodeProperties, required: nodeRequired },
     },
+    versions: {
+      type: 'array',
+      description: 'The same record as held by another provider. Empty when none is known.',
+      items: { type: 'object', properties: nodeProperties, required: nodeRequired },
+    },
     people: { type: 'array', items: personSchema },
   },
-  required: [...nodeRequired, 'overview', 'details', 'parents', 'people'],
+  required: [...nodeRequired, 'overview', 'details', 'parents', 'versions', 'people'],
 };
 
 const nameProperties: JsonSchema = {
