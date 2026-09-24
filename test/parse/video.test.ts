@@ -232,3 +232,12 @@ test('a re-released disc keeps its title, its year and its edition', () => {
   assert.deepEqual(result.parsed.edition, ['FULLSCREEN', 'RERELEASE']);
   assert.equal(result.parsed.group, 'AndreMor');
 });
+
+test('an open matte transfer keeps its title and its year', () => {
+  const result = parseVideo('movies', 'Romeo.Must.Die.2000.Open.Matte.1080p.WEB-DL.HEVC.x265.5.1-BONE');
+  if (!result.ok) throw new Error(`refused: ${result.refusal}`);
+  assert.equal(result.parsed.title, 'Romeo Must Die');
+  assert.equal(result.parsed.year, 2000);
+  assert.deepEqual(result.parsed.edition, ['OpenMatte']);
+  assert.equal(result.parsed.group, 'BONE');
+});

@@ -118,3 +118,24 @@ test('a re-release marker is a tag, not the end of the title', () => {
   assert.equal(classifyToken('RERELEASE'), 'edition');
   assert.equal(isJunk('RERELEASE'), true);
 });
+
+test('an open matte transfer is a tag, not the end of the title', () => {
+  // The same shape as `RERELEASE` above: neither word classified as
+  // anything, so the backwards junk walk stopped on `Matte` and kept the
+  // year in the title. Verified against
+  // `Romeo.Must.Die.2000.Open.Matte.1080p.WEB-DL.HEVC.x265.5.1-BONE`.
+  assert.deepEqual(tokenize('Romeo.Must.Die.2000.Open.Matte.1080p'),
+    ['Romeo', 'Must', 'Die', '2000', 'OpenMatte', '1080p']);
+  assert.equal(classifyToken('OpenMatte'), 'edition');
+});
+
+test('open is only junk once it is fused to matte', () => {
+  // `isJunk` is read over the whole name, not just its trailing run, so an
+  // ordinary word in the vocabulary changes parses far from itself:
+  // `...Her.Ass.Is.Open.For.Business.08.18.2024` started reading its `2024`
+  // as a release group.
+  assert.equal(classifyToken('OPEN'), null);
+  assert.equal(classifyToken('MATTE'), null);
+  assert.deepEqual(tokenize('Her.Ass.Is.Open.For.Business'),
+    ['Her', 'Ass', 'Is', 'Open', 'For', 'Business']);
+});

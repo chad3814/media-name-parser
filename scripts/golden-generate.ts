@@ -33,6 +33,9 @@ const PINNED: readonly (readonly [Category, string])[] = [
   // And once it did not, `Collectors` was the next word to stop the walk,
   // which settled for the 2003 re-release year over the 1998 release.
   ['movies', 'A.Bugs.Life.1998.FULLSCREEN.Collectors.Edition.2003.RERELEASE.DISC1.NTSC.USA.DVD9-AndreMor.nzb'],
+  // `Open` and `Matte` were the same shape: neither classified, so the
+  // walk stopped on `Matte` and the year stayed in the title.
+  ['movies', 'Romeo.Must.Die.2000.Open.Matte.1080p.WEB-DL.HEVC.x265.5.1-BONE'],
   ['movies', 'Movies/Interstellar (2014)/00136.m2ts'],
   ['movies', 'Movies/Up (2009)/Up.2009.COMPLETE.UHD.BLURAY-AViATOR.iso'],
   ['tv', 'Red River S01E08 1080p CR WEB-DL AAC2.0 H.264-OldT.nzb'],
