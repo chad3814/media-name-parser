@@ -59,6 +59,23 @@ export function findTitleRegion(tokens: readonly string[]): TitleRegion {
   return { titleTokens: tokens.slice(0, end), junkTokens: tokens.slice(end), year };
 }
 
+/**
+ * The index of the group anchor reachable from `from` by crossing only bare
+ * non-vocabulary tokens, or null if a junk token, a year, or the start of the
+ * name comes first. An anchor is a junk-headed hyphenated token such as
+ * `MULTi-Ben` or `5.1-UnKn0wn`, which is what proves a group name begins
+ * there rather than a title word ending.
+ */
+function groupAnchorLeftOf(tokens: readonly string[], from: number): number | null {
+  for (let k = from; k >= 0; k -= 1) {
+    const token = tokens[k];
+    if (token === undefined) return null;
+    if (splitGroupSuffix(token) !== null) return k;
+    if (isJunk(token) || asYear(token) !== null) return null;
+  }
+  return null;
+}
+
 export function findBoundary(tokens: readonly string[]): Boundary {
   const candidates: Candidate[] = [];
   let cut = tokens.length;
@@ -124,6 +141,18 @@ export function findBoundary(tokens: readonly string[]): Boundary {
     if (candidateYear !== null) {
       // Leftmost year in the junk run wins, so keep overwriting.
       year = candidateYear;
+      continue;
+    }
+    // A group name can be several bare words -- `MULTi-Ben.The.Men`. The
+    // append loop below already knows how to reassemble one, but only from
+    // an anchor it was given, and the walk stopped here before reaching it:
+    // `The.Informer.2019.1080p.BluRay.REMUX.MULTi-Ben.The.Men` broke on the
+    // bare `The`, one token short of `MULTi-Ben`, and kept the year and
+    // every tag after it in the title. Step over the bare words when an
+    // anchor lies behind them, and stop where they are only a title.
+    const anchor = groupAnchorLeftOf(tokens, i);
+    if (anchor !== null) {
+      i = anchor + 1;
       continue;
     }
     break;

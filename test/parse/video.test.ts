@@ -232,3 +232,11 @@ test('a re-released disc keeps its title, its year and its edition', () => {
   assert.deepEqual(result.parsed.edition, ['FULLSCREEN', 'RERELEASE']);
   assert.equal(result.parsed.group, 'AndreMor');
 });
+
+test('a release group named in several words keeps the title and the year', () => {
+  const result = parseVideo('movies', 'The.Informer.2019.1080p.BluRay.REMUX.MULTi-Ben.The.Men');
+  if (!result.ok) throw new Error(`refused: ${result.refusal}`);
+  assert.equal(result.parsed.title, 'The Informer');
+  assert.equal(result.parsed.year, 2019);
+  assert.equal(result.parsed.group, 'Ben.The.Men');
+});
