@@ -71,6 +71,23 @@ const EDITION = new Set([
   // 1998 release. Safe for the same reason 'CUT' is: it is only ever read
   // inside a trailing junk run.
   'COLLECTORS',
+  // An open matte transfer shows more of the frame than the theatrical
+  // crop -- the same kind of tag as the 'FULLSCREEN' and 'IMAX' above, and
+  // it stopped the walk the same way 'RERELEASE' did:
+  // `Romeo.Must.Die.2000.Open.Matte.1080p.WEB-DL.HEVC.x265.5.1-BONE`
+  // parsed as `Romeo Must Die 2000 Open Matte` with no year.
+  //
+  // Only the fused form is vocabulary. Listing 'OPEN' and 'MATTE'
+  // separately also works, and is what 'DIRECTORS'/'CUT' do, but 'OPEN' is
+  // an ordinary word and the reason those are safe does not extend to it:
+  // `isJunk` is not consulted only inside the trailing run. `findBoundary`
+  // asks whether any token is vocabulary to decide the name is a release
+  // at all, so one ordinary word turning junk anywhere in a title changes
+  // what happens at its end. It did:
+  // `PrivateSociety.com.Mercedes.Her.Ass.Is.Open.For.Business.08.18.2024`
+  // began reading its trailing `2024` as a release group and lost the
+  // year. `tokenize` fuses the adjacent pair instead.
+  'OPENMATTE',
 ]);
 
 const STREAMING = new Set([
@@ -287,5 +304,21 @@ export function tokenize(text: string): readonly string[] {
     if (part !== undefined) merged.push(part);
   }
 
-  return merged;
+  // Pass 4: fuse `Open` + `Matte` into one token. `OPEN` cannot be
+  // vocabulary on its own -- see the note beside 'OPENMATTE' above -- so the
+  // tag only exists once its two halves are joined.
+  const fused: string[] = [];
+  for (let i = 0; i < merged.length; i += 1) {
+    const part = merged[i];
+    const next = merged[i + 1];
+    if (part !== undefined && next !== undefined
+        && part.toUpperCase() === 'OPEN' && next.toUpperCase() === 'MATTE') {
+      fused.push(`${part}${next}`);
+      i += 1;
+      continue;
+    }
+    if (part !== undefined) fused.push(part);
+  }
+
+  return fused;
 }
