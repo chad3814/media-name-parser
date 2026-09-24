@@ -136,3 +136,21 @@ test('a trailing year is a year, never a group', () => {
     assert.ok(result.parsed.year !== null, `${name} should surface its year`);
   }
 });
+
+test('a group name of several words does not stop the walk short', () => {
+  // `MULTi-Ben` is the anchor that proves a group starts there, but the
+  // walk broke on the bare `The` one token to its right and never saw it,
+  // so the title kept the year and every tag after it.
+  const got = boundaryOf('The.Informer.2019.1080p.BluRay.REMUX.MULTi-Ben.The.Men');
+  assert.deepEqual(got.titleTokens, ['The', 'Informer']);
+  assert.equal(got.year, 2019);
+  assert.equal(got.group, 'Ben.The.Men');
+});
+
+test('a bare multi-word title with no group anchor still keeps all its words', () => {
+  // The rule above must not turn every trailing word into a group: with no
+  // anchor to reach, the walk stops where it always did.
+  const got = boundaryOf('The.Dark.Knight.Rises');
+  assert.deepEqual(got.titleTokens, ['The', 'Dark', 'Knight', 'Rises']);
+  assert.equal(got.group, null);
+});

@@ -36,6 +36,16 @@ const PINNED: readonly (readonly [Category, string])[] = [
   // `Open` and `Matte` were the same shape: neither classified, so the
   // walk stopped on `Matte` and the year stayed in the title.
   ['movies', 'Romeo.Must.Die.2000.Open.Matte.1080p.WEB-DL.HEVC.x265.5.1-BONE'],
+  // `Ben.The.Men` is a release group of three bare words. The walk stopped
+  // on the first of them, one token short of the `MULTi-Ben` anchor, and
+  // kept the year and every tag after it in the title.
+  ['movies', 'Movies/Chasing Amy (1997)/Chasing.Amy.1997.1080p.BluRay.REMUX.MULTi-Ben.The.Men.mkv'],
+  ['movies', 'The.Mandalorian.And.Grogu.2026.1080p.BluRay.REMUX.MULTi-Ben.The.Men.nzb'],
+  // The cost of reaching that anchor: `Dts-HDMa7` reads as one too, and
+  // being further left it beats the real `AVC-Pir8`. Title and year go from
+  // wrong to right, the group from right to wrong. Pinned so that trade
+  // stays visible rather than drifting out of the sample.
+  ['movies', 'Movies/Man of Steel (2013)/Man.of.Steel.2013.BluRay.1080p.Dts-HDMa7.1Multi.AVC-Pir8.mkv'],
   ['movies', 'Movies/Interstellar (2014)/00136.m2ts'],
   ['movies', 'Movies/Up (2009)/Up.2009.COMPLETE.UHD.BLURAY-AViATOR.iso'],
   ['tv', 'Red River S01E08 1080p CR WEB-DL AAC2.0 H.264-OldT.nzb'],
