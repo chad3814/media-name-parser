@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tokenize, classifyToken, isJunk, splitGroupSuffix, expandCompound, resolutionAlias } from '../../lib/parse/tokens';
+import { tokenize, classifyToken, isJunk, splitGroupSuffix, expandCompound, impliedResolution } from '../../lib/parse/tokens';
 
 test('an audio channel layout stays one token', () => {
   assert.deepEqual(tokenize('DTS-HD.MA.5.1'), ['DTS-HD', 'MA', '5.1']);
@@ -153,11 +153,26 @@ test('a frame-size word is a resolution, not a medium', () => {
 });
 
 test('a frame-size word carries its canonical resolution', () => {
-  assert.equal(resolutionAlias('4k'), '2160p');
-  assert.equal(resolutionAlias('UHD'), '2160p');
-  assert.equal(resolutionAlias('UltraHD'), '2160p');
-  assert.equal(resolutionAlias('8K'), '4320p');
+  assert.equal(impliedResolution('4k'), '2160p');
+  assert.equal(impliedResolution('UHD'), '2160p');
+  assert.equal(impliedResolution('UltraHD'), '2160p');
+  assert.equal(impliedResolution('8K'), '4320p');
   // A real resolution token is already canonical and is reported verbatim.
-  assert.equal(resolutionAlias('1080p'), null);
-  assert.equal(resolutionAlias('BluRay'), null);
+  assert.equal(impliedResolution('1080p'), null);
+  assert.equal(impliedResolution('BluRay'), null);
+});
+
+test('a broadcast standard implies a resolution without naming one', () => {
+  // `PAL` and `NTSC` are region standards, not frame-size words, so they
+  // stay ancillary -- but each standard fixes a frame size, and reporting
+  // no resolution for `Speed.Racer.2008.PAL.GER.DVD9` threw that away.
+  assert.equal(classifyToken('PAL'), 'ancillary');
+  assert.equal(classifyToken('NTSC'), 'ancillary');
+  assert.equal(impliedResolution('PAL'), '576i');
+  assert.equal(impliedResolution('NTSC'), '480i');
+  // The frame-size words imply their own resolution through the same door.
+  assert.equal(impliedResolution('4k'), '2160p');
+  assert.equal(impliedResolution('UHD'), '2160p');
+  assert.equal(impliedResolution('1080p'), null);
+  assert.equal(impliedResolution('DVD9'), null);
 });

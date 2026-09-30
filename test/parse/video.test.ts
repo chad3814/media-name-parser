@@ -277,3 +277,31 @@ test('a medium fused to a group name is still the medium', () => {
   assert.equal(got.quality.resolution, '2160p');
   assert.equal(got.group, 'UNTOUCHED');
 });
+
+test('a PAL disc reports the frame size the standard fixes', () => {
+  const got = ok('movies', 'Speed.Racer.2008.PAL.GER.DVD9-AndreMor');
+  assert.equal(got.quality.resolution, '576i');
+  assert.equal(got.quality.source, 'DVD9');
+  assert.equal(got.title, 'Speed Racer');
+  assert.equal(got.year, 2008);
+});
+
+test('an NTSC disc reports its own standard, not the other one', () => {
+  const got = ok('movies', 'Spirit.Untamed.2021.NTSC.USA.DVD5-AndreMor');
+  assert.equal(got.quality.resolution, '480i');
+  assert.equal(got.quality.source, 'DVD5');
+  assert.equal(got.title, 'Spirit Untamed');
+  assert.equal(got.year, 2021);
+});
+
+test('a European region tag does not stop the walk where the American one does not', () => {
+  // `USA` was ancillary vocabulary and `EUR` was nothing, so the walk
+  // stopped on it and kept `PAL`, the edition and the year in the title --
+  // which also meant the PAL standard never reached extraction.
+  const got = ok('movies', 'Space.Buddies.2009.WIDESCREEN.PAL.EUR.DVD9-AndreMor.nzb');
+  assert.equal(got.title, 'Space Buddies');
+  assert.equal(got.year, 2009);
+  assert.equal(got.quality.resolution, '576i');
+  assert.equal(got.quality.source, 'DVD9');
+  assert.deepEqual(got.edition, ['WIDESCREEN']);
+});

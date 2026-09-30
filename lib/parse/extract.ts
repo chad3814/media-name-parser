@@ -1,4 +1,4 @@
-import { classifyToken, expandCompound, resolutionAlias, splitGroupSuffix } from './tokens';
+import { classifyToken, expandCompound, impliedResolution, splitGroupSuffix } from './tokens';
 import type { Quality } from './types';
 
 /**
@@ -28,9 +28,9 @@ export function extractQuality(tokens: readonly string[]): Quality {
       : raw;
     switch (classifyToken(token)) {
       case 'resolution': {
-        const alias = resolutionAlias(token);
-        if (alias === null) resolution ??= token;
-        else aliased ??= alias;
+        const implied = impliedResolution(token);
+        if (implied === null) resolution ??= token;
+        else aliased ??= implied;
         break;
       }
       case 'source': source ??= token; break;
@@ -38,7 +38,10 @@ export function extractQuality(tokens: readonly string[]): Quality {
       case 'audioCodec': audioCodec ??= token; break;
       case 'hdr': hdr.push(token); break;
       case 'threeD': threeD.push(token); break;
-      default: break;
+      // A broadcast standard stays ancillary -- it names a region, not a
+      // frame size -- but it fixes one, so it can still answer when nothing
+      // else does.
+      default: aliased ??= impliedResolution(token); break;
     }
   }
   return { resolution: resolution ?? aliased, source, videoCodec, audioCodec, hdr, threeD };

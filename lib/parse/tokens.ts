@@ -43,12 +43,31 @@ const RESOLUTION_ALIAS = new Map<string, string>([
 ]);
 
 /**
- * The resolution a frame-size word stands for, or null for anything else --
- * including a real resolution token, which is already canonical and is
- * reported as it was written.
+ * Broadcast standards and the frame size each one fixes.
+ *
+ * Unlike the frame-size words above, these name a region standard and not a
+ * resolution, so they stay `ancillary` -- `PAL` is not a way of writing
+ * `576i`. But a PAL disc is 720x576 and an NTSC disc is 720x480 by
+ * definition, so `Speed.Racer.2008.PAL.GER.DVD9` and
+ * `Spirit.Untamed.2021.NTSC.USA.DVD5` do say what size they are. All 90 in
+ * the corpus are SD discs, and none states a resolution of its own.
  */
-export function resolutionAlias(token: string): string | null {
-  return RESOLUTION_ALIAS.get(token.toUpperCase()) ?? null;
+const STANDARD_RESOLUTION = new Map<string, string>([
+  ['PAL', '576i'], ['NTSC', '480i'],
+]);
+
+/**
+ * The resolution a token implies without stating it -- a frame-size word
+ * such as `4K`, or a broadcast standard such as `PAL`. Null for anything
+ * else, including a real resolution token, which is already canonical and is
+ * reported as it was written.
+ *
+ * Implied resolutions rank below a stated one; `extractQuality` owns that
+ * order, because `UHD.BluRay.1080p` really is 1080p.
+ */
+export function impliedResolution(token: string): string | null {
+  const upper = token.toUpperCase();
+  return RESOLUTION_ALIAS.get(upper) ?? STANDARD_RESOLUTION.get(upper) ?? null;
 }
 
 const VIDEO_CODEC = new Set([
@@ -146,6 +165,11 @@ const THREE_D = new Set([
 const ANCILLARY = new Set([
   'NTSC', 'PAL', 'USA', 'HYBRID', 'DEF', 'HQ', 'LQ', 'SD', 'HD', 'FHD',
   'RERIP', 'READNFO', 'DL',
+  // The region tag beside `USA`, which was already here. Without it the walk
+  // stopped on `EUR` and `Space.Buddies.2009.WIDESCREEN.PAL.EUR.DVD9` kept
+  // its year and its edition in the title -- and never reached the `PAL`
+  // behind it, so the standard could not say what size the disc was.
+  'EUR',
   // Site and uploader tags. Dot-splitting destroys the domain shape of
   // `yts.gg-yts.bz`, so the fragments are listed individually.
   'YTS', 'GG', 'BZ', 'MX', 'RARBG', 'TGX', 'GALAXYRG', '1337X',
