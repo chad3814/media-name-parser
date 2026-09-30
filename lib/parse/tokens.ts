@@ -14,11 +14,61 @@ export type TokenClass =
 const SOURCE = new Set([
   'WEB-DL', 'WEBDL', 'WEB', 'WEBRIP', 'WEB-RIP', 'SITERIP', 'BLURAY', 'BLU-RAY',
   'BDRIP', 'BRRIP', 'DVDRIP', 'HDTV', 'AHDTV', 'SDTV', 'PDTV', 'DVD', 'DVD5',
-  'DVD9', 'DVDR', 'REMUX', 'SATFEED', 'LIVESTREAM', 'UHD', 'HDDVD', 'VHS',
+  'DVD9', 'DVDR', 'REMUX', 'SATFEED', 'LIVESTREAM', 'HDDVD', 'VHS',
   'SCREENER', 'CAM', 'TS',
   // From the corpus blocking-token census.
-  'BLURAYRIP', 'BR', 'ULTRAHD', '4K', '8K', 'HDLIGHT', 'WEBDLRIP', 'BDMV',
+  'BLURAYRIP', 'BR', 'HDLIGHT', 'WEBDLRIP', 'BDMV',
 ]);
+
+/**
+ * Frame-size words and the resolution each one means.
+ *
+ * These were in `SOURCE` until they were not. They came from the same
+ * blocking-token census as the entries above, where the only requirement was
+ * that a token classify as *something* so it would not stop the boundary
+ * walk, and `SOURCE` served. But a source is the medium a release was made
+ * from -- BluRay, WEB-DL, HDTV, DVD -- and none of these names one, so
+ * `Baeb.17.06.16.Jill.Kassidy.4k` reported a medium of `4k` and no
+ * resolution, and `Evil.Dead.II.1987-COMPLETE.UHD.BLURAY` reported `UHD`
+ * and lost the disc it actually came from.
+ *
+ * `UHD` is the arguable one, because `UHD Blu-ray` is a real medium. It goes
+ * here anyway: across the corpus it never carries that meaning alone, and
+ * wherever the medium matters an explicit `BLURAY` sits beside it, so
+ * reading it as a frame size gets both fields right instead of trading one
+ * for the other.
+ */
+const RESOLUTION_ALIAS = new Map<string, string>([
+  ['4K', '2160p'], ['UHD', '2160p'], ['ULTRAHD', '2160p'], ['8K', '4320p'],
+]);
+
+/**
+ * Broadcast standards and the frame size each one fixes.
+ *
+ * Unlike the frame-size words above, these name a region standard and not a
+ * resolution, so they stay `ancillary` -- `PAL` is not a way of writing
+ * `576i`. But a PAL disc is 720x576 and an NTSC disc is 720x480 by
+ * definition, so `Speed.Racer.2008.PAL.GER.DVD9` and
+ * `Spirit.Untamed.2021.NTSC.USA.DVD5` do say what size they are. All 90 in
+ * the corpus are SD discs, and none states a resolution of its own.
+ */
+const STANDARD_RESOLUTION = new Map<string, string>([
+  ['PAL', '576i'], ['NTSC', '480i'],
+]);
+
+/**
+ * The resolution a token implies without stating it -- a frame-size word
+ * such as `4K`, or a broadcast standard such as `PAL`. Null for anything
+ * else, including a real resolution token, which is already canonical and is
+ * reported as it was written.
+ *
+ * Implied resolutions rank below a stated one; `extractQuality` owns that
+ * order, because `UHD.BluRay.1080p` really is 1080p.
+ */
+export function impliedResolution(token: string): string | null {
+  const upper = token.toUpperCase();
+  return RESOLUTION_ALIAS.get(upper) ?? STANDARD_RESOLUTION.get(upper) ?? null;
+}
 
 const VIDEO_CODEC = new Set([
   'X264', 'X265', 'H264', 'H265', 'H.264', 'H.265', 'HEVC', 'AVC', 'AV1',
@@ -115,6 +165,11 @@ const THREE_D = new Set([
 const ANCILLARY = new Set([
   'NTSC', 'PAL', 'USA', 'HYBRID', 'DEF', 'HQ', 'LQ', 'SD', 'HD', 'FHD',
   'RERIP', 'READNFO', 'DL',
+  // The region tag beside `USA`, which was already here. Without it the walk
+  // stopped on `EUR` and `Space.Buddies.2009.WIDESCREEN.PAL.EUR.DVD9` kept
+  // its year and its edition in the title -- and never reached the `PAL`
+  // behind it, so the standard could not say what size the disc was.
+  'EUR',
   // Site and uploader tags. Dot-splitting destroys the domain shape of
   // `yts.gg-yts.bz`, so the fragments are listed individually.
   'YTS', 'GG', 'BZ', 'MX', 'RARBG', 'TGX', 'GALAXYRG', '1337X',
@@ -140,7 +195,7 @@ function canonical(token: string): string {
 export function classifyToken(token: string): TokenClass | null {
   if (token.length === 0) return null;
   const upper = canonical(token);
-  if (RESOLUTION.test(token)) return 'resolution';
+  if (RESOLUTION.test(token) || RESOLUTION_ALIAS.has(upper)) return 'resolution';
   // Sonarr writes quality as `Source-Resolution`: `Bluray-2160p`, `HDTV-720p`,
   // `WEBDL-1080p`. When every hyphen part is vocabulary the whole token is
   // too, and it takes the class of its first part. A token with a

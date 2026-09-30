@@ -46,6 +46,15 @@ const PINNED: readonly (readonly [Category, string])[] = [
   // wrong to right, the group from right to wrong. Pinned so that trade
   // stays visible rather than drifting out of the sample.
   ['movies', 'Movies/Man of Steel (2013)/Man.of.Steel.2013.BluRay.1080p.Dts-HDMa7.1Multi.AVC-Pir8.mkv'],
+  // `UHD` named a medium it is not, and the disc it came from was fused to
+  // the group, so these reported no frame size and a source of `UHD`.
+  ['movies', 'Movies/Evil Dead II (1987)/Evil.Dead.II.1987-COMPLETE.UHD.BLURAY-UNTOUCHED.ISO'],
+  ['movies', 'King.Richard.2021.COMPLETE.UHD.BLURAY-B0MBARDiERS-AsRequested.nzb'],
+  // A broadcast standard fixes a frame size, and `EUR` -- the region tag
+  // beside the `USA` that was already vocabulary -- stopped the walk before
+  // the `PAL` behind it could say so.
+  ['movies', 'Space.Buddies.2009.WIDESCREEN.PAL.EUR.DVD9-AndreMor.nzb'],
+  ['movies', 'Spirit.Untamed.2021.NTSC.USA.DVD5-AndreMor'],
   ['movies', 'Movies/Interstellar (2014)/00136.m2ts'],
   ['movies', 'Movies/Up (2009)/Up.2009.COMPLETE.UHD.BLURAY-AViATOR.iso'],
   ['tv', 'Red River S01E08 1080p CR WEB-DL AAC2.0 H.264-OldT.nzb'],
