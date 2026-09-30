@@ -292,3 +292,14 @@ test('the scene module uses no clock, no randomness, and no environment reads', 
     assert.ok(!pattern.test(source), `lib/parse/scene.ts matches forbidden pattern ${pattern}`);
   }
 });
+
+test('a scene named only 4k reports the frame size, not a medium', () => {
+  // The reported case. `4k` was source vocabulary, so the parse claimed a
+  // medium of `4k` and reported no frame size at all. 1,288 corpus scenes
+  // have this shape -- they name a frame size and no medium, and a null
+  // source is the honest answer for them.
+  const result = parseVideo('xxx', 'Baeb.17.06.16.Jill.Kassidy.4k');
+  if (!result.ok) throw new Error(`refused: ${result.refusal}`);
+  assert.equal(result.parsed.quality.resolution, '2160p');
+  assert.equal(result.parsed.quality.source, null);
+});

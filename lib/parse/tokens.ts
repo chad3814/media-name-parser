@@ -14,11 +14,42 @@ export type TokenClass =
 const SOURCE = new Set([
   'WEB-DL', 'WEBDL', 'WEB', 'WEBRIP', 'WEB-RIP', 'SITERIP', 'BLURAY', 'BLU-RAY',
   'BDRIP', 'BRRIP', 'DVDRIP', 'HDTV', 'AHDTV', 'SDTV', 'PDTV', 'DVD', 'DVD5',
-  'DVD9', 'DVDR', 'REMUX', 'SATFEED', 'LIVESTREAM', 'UHD', 'HDDVD', 'VHS',
+  'DVD9', 'DVDR', 'REMUX', 'SATFEED', 'LIVESTREAM', 'HDDVD', 'VHS',
   'SCREENER', 'CAM', 'TS',
   // From the corpus blocking-token census.
-  'BLURAYRIP', 'BR', 'ULTRAHD', '4K', '8K', 'HDLIGHT', 'WEBDLRIP', 'BDMV',
+  'BLURAYRIP', 'BR', 'HDLIGHT', 'WEBDLRIP', 'BDMV',
 ]);
+
+/**
+ * Frame-size words and the resolution each one means.
+ *
+ * These were in `SOURCE` until they were not. They came from the same
+ * blocking-token census as the entries above, where the only requirement was
+ * that a token classify as *something* so it would not stop the boundary
+ * walk, and `SOURCE` served. But a source is the medium a release was made
+ * from -- BluRay, WEB-DL, HDTV, DVD -- and none of these names one, so
+ * `Baeb.17.06.16.Jill.Kassidy.4k` reported a medium of `4k` and no
+ * resolution, and `Evil.Dead.II.1987-COMPLETE.UHD.BLURAY` reported `UHD`
+ * and lost the disc it actually came from.
+ *
+ * `UHD` is the arguable one, because `UHD Blu-ray` is a real medium. It goes
+ * here anyway: across the corpus it never carries that meaning alone, and
+ * wherever the medium matters an explicit `BLURAY` sits beside it, so
+ * reading it as a frame size gets both fields right instead of trading one
+ * for the other.
+ */
+const RESOLUTION_ALIAS = new Map<string, string>([
+  ['4K', '2160p'], ['UHD', '2160p'], ['ULTRAHD', '2160p'], ['8K', '4320p'],
+]);
+
+/**
+ * The resolution a frame-size word stands for, or null for anything else --
+ * including a real resolution token, which is already canonical and is
+ * reported as it was written.
+ */
+export function resolutionAlias(token: string): string | null {
+  return RESOLUTION_ALIAS.get(token.toUpperCase()) ?? null;
+}
 
 const VIDEO_CODEC = new Set([
   'X264', 'X265', 'H264', 'H265', 'H.264', 'H.265', 'HEVC', 'AVC', 'AV1',
@@ -140,7 +171,7 @@ function canonical(token: string): string {
 export function classifyToken(token: string): TokenClass | null {
   if (token.length === 0) return null;
   const upper = canonical(token);
-  if (RESOLUTION.test(token)) return 'resolution';
+  if (RESOLUTION.test(token) || RESOLUTION_ALIAS.has(upper)) return 'resolution';
   // Sonarr writes quality as `Source-Resolution`: `Bluray-2160p`, `HDTV-720p`,
   // `WEBDL-1080p`. When every hyphen part is vocabulary the whole token is
   // too, and it takes the class of its first part. A token with a

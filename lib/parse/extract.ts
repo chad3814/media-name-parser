@@ -1,4 +1,4 @@
-import { classifyToken, expandCompound } from './tokens';
+import { classifyToken, expandCompound, resolutionAlias, splitGroupSuffix } from './tokens';
 import type { Quality } from './types';
 
 /**
@@ -9,17 +9,30 @@ import type { Quality } from './types';
  */
 export function extractQuality(tokens: readonly string[]): Quality {
   let resolution: string | null = null;
+  // A frame-size word is worth less than a number. `UHD.BluRay.1080p` is a
+  // 1080p encode of a UHD disc and really is 1080p, so an explicit token
+  // wins wherever it sits -- ten corpus names have the alias first.
+  let aliased: string | null = null;
   let source: string | null = null;
   let videoCodec: string | null = null;
   let audioCodec: string | null = null;
   const hdr: string[] = [];
   const threeD: string[] = [];
   // `Bluray-2160p` must contribute both halves, so compounds are expanded.
-  for (const token of tokens.flatMap((t) => [...expandCompound(t)])) {
+  for (const raw of tokens.flatMap((t) => [...expandCompound(t)])) {
+    // A group name fused to a tag hides the tag: `BLURAY-UNTOUCHED` and
+    // `5.1-UnKn0wn` classify as nothing, because their right half is a group
+    // and not vocabulary. The left half still says what it always said.
+    const token = classifyToken(raw) === null
+      ? splitGroupSuffix(raw)?.head ?? raw
+      : raw;
     switch (classifyToken(token)) {
-      case 'resolution': resolution ??= token; break;
-      // `UHD` classifies as a source; an explicit `1080p` elsewhere still wins
-      // because `resolution` is set only from the resolution class.
+      case 'resolution': {
+        const alias = resolutionAlias(token);
+        if (alias === null) resolution ??= token;
+        else aliased ??= alias;
+        break;
+      }
       case 'source': source ??= token; break;
       case 'videoCodec': videoCodec ??= token; break;
       case 'audioCodec': audioCodec ??= token; break;
@@ -28,7 +41,7 @@ export function extractQuality(tokens: readonly string[]): Quality {
       default: break;
     }
   }
-  return { resolution, source, videoCodec, audioCodec, hdr, threeD };
+  return { resolution: resolution ?? aliased, source, videoCodec, audioCodec, hdr, threeD };
 }
 
 export function collect(tokens: readonly string[], want: 'edition' | 'language'): readonly string[] {

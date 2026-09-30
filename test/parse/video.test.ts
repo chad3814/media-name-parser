@@ -249,3 +249,31 @@ test('a release group named in several words keeps the title and the year', () =
   assert.equal(result.parsed.year, 2019);
   assert.equal(result.parsed.group, 'Ben.The.Men');
 });
+
+test('a UHD BluRay rip reports the disc as its source and its real frame size', () => {
+  // `UHD` named the medium, so the medium it was actually made from was
+  // dropped and the frame size went unreported.
+  const got = ok('movies', 'Movies/Evil Dead II (1987)/Evil.Dead.II.1987-COMPLETE.UHD.BLURAY.iso');
+  assert.equal(got.quality.source, 'BLURAY');
+  assert.equal(got.quality.resolution, '2160p');
+});
+
+test('an explicit frame size beats the disc it was made from', () => {
+  // A 1080p encode off a UHD BluRay is 1080p. Ten corpus names have this
+  // shape, and order must not decide it: `UHD` comes first.
+  const got = ok('movies', 'Mortal.Kombat.II.2026.UHD.BluRay.1080p.DD+Atmos.5.1.DoVi.HDR10+.x265-SM737.nzb');
+  assert.equal(got.quality.resolution, '1080p');
+  assert.equal(got.quality.source, 'BluRay');
+});
+
+test('a medium fused to a group name is still the medium', () => {
+  // `BLURAY-UNTOUCHED` classifies as nothing -- its group half is not
+  // vocabulary -- so the disc went unreported and `UHD` was the only thing
+  // supplying a source. Once `UHD` became a resolution, 72 corpus names of
+  // this shape had no source at all, though the medium is right there in
+  // the name. `splitGroupSuffix` already separates the two.
+  const got = ok('movies', 'Movies/Evil Dead II (1987)/Evil.Dead.II.1987-COMPLETE.UHD.BLURAY-UNTOUCHED.ISO');
+  assert.equal(got.quality.source, 'BLURAY');
+  assert.equal(got.quality.resolution, '2160p');
+  assert.equal(got.group, 'UNTOUCHED');
+});
