@@ -96,6 +96,7 @@ test('the xxx path is deliberately left alone', () => {
   if (!result.ok) throw new Error('refused');
   assert.equal(result.parsed.kind, 'scene');
   if (result.parsed.kind !== 'scene') return;
-  assert.equal(result.parsed.site, 'PureTaboo com', 'the studio is the site, not a group');
+  // `com` is the domain's other half, not part of the studio's name.
+  assert.equal(result.parsed.site, 'PureTaboo', 'the studio is the site, not a group');
   assert.equal(result.parsed.releasedOn, '2020-04-01');
 });
