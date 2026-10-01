@@ -356,3 +356,16 @@ test('a bare TLD with no name in front of it is not a domain', () => {
   if (result.parsed.kind !== 'scene') throw new Error('expected a scene');
   assert.equal(result.parsed.site, 'com');
 });
+
+test('performer names after the resolution do not shadow it', () => {
+  // The second reported name. Its tail is `1080p Martin Spell`, and the two
+  // trailing performer names put the `1080p` in a title region that the
+  // late-date branch discards -- so the domain fix alone left it unreported.
+  const result = parseVideo('xxx', 'Anabel.Busty.The.Perfect.Innocent.Sex.Doll.Made.for.Pleasure.2026.08.13.1080p.PornBox.com.Martin.Spell');
+  if (!result.ok) throw new Error(`refused: ${result.refusal}`);
+  if (result.parsed.kind !== 'scene') throw new Error('expected a scene');
+  assert.equal(result.parsed.quality.resolution, '1080p');
+  assert.equal(result.parsed.site, 'PornBox');
+  assert.equal(result.parsed.releasedOn, '2026-08-13');
+  assert.equal(result.parsed.title, 'Anabel Busty The Perfect Innocent Sex Doll Made for Pleasure');
+});

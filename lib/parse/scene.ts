@@ -297,7 +297,14 @@ export function parseScene(
     const headRegion = findTitleRegion(headTitleTokens);
     const tailBoundary = findBoundary(located.restTokens);
     const title = titleFrom(withoutSceneJunk(headRegion.titleTokens));
-    const junk = [...headRegion.junkTokens, ...tailBoundary.junkTokens];
+    // The whole tail, not just what `findBoundary` called junk. This branch
+    // already holds that the tail has no title left in it, and bare words
+    // there shadow the quality in front of them: the tail of
+    // `...2026.08.13.1080p.PornBox.com.Martin.Spell` is `1080p Martin Spell`,
+    // and two trailing performer names put the `1080p` in a title region
+    // that this branch discards. `findBoundary` is still what finds the
+    // group.
+    const junk = [...headRegion.junkTokens, ...located.restTokens];
     return {
       ok: true,
       parsed: {
