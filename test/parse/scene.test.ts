@@ -303,3 +303,69 @@ test('a scene named only 4k reports the frame size, not a medium', () => {
   assert.equal(result.parsed.quality.resolution, '2160p');
   assert.equal(result.parsed.quality.source, null);
 });
+
+test('a trailing domain names the site and stops blocking the walk', () => {
+  // The reported case. `PornBox` and `com` are not vocabulary, so the
+  // backwards walk stopped on them and the `1080p` and the year behind them
+  // stayed in the title.
+  const result = parseVideo('xxx', 'Anabel.Busty.Shes.So.Innocent.And.Lustful.Stepdad.Taught.Her.How.To.Fuck.Like.A.Good.Girl.2026.1080p.PornBox.com');
+  if (!result.ok) throw new Error(`refused: ${result.refusal}`);
+  if (result.parsed.kind !== 'scene') throw new Error('expected a scene');
+  assert.equal(result.parsed.title, 'Anabel Busty Shes So Innocent And Lustful Stepdad Taught Her How To Fuck Like A Good Girl');
+  assert.equal(result.parsed.year, 2026);
+  assert.equal(result.parsed.quality.resolution, '1080p');
+  assert.equal(result.parsed.site, 'PornBox');
+});
+
+test('a trailing domain behind a date is the site, not the performers in front of it', () => {
+  // `Angelina Castro` is a performer. The head before the date is only a
+  // positional guess at the site; the domain is the name stated outright.
+  const result = parseVideo('xxx', 'Angelina.Castro.05.11.10.1080p.NeighborAffair.com.nzb');
+  if (!result.ok) throw new Error(`refused: ${result.refusal}`);
+  if (result.parsed.kind !== 'scene') throw new Error('expected a scene');
+  assert.equal(result.parsed.site, 'NeighborAffair');
+  assert.equal(result.parsed.quality.resolution, '1080p');
+});
+
+test('a leading domain leaves neither half in the title', () => {
+  // `AdultTime.com.Jade...` kept a bare `com` as the first word of the
+  // title; 366 corpus names carried the domain into the title this way.
+  const result = parseVideo('xxx', 'AdultTime.com.Jade.Venus.and.Charlotte.Sins.2160p');
+  if (!result.ok) throw new Error(`refused: ${result.refusal}`);
+  if (result.parsed.kind !== 'scene') throw new Error('expected a scene');
+  assert.equal(result.parsed.title, 'Jade Venus and Charlotte Sins');
+  assert.equal(result.parsed.site, 'AdultTime');
+  assert.equal(result.parsed.quality.resolution, '2160p');
+});
+
+test('a directory site still outranks the filename domain', () => {
+  // 19% of library names disagree with their directory, and the directory
+  // deliberately wins. The domain only removes its own two tokens here.
+  const result = parseVideo('xxx', 'Scenes/2ChicksSameTime/NaughtyAmerica.com.Siterip.December.2020.2160p.mp4');
+  if (!result.ok) throw new Error(`refused: ${result.refusal}`);
+  if (result.parsed.kind !== 'scene') throw new Error('expected a scene');
+  assert.equal(result.parsed.site, '2ChicksSameTime');
+  assert.ok(!/\bcom\b/.test(result.parsed.title), `domain in title: ${result.parsed.title}`);
+});
+
+test('a bare TLD with no name in front of it is not a domain', () => {
+  // Two corpus names have one. There is nothing for it to be the site of,
+  // so it is left exactly where it was rather than eating its neighbour.
+  const result = parseVideo('xxx', 'com.18.05.04.Some.Scene.1080p');
+  if (!result.ok) throw new Error(`refused: ${result.refusal}`);
+  if (result.parsed.kind !== 'scene') throw new Error('expected a scene');
+  assert.equal(result.parsed.site, 'com');
+});
+
+test('performer names after the resolution do not shadow it', () => {
+  // The second reported name. Its tail is `1080p Martin Spell`, and the two
+  // trailing performer names put the `1080p` in a title region that the
+  // late-date branch discards -- so the domain fix alone left it unreported.
+  const result = parseVideo('xxx', 'Anabel.Busty.The.Perfect.Innocent.Sex.Doll.Made.for.Pleasure.2026.08.13.1080p.PornBox.com.Martin.Spell');
+  if (!result.ok) throw new Error(`refused: ${result.refusal}`);
+  if (result.parsed.kind !== 'scene') throw new Error('expected a scene');
+  assert.equal(result.parsed.quality.resolution, '1080p');
+  assert.equal(result.parsed.site, 'PornBox');
+  assert.equal(result.parsed.releasedOn, '2026-08-13');
+  assert.equal(result.parsed.title, 'Anabel Busty The Perfect Innocent Sex Doll Made for Pleasure');
+});

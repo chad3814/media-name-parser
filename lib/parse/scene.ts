@@ -201,6 +201,55 @@ function splitLateSiteHead(
 }
 
 /**
+ * The top-level domains a scene filename actually writes, and only those.
+ *
+ * Deliberately absent: `xxx`, which is the category tag and appears 7,661
+ * times in the corpus against 464 for `com`; `cc` and `co`, which are
+ * ordinary name fragments -- `BBCPie.26.07.25.CC.Wilde...` is a performer,
+ * and reading `CC` as a domain would eat the name in front of it; and `tv`,
+ * which is a quality/network word as often as a domain.
+ */
+const DOMAIN_TLD = new Set(['com', 'net', 'org']);
+
+interface DomainSplit {
+  readonly tokens: readonly string[];
+  readonly site: string | null;
+}
+
+/**
+ * The `<Name>.com` domains lifted out of a token run, and the site the first
+ * one names.
+ *
+ * A domain is a bare TLD token with a non-vocabulary token in front of it.
+ * Both halves come out, because neither is title text: 466 corpus names
+ * carry a domain and 366 of them kept it in the title, a bare `com` among
+ * the words. Removing them is also what lets the boundary walk past them --
+ * `...Good.Girl.2026.1080p.PornBox.com` stopped on `PornBox` and left the
+ * resolution and the year stranded in the title, and 97 names lose a stated
+ * resolution that way.
+ *
+ * A TLD with nothing or only vocabulary in front of it is not a domain and
+ * is left alone; two corpus names are that shape. Every domain is removed
+ * but only the first names the site, for `MILFOverload.com_AdultTime.com`.
+ */
+function extractDomainSite(tokens: readonly string[]): DomainSplit {
+  const kept: string[] = [];
+  let site: string | null = null;
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    if (token === undefined) continue;
+    const next = tokens[i + 1];
+    if (next !== undefined && DOMAIN_TLD.has(next.toLowerCase()) && !isJunk(token)) {
+      site ??= token;
+      i += 1;
+      continue;
+    }
+    kept.push(token);
+  }
+  return { tokens: kept, site };
+}
+
+/**
  * A scene filename or library path to a structured parse.
  *
  * Performers are deliberately NOT split out of the title -- the whole
@@ -219,7 +268,11 @@ export function parseScene(
   externalId: { readonly externalId?: ExternalId } = {},
 ): ParseResult {
   const rawTokens = tokenize(split.stem);
-  const { tokens, group: trailingGroup } = extractTrailingGroup(rawTokens);
+  // Before anything else, so all three branches below see the same run with
+  // the domain already gone -- and so the boundary walks can reach what was
+  // sitting behind it.
+  const domain = extractDomainSite(rawTokens);
+  const { tokens, group: trailingGroup } = extractTrailingGroup(domain.tokens);
   const located = locateSceneDate(tokens);
   const categoryDisagreement = SEASON_EPISODE_MARKER.test(split.stem);
   // Every ancestor is recorded unconditionally -- unlike the movies/tv path,
@@ -237,12 +290,21 @@ export function parseScene(
     // `findTitleRegion`, and the head's own trailing junk (rare, but a
     // `REMASTERED` before the date is not impossible) still goes through
     // `findTitleRegion` for the same reason the with-date branch below does.
-    const ancestorSite = split.ancestors[0] ?? null;
+    // The directory first, then the domain the filename stated, then
+    // `splitLateSiteHead`'s positional guess at the head's first token.
+    const ancestorSite = split.ancestors[0] ?? domain.site;
     const { site, titleTokens: headTitleTokens } = splitLateSiteHead(located.siteTokens, ancestorSite);
     const headRegion = findTitleRegion(headTitleTokens);
     const tailBoundary = findBoundary(located.restTokens);
     const title = titleFrom(withoutSceneJunk(headRegion.titleTokens));
-    const junk = [...headRegion.junkTokens, ...tailBoundary.junkTokens];
+    // The whole tail, not just what `findBoundary` called junk. This branch
+    // already holds that the tail has no title left in it, and bare words
+    // there shadow the quality in front of them: the tail of
+    // `...2026.08.13.1080p.PornBox.com.Martin.Spell` is `1080p Martin Spell`,
+    // and two trailing performer names put the `1080p` in a title region
+    // that this branch discards. `findBoundary` is still what finds the
+    // group.
+    const junk = [...headRegion.junkTokens, ...located.restTokens];
     return {
       ok: true,
       parsed: {
@@ -270,7 +332,19 @@ export function parseScene(
     // release group, which would misread a title like `Alternative Angles`.
     const region = findTitleRegion(located.restTokens);
     const title = titleFrom(withoutSceneJunk(region.titleTokens));
-    const site = located.siteTokens.length > 0 ? titleFrom(located.siteTokens) : null;
+    // Without a domain, the head before the date is the site, as it always
+    // was -- this branch lets the filename outrank the directory and 19% of
+    // library names disagree, so that is not a choice to revisit here.
+    //
+    // With one, the head is only a positional guess and on these names it
+    // is the performers: `Angelina.Castro.05.11.10.1080p.NeighborAffair.com`
+    // would call `Angelina Castro` the site. The domain beats the guess, and
+    // the directory beats the domain -- removing the domain can shorten a
+    // head below `SITE_HEAD_TOKEN_CAP` and move a name out of the late-date
+    // branch, which does consult the directory, and the answer must not
+    // depend on which branch the name landed in.
+    const headSite = located.siteTokens.length > 0 ? titleFrom(located.siteTokens) : null;
+    const site = domain.site === null ? headSite : split.ancestors[0] ?? domain.site;
     return {
       ok: true,
       parsed: {
@@ -278,7 +352,7 @@ export function parseScene(
       kind: 'scene',
         title,
         year: Number.parseInt(located.iso.slice(0, 4), 10),
-        quality: extractQuality(region.junkTokens),
+        quality: extractQuality([...region.junkTokens, ...located.siteTokens]),
         edition: collect(region.junkTokens, 'edition'),
         language: collect(region.junkTokens, 'language'),
         group: trailingGroup,
@@ -310,7 +384,7 @@ export function parseScene(
   // Stripping first removes the duplicate before that heuristic ever runs,
   // so `findBoundary` sees the same one-token input either way `Mariska`
   // would have arrived as if the filename never repeated the site at all.
-  const noDateSite = split.ancestors[0] ?? null;
+  const noDateSite = split.ancestors[0] ?? domain.site;
   const noDateTokens = noDateSite === null ? tokens : stripLeadingSiteToken(tokens, noDateSite);
   const boundary = findBoundary(noDateTokens);
   const title = titleFrom(withoutSceneJunk(boundary.titleTokens));
